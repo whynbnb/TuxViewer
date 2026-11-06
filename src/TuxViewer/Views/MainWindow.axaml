@@ -687,6 +687,40 @@
                 </Grid>
               </TabItem>
 
+              <TabItem Header="热键">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="10">
+                    <TextBlock Text="全局拾取热键" Classes="section" />
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                      <Button Content="{Binding GlobalHotkeyButtonText}" Click="ToggleHotkey_Click"
+                              Classes="pick" FontSize="11" Padding="10,4" />
+                      <TextBlock Grid.Column="1" Text="{Binding GlobalHotkeyStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" />
+                      <Border Grid.Column="2" Classes="badge accent">
+                        <TextBlock Text="Ctrl+Alt+X" />
+                      </Border>
+                    </Grid>
+                    <TextBlock Classes="hint"
+                               Text="启用后通过 X11 XGrabKey 注册系统级 Ctrl+Alt+X。X11 会话可直接使用；Wayland 会话只有合成器把按键路由到 XWayland 时才生效，因此下方同时提供各合成器原生快捷键配置。" />
+
+                    <Border Classes="divider" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="合成器快捷键配置" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="复制配置" Click="CopyHotkey_Click"
+                              Classes="ghost" FontSize="11" Padding="9,4" />
+                    </Grid>
+                    <TextBox Text="{Binding HotkeyConfig}" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="NoWrap"
+                             FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                             FontSize="12" MinHeight="250"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    <TextBlock Classes="hint"
+                               Text="将对应行加入合成器配置并重载后，按下 Super+Shift+X 会启动 TuxViewer 的 X11 拾取模式。适合 Wayland 原生窗口（XWayland 窗口）以及 niri / Sway / Hyprland。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">

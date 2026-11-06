@@ -196,6 +196,15 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildAtspiText());
     }
 
+    private void ToggleHotkey_Click(object? sender, RoutedEventArgs e) => ViewModel?.ToggleGlobalHotkey();
+
+    private async void CopyHotkey_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildHotkeyText());
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;

@@ -264,6 +264,17 @@ internal static class X11Native
     public static extern int XUngrabKeyboard(IntPtr display, ulong time);
 
     [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XGrabKey(
+        IntPtr display, int keycode, uint modifiers, IntPtr grabWindow,
+        bool ownerEvents, int pointerMode, int keyboardMode);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XUngrabKey(IntPtr display, int keycode, uint modifiers, IntPtr grabWindow);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nuint XStringToKeysym(string name);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
     public static extern int XQueryPointer(
         IntPtr display, IntPtr window, out IntPtr rootReturn, out IntPtr childReturn,
         out int rootXReturn, out int rootYReturn, out int winXReturn, out int winYReturn,

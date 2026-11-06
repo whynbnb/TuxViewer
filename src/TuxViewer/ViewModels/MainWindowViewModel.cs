@@ -96,6 +96,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _atspiStatus = "尚未加载";
     private string _atspiCountText = "";
 
+    private readonly GlobalHotkeyService _globalHotkey = new();
+    private bool _globalHotkeyEnabled;
+    private string _globalHotkeyStatus = "未启用";
+
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
@@ -130,6 +134,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool AutoCapture { get; set; }
     public bool AutoRecord { get; set; }
     public bool AutoLoadAtspi { get; set; }
+    public bool AutoHotkey { get; set; }
 
     public int SelectedTabIndex
     {
@@ -378,6 +383,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasAtspiTree => AtspiTree.Count > 0;
+
+    public bool GlobalHotkeyEnabled
+    {
+        get => _globalHotkeyEnabled;
+        private set
+        {
+            if (!Set(ref _globalHotkeyEnabled, value)) return;
+            OnPropertyChanged(nameof(GlobalHotkeyButtonText));
+        }
+    }
+
+    public string GlobalHotkeyButtonText => _globalHotkeyEnabled ? "停用全局热键" : "启用全局热键";
+
+    public string GlobalHotkeyStatus
+    {
+        get => _globalHotkeyStatus;
+        private set => Set(ref _globalHotkeyStatus, value);
+    }
+
+    public string HotkeyConfig => GlobalHotkeyService.BuildCompositorConfig();
 
     public bool X11RecordEnabled
     {
@@ -631,6 +656,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (AutoCapture) await CaptureScreenshotAsync();
             if (AutoRecord) await ToggleX11RecordAsync();
             if (AutoLoadAtspi) await LoadAtspiAsync();
+            if (AutoHotkey) ToggleGlobalHotkey();
             StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
         }
         catch (Exception ex)
@@ -1150,6 +1176,35 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return sb.ToString();
     }
 
+    public void ToggleGlobalHotkey()
+    {
+        if (_globalHotkey.IsRunning)
+        {
+            _globalHotkey.Stop();
+            GlobalHotkeyEnabled = false;
+            GlobalHotkeyStatus = "已停用";
+            StatusText = "全局拾取热键已停用";
+            return;
+        }
+
+        var ok = _globalHotkey.Start(OnGlobalHotkeyPressed);
+        GlobalHotkeyEnabled = ok;
+        GlobalHotkeyStatus = ok
+            ? "已注册 Ctrl+Alt+X（XGrabKey，仅 X11 / 可收到 X11 按键的会话）"
+            : $"注册失败：{_globalHotkey.Error}";
+        StatusText = ok ? "全局拾取热键已注册：Ctrl+Alt+X" : GlobalHotkeyStatus;
+    }
+
+    private void OnGlobalHotkeyPressed()
+        => Dispatcher.UIThread.Post(() =>
+        {
+            if (IsPicking) return;
+            StatusText = "全局拾取热键：启动点击拾取";
+            _ = PickAsync(mode: PickMode.Click);
+        });
+
+    public string BuildHotkeyText() => HotkeyConfig;
+
     public void ClearEvents()
     {
         Events.Clear();
@@ -1185,6 +1240,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _eventDebounceCts?.Cancel();
         _monitor.Dispose();
         _x11EventMonitor.Dispose();
+        _globalHotkey.Dispose();
         _eventDebounceCts?.Dispose();
     }
 
