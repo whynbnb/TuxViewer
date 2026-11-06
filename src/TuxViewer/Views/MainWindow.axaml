@@ -455,6 +455,63 @@
                 </Grid>
               </TabItem>
 
+              <TabItem Header="规则">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="10">
+                    <Grid ColumnDefinitions="Auto,180,*,Auto" ColumnSpacing="10">
+                      <TextBlock Text="目标合成器" Classes="section" VerticalAlignment="Center" />
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding RuleCompositors}"
+                                SelectedIndex="{Binding RuleCompositorIndex, Mode=TwoWay}" />
+                      <TextBlock Grid.Column="3" Classes="hint" VerticalAlignment="Center"
+                                 Text="根据选中窗口生成可直接粘贴的配置" />
+                    </Grid>
+
+                    <WrapPanel ItemSpacing="12" LineSpacing="6">
+                      <CheckBox Content="浮动" IsChecked="{Binding RuleFloating, Mode=TwoWay}" />
+                      <CheckBox Content="全屏" IsChecked="{Binding RuleFullscreen, Mode=TwoWay}" />
+                      <CheckBox Content="无边框" IsChecked="{Binding RuleNoBorder, Mode=TwoWay}" />
+                      <CheckBox Content="固定 / Sticky" IsChecked="{Binding RuleSticky, Mode=TwoWay}" />
+                      <CheckBox Content="同时匹配标题" IsChecked="{Binding RuleMatchTitle, Mode=TwoWay}" />
+                    </WrapPanel>
+
+                    <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,160,*" ColumnSpacing="8">
+                      <TextBlock Text="宽度" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="1" Text="{Binding RuleWidth, Mode=TwoWay}"
+                               PlaceholderText="留空表示不限制" />
+                      <TextBlock Grid.Column="2" Text="高度" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="3" Text="{Binding RuleHeight, Mode=TwoWay}"
+                               PlaceholderText="留空表示不限制" />
+                      <TextBlock Grid.Column="4" Text="工作区" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="5" Text="{Binding RuleWorkspace, Mode=TwoWay}"
+                               PlaceholderText="名称 / 编号" />
+                    </Grid>
+
+                    <Grid ColumnDefinitions="Auto,110,*" ColumnSpacing="8">
+                      <TextBlock Text="不透明度" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="1" Text="{Binding RuleOpacity, Mode=TwoWay}"
+                               PlaceholderText="0.0 - 1.0" />
+                      <TextBlock Grid.Column="2" Classes="hint" VerticalAlignment="Center"
+                                 Text="留空表示不生成透明度规则；niri / Sway / Hyprland 支持程度不同" />
+                    </Grid>
+
+                    <Border Classes="divider" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="生成的配置" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="复制规则" Click="CopyRule_Click"
+                              Classes="ghost" FontSize="11" Padding="9,4" />
+                    </Grid>
+                    <TextBox Text="{Binding GeneratedRule}" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="NoWrap"
+                             FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                             FontSize="12" MinHeight="260"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    <TextBlock Classes="hint"
+                               Text="生成结果只是起点：请确认 app-id / class / title 与应用一致，再按注释中的路径粘贴并重载配置。匹配标题会随窗口标题变化而失效。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">

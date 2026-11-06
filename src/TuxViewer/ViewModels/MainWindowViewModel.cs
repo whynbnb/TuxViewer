@@ -59,11 +59,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _screenshotStatus = "";
     private string _screenshotSource = "";
     private bool _hasScreenshot;
+    private int _ruleCompositorIndex;
+    private bool _ruleFloating;
+    private bool _ruleNoBorder;
+    private bool _ruleFullscreen;
+    private bool _ruleSticky;
+    private bool _ruleMatchTitle;
+    private string _ruleWidth = "";
+    private string _ruleHeight = "";
+    private string _ruleWorkspace = "";
+    private string _ruleOpacity = "";
+    private string _generatedRule = "";
 
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
+        RuleCompositors = ["niri", "Sway", "Hyprland"];
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
@@ -83,6 +95,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
+    public IReadOnlyList<string> RuleCompositors { get; }
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
 
@@ -109,6 +122,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 _lastX11RowSnapshot.Clear();
                 _lastX11PropertySnapshot.Clear();
                 ResetScreenshot();
+                RegenerateRule();
             }
             OnPropertyChanged();
             HasSelection = value is not null;
@@ -310,6 +324,72 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasEvents => Events.Count > 0;
+
+    public int RuleCompositorIndex
+    {
+        get => _ruleCompositorIndex;
+        set { if (Set(ref _ruleCompositorIndex, value)) RegenerateRule(); }
+    }
+
+    public bool RuleFloating
+    {
+        get => _ruleFloating;
+        set { if (Set(ref _ruleFloating, value)) RegenerateRule(); }
+    }
+
+    public bool RuleNoBorder
+    {
+        get => _ruleNoBorder;
+        set { if (Set(ref _ruleNoBorder, value)) RegenerateRule(); }
+    }
+
+    public bool RuleFullscreen
+    {
+        get => _ruleFullscreen;
+        set { if (Set(ref _ruleFullscreen, value)) RegenerateRule(); }
+    }
+
+    public bool RuleSticky
+    {
+        get => _ruleSticky;
+        set { if (Set(ref _ruleSticky, value)) RegenerateRule(); }
+    }
+
+    public bool RuleMatchTitle
+    {
+        get => _ruleMatchTitle;
+        set { if (Set(ref _ruleMatchTitle, value)) RegenerateRule(); }
+    }
+
+    public string RuleWidth
+    {
+        get => _ruleWidth;
+        set { if (Set(ref _ruleWidth, value)) RegenerateRule(); }
+    }
+
+    public string RuleHeight
+    {
+        get => _ruleHeight;
+        set { if (Set(ref _ruleHeight, value)) RegenerateRule(); }
+    }
+
+    public string RuleWorkspace
+    {
+        get => _ruleWorkspace;
+        set { if (Set(ref _ruleWorkspace, value)) RegenerateRule(); }
+    }
+
+    public string RuleOpacity
+    {
+        get => _ruleOpacity;
+        set { if (Set(ref _ruleOpacity, value)) RegenerateRule(); }
+    }
+
+    public string GeneratedRule
+    {
+        get => _generatedRule;
+        private set => Set(ref _generatedRule, value);
+    }
 
     public Bitmap? ScreenshotImage
     {
@@ -578,6 +658,33 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         ScreenshotSource = "";
     }
 
+    public void RegenerateRule()
+    {
+        var window = SelectedWindow;
+        if (window is null)
+        {
+            GeneratedRule = "# 先选择一个窗口";
+            return;
+        }
+
+        var compositor = RuleCompositors[Math.Clamp(_ruleCompositorIndex, 0, RuleCompositors.Count - 1)];
+        GeneratedRule = RuleGenerator.Generate(compositor, window, new WindowRuleOptions
+        {
+            Floating = _ruleFloating,
+            NoBorder = _ruleNoBorder,
+            Fullscreen = _ruleFullscreen,
+            Sticky = _ruleSticky,
+            MatchTitle = _ruleMatchTitle,
+            Width = ParsePositiveInt(_ruleWidth),
+            Height = ParsePositiveInt(_ruleHeight),
+            Workspace = string.IsNullOrWhiteSpace(_ruleWorkspace) ? null : _ruleWorkspace.Trim(),
+            Opacity = double.TryParse(_ruleOpacity, out var opacity) && opacity is > 0 and < 1 ? opacity : null,
+        });
+    }
+
+    private static int? ParsePositiveInt(string text)
+        => int.TryParse(text.Trim(), out var value) && value > 0 ? value : null;
+
     private async Task HighlightPickedAsync(WindowInfo window, bool reportStatus)
     {
         try
@@ -797,6 +904,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 changed |= BuildX11(result.X11, diff);
                 BuildSockets(result.Process);
                 OnPropertyChanged(nameof(ProcessHeader));
+                RegenerateRule();
                 if (changed) ScheduleChangeClear();
             });
         }

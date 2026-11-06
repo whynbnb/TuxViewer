@@ -18,7 +18,7 @@ internal static class Program
 
                 用法:
                   TuxViewer [--select <id|app_id|标题>] [--capture]
-                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|diagnostics>]
+                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]

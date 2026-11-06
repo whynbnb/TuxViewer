@@ -54,7 +54,8 @@ public partial class App : Application
                 "raw" or "json" => 5,
                 "events" or "event" => 6,
                 "screenshot" or "shot" => 7,
-                "diagnostics" or "diag" => 8,
+                "rules" or "rule" => 8,
+                "diagnostics" or "diag" => 9,
                 _ => 0,
             };
         }

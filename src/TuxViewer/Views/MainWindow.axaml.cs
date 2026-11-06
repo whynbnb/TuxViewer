@@ -161,6 +161,13 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildEventsText());
     }
 
+    private async void CopyRule_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || string.IsNullOrWhiteSpace(ViewModel.GeneratedRule)) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.GeneratedRule);
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;
