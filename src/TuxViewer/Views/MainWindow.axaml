@@ -139,19 +139,34 @@
                      Margin="8,0,8,8">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:WindowInfo">
-                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Height="40">
-                    <Border Classes="badge" Classes.x11="{Binding IsX11}" Classes.wl="{Binding IsWayland}"
-                            Width="38" Height="26" Padding="0" HorizontalAlignment="Left"
-                            VerticalAlignment="Center">
-                      <TextBlock Text="{Binding BackendShort}" FontSize="10" FontWeight="Bold"
-                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
+                  <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10" Height="44">
+                    <Panel Width="36" Height="36" VerticalAlignment="Center">
+                      <Border CornerRadius="9" Background="#1B2638" BorderBrush="#2A3850"
+                              BorderThickness="1">
+                        <TextBlock Text="{Binding IconInitial}" FontSize="14" FontWeight="SemiBold"
+                                   Foreground="#AFC3E4" HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                      </Border>
+                      <Border CornerRadius="9" ClipToBounds="True" IsVisible="{Binding HasIcon}">
+                        <Image Source="{Binding Icon}" Stretch="UniformToFill" />
+                      </Border>
+                    </Panel>
+
                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                       <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
                                  LineHeight="18" TextTrimming="CharacterEllipsis" />
-                      <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#7E8CA3"
-                                 LineHeight="15" TextTrimming="CharacterEllipsis" />
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                        <Border Classes="tag" Classes.x11="{Binding IsX11}"
+                                Classes.wl="{Binding IsWayland}"
+                                ToolTip.Tip="{Binding BackendLabel}">
+                          <TextBlock Text="{Binding BackendShort}" />
+                        </Border>
+                        <TextBlock Grid.Column="1" Text="{Binding Subtitle}" FontSize="11"
+                                   Foreground="#7E8CA3" LineHeight="15"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </Grid>
                     </StackPanel>
+
                     <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
                                 HorizontalAlignment="Right">
                       <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="#93A4BC"

@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json.Serialization;
+using Avalonia.Media.Imaging;
 
 namespace TuxViewer.Models;
 
@@ -69,6 +70,20 @@ public sealed class WindowInfo : INotifyPropertyChanged
 
     public Dictionary<string, string> Extra { get; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Resolved application icon (desktop entry / icon theme), when available.</summary>
+    [JsonIgnore] public Bitmap? Icon { get; set; }
+    [JsonIgnore] public bool HasIcon => Icon is not null;
+    [JsonIgnore]
+    public string IconInitial
+    {
+        get
+        {
+            var source = !string.IsNullOrWhiteSpace(Title) ? Title : AppId ?? WmClass ?? "?";
+            var trimmed = source.TrimStart();
+            return trimmed.Length == 0 ? "?" : char.ToUpperInvariant(trimmed[0]).ToString();
+        }
+    }
+
     [JsonIgnore] public bool IsWayland => Backend == WindowBackend.Wayland;
     [JsonIgnore] public bool IsX11 => Backend == WindowBackend.X11;
 
@@ -84,7 +99,6 @@ public sealed class WindowInfo : INotifyPropertyChanged
     [JsonIgnore]
     public string BackendShort => Backend switch
     {
-        WindowBackend.X11 when IsXWayland => "XW",
         WindowBackend.X11 => "X11",
         WindowBackend.Wayland => "WL",
         _ => "?",
@@ -143,6 +157,7 @@ public sealed class WindowInfo : INotifyPropertyChanged
         X11WindowId = other.X11WindowId;
         LinkedX11WindowId = other.LinkedX11WindowId;
         RawJson = other.RawJson;
+        if (other.Icon is not null) Icon = other.Icon;
 
         Extra.Clear();
         foreach (var (key, value) in other.Extra) Extra[key] = value;
@@ -156,6 +171,7 @@ public sealed class WindowInfo : INotifyPropertyChanged
                      nameof(OutputName), nameof(X11WindowId), nameof(LinkedX11WindowId), nameof(RawJson),
                      nameof(IsX11), nameof(IsWayland), nameof(BackendLabel), nameof(BackendShort),
                      nameof(GeometryText), nameof(PidText), nameof(Subtitle), nameof(FocusGlyph),
+                     nameof(Icon), nameof(HasIcon), nameof(IconInitial),
                  })
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));

@@ -67,6 +67,37 @@
     <Setter Property="Foreground" Value="#7FE5C9" />
   </Style>
 
+  <Style Selector="Border.tag">
+    <Setter Property="Background" Value="#182131" />
+    <Setter Property="BorderBrush" Value="#2B374B" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="5,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="MinWidth" Value="28" />
+  </Style>
+  <Style Selector="Border.tag TextBlock">
+    <Setter Property="FontSize" Value="9" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="LineHeight" Value="14" />
+    <Setter Property="Foreground" Value="#AFC3E4" />
+    <Setter Property="HorizontalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Border.tag.x11">
+    <Setter Property="Background" Value="#3A2518" />
+    <Setter Property="BorderBrush" Value="#77502E" />
+  </Style>
+  <Style Selector="Border.tag.x11 TextBlock">
+    <Setter Property="Foreground" Value="#F0B57D" />
+  </Style>
+  <Style Selector="Border.tag.wl">
+    <Setter Property="Background" Value="#12332C" />
+    <Setter Property="BorderBrush" Value="#235C4E" />
+  </Style>
+  <Style Selector="Border.tag.wl TextBlock">
+    <Setter Property="Foreground" Value="#7FE5C9" />
+  </Style>
+
   <Style Selector="Button">
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="Padding" Value="12,7" />

@@ -69,6 +69,7 @@ internal static class Program
 
     private static async Task<int> RunDiagnoseAsync(string[] args)
     {
+        IconService.Enabled = false;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         using var service = new InspectorService();
         try
@@ -154,6 +155,7 @@ internal static class Program
 
     private static async Task<int> RunPickX11Async(string[] args)
     {
+        IconService.Enabled = false;
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
         using var service = new InspectorService();
         var modeText = GetArg(args, "--pick-x11") ?? "click";

@@ -87,6 +87,7 @@ public sealed class ProviderRegistry : IDisposable
             window.IsOwnWindow = window.Pid == Environment.ProcessId;
 
         if (IsWaylandSession) MergeXWayland(all);
+        IconService.Enrich(all);
 
         var ordered = all
             .OrderByDescending(w => w.IsFocused)
