@@ -168,6 +168,21 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.GeneratedRule);
     }
 
+    private async void ToggleX11Record_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.ToggleX11RecordAsync();
+    }
+
+    private void ClearX11Events_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearX11Events();
+
+    private async void CopyX11Events_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildX11EventsText());
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;

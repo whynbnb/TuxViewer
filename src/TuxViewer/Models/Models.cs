@@ -478,6 +478,24 @@ public sealed class ScreenshotResult
     public bool Success => Png is { Length: > 0 };
 }
 
+public sealed class X11RecordedEvent
+{
+    public DateTime Timestamp { get; init; } = DateTime.Now;
+    public int Type { get; init; }
+    public string TypeName { get; init; } = "";
+    public string Category { get; init; } = "Other";
+    public ulong Window { get; init; }
+    public ulong RootWindow { get; init; }
+    public int RootX { get; init; }
+    public int RootY { get; init; }
+    public string Summary { get; init; } = "";
+    public string Detail { get; init; } = "";
+
+    public string TimeText => Timestamp.ToString("HH:mm:ss.fff");
+    public string WindowHex => $"0x{Window:x}";
+    public string DisplayText => $"{TimeText}  {TypeName,-18} {WindowHex,-12} {Summary}";
+}
+
 public sealed class PickProgress
 {    public required string Message { get; init; }
     public WindowInfo? HoverWindow { get; init; }

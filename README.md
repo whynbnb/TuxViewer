@@ -88,6 +88,7 @@ TuxViewer 用于回答这些问题：
 - 复制摘要 / 完整 JSON
 - **选中窗口截图**：X11 / XWayland 用 `XGetImage` 精确捕获；niri 用 `screenshot-window`；Sway / Hyprland 用 `grim`；支持预览、保存 PNG、复制图片
 - **一键生成窗口规则**：根据选中窗口生成 niri `window-rule`、Sway `for_window`、Hyprland `windowrulev2`，可勾选浮动 / 全屏 / 无边框 / sticky / 尺寸 / 工作区 / 透明度
+- **X11 事件监视器（XRecord）**：全局记录键盘、鼠标、Configure、Property、Focus、Map/Unmap、ClientMessage；无需修改目标窗口 event mask，支持分类过滤和“只监视选中窗口”
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
@@ -115,6 +116,10 @@ TuxViewer --pick-x11 drag --json
 # 截取指定窗口并保存 PNG
 TuxViewer --screenshot xeyes --out xeyes.png
 
+# 启动 GUI 并自动开始 X11 RECORD 录制
+TuxViewer --record --tab xrecord
+TuxViewer --record --record-selected --select xeyes
+
 # 安装可选 GNOME Shell 扩展
 TuxViewer --install-gnome-extension
 
@@ -134,7 +139,7 @@ TUXVIEWER_BACKEND=wayland TuxViewer
 - **.NET 10 SDK / Runtime**（项目使用 `net10.0`、`LangVersion=14`）
 - **Avalonia 12.1.5**（NuGet 还原）
 - 运行库：
-  - X11：`libX11.so.6`、`libXext.so.6`
+  - X11：`libX11.so.6`、`libXext.so.6`、`libXtst.so.6`（XRecord 事件监视）
   - Wayland：`libwayland-client`、`libxkbcommon`（由 Avalonia.Wayland 使用）
 - 可选外部命令（按需启用对应后端）：
   - `niri`、`swaymsg`、`hyprctl`、`qdbus`/`qdbus6`、`gdbus`、`gnome-extensions`
@@ -271,6 +276,7 @@ TuxViewer/
 │  │  ├─ RealtimeMonitor.cs         # X11 / niri / Sway / Hyprland 实时事件
 │  │  ├─ ScreenshotService.cs       # XGetImage / niri / grim 窗口截图
 │  │  ├─ RuleGenerator.cs           # niri / Sway / Hyprland 窗口规则
+│  │  ├─ X11EventMonitor.cs         # libXtst RECORD 全局事件监视
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）

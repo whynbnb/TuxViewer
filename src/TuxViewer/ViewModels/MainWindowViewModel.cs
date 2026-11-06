@@ -77,6 +77,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _onlySelectedPid;
     private int? _pidFilter;
 
+    private readonly X11EventMonitor _x11EventMonitor = new();
+    private bool _x11RecordEnabled;
+    private bool _x11RecordOnlySelected;
+    private bool _x11RecordKeys = true;
+    private bool _x11RecordMouse = true;
+    private bool _x11RecordConfigure = true;
+    private bool _x11RecordProperty = true;
+    private bool _x11RecordFocus = true;
+    private bool _x11RecordMap = true;
+    private bool _x11RecordClientMessage = true;
+    private bool _x11RecordOther;
+    private string _x11RecordStatus = "未启动";
+    private int _x11EventCount;
+    private string _x11EventCountText = "0 条事件";
+    private ulong? _selectedX11Id;
+    private (int X, int Y, int W, int H)? _selectedX11Rect;
+
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
@@ -102,11 +119,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<InfoRow> RealtimeRows { get; } = [];
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
+    public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public IReadOnlyList<string> TreeGroupModes { get; }
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
+    public bool AutoRecord { get; set; }
 
     public int SelectedTabIndex
     {
@@ -124,6 +143,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var previousId = _selectedWindow?.Id;
             var sameWindow = value is not null && string.Equals(previousId, value.Id, StringComparison.Ordinal);
             _selectedWindow = value;
+            _selectedX11Id = value?.X11WindowId ?? value?.LinkedX11WindowId;
+            _selectedX11Rect = value is { SourceId: "x11", X: int sx, Y: int sy, Width: int sw, Height: int sh }
+                ? (sx, sy, sw, sh)
+                : null;
             if (value is not null && _allWindows.Any(w => string.Equals(w.Id, value.Id, StringComparison.Ordinal)))
                 _lockedSelectionId = "";
             if (!sameWindow)
@@ -335,6 +358,85 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasEvents => Events.Count > 0;
+    public bool HasX11Events => X11Events.Count > 0;
+
+    public bool X11RecordEnabled
+    {
+        get => _x11RecordEnabled;
+        private set
+        {
+            if (!Set(ref _x11RecordEnabled, value)) return;
+            OnPropertyChanged(nameof(X11RecordButtonText));
+        }
+    }
+
+    public string X11RecordButtonText => _x11RecordEnabled ? "停止录制" : "开始录制";
+
+    public string X11RecordStatus
+    {
+        get => _x11RecordStatus;
+        private set => Set(ref _x11RecordStatus, value);
+    }
+
+    public string X11EventCountText
+    {
+        get => _x11EventCountText;
+        private set => Set(ref _x11EventCountText, value);
+    }
+
+    public bool X11RecordOnlySelected
+    {
+        get => _x11RecordOnlySelected;
+        set => Set(ref _x11RecordOnlySelected, value);
+    }
+
+    public bool X11RecordKeys
+    {
+        get => _x11RecordKeys;
+        set => Set(ref _x11RecordKeys, value);
+    }
+
+    public bool X11RecordMouse
+    {
+        get => _x11RecordMouse;
+        set => Set(ref _x11RecordMouse, value);
+    }
+
+    public bool X11RecordConfigure
+    {
+        get => _x11RecordConfigure;
+        set => Set(ref _x11RecordConfigure, value);
+    }
+
+    public bool X11RecordProperty
+    {
+        get => _x11RecordProperty;
+        set => Set(ref _x11RecordProperty, value);
+    }
+
+    public bool X11RecordFocus
+    {
+        get => _x11RecordFocus;
+        set => Set(ref _x11RecordFocus, value);
+    }
+
+    public bool X11RecordMap
+    {
+        get => _x11RecordMap;
+        set => Set(ref _x11RecordMap, value);
+    }
+
+    public bool X11RecordClientMessage
+    {
+        get => _x11RecordClientMessage;
+        set => Set(ref _x11RecordClientMessage, value);
+    }
+
+    public bool X11RecordOther
+    {
+        get => _x11RecordOther;
+        set => Set(ref _x11RecordOther, value);
+    }
 
     public bool TreeMode
     {
@@ -508,6 +610,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             StartMonitoring();
             StartAutoRefresh();
             if (AutoCapture) await CaptureScreenshotAsync();
+            if (AutoRecord) await ToggleX11RecordAsync();
             StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
         }
         catch (Exception ex)
@@ -895,6 +998,87 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _refreshTimer.Start();
     }
 
+    public async Task ToggleX11RecordAsync()
+    {
+        if (_x11EventMonitor.IsRunning)
+        {
+            _x11EventMonitor.Stop();
+            X11RecordEnabled = false;
+            X11RecordStatus = "已停止";
+            StatusText = "X11 RECORD 事件监视已停止";
+            return;
+        }
+
+        _x11EventMonitor.Filter = PassesX11Filter;
+        var ok = _x11EventMonitor.Start(OnX11Recorded);
+        X11RecordEnabled = ok;
+        X11RecordStatus = ok
+            ? _x11RecordOnlySelected
+                ? "录制中 · 仅选中窗口（RECORD 扩展）"
+                : "录制中 · 全局（RECORD 扩展）"
+            : $"启动失败：{_x11EventMonitor.Error}";
+        StatusText = ok ? "X11 RECORD 事件监视已启动" : X11RecordStatus;
+    }
+
+    private void OnX11Recorded(X11RecordedEvent recorded)
+        => Dispatcher.UIThread.Post(() => AddX11Event(recorded));
+
+    private void AddX11Event(X11RecordedEvent recorded)
+    {
+        X11Events.Insert(0, recorded);
+        while (X11Events.Count > 2000) X11Events.RemoveAt(X11Events.Count - 1);
+        _x11EventCount++;
+        X11EventCountText = $"{_x11EventCount} 条事件";
+        OnPropertyChanged(nameof(HasX11Events));
+    }
+
+    private bool PassesX11Filter(X11RecordedEvent recorded)
+    {
+        var enabled = recorded.Category switch
+        {
+            "Key" => _x11RecordKeys,
+            "Mouse" => _x11RecordMouse,
+            "Configure" => _x11RecordConfigure,
+            "Property" => _x11RecordProperty,
+            "Focus" => _x11RecordFocus,
+            "Map" => _x11RecordMap,
+            "ClientMessage" => _x11RecordClientMessage,
+            _ => _x11RecordOther,
+        };
+        if (!enabled) return false;
+        if (!_x11RecordOnlySelected) return true;
+        var selected = _selectedX11Id;
+        if (selected is null) return false;
+        if (recorded.Window == selected.Value) return true;
+        if (_selectedX11Rect is { } rect && recorded.Category is "Mouse")
+        {
+            if (recorded.RootX >= rect.X && recorded.RootX < rect.X + rect.W &&
+                recorded.RootY >= rect.Y && recorded.RootY < rect.Y + rect.H)
+                return true;
+        }
+        // Raw device key events do not carry a target window; use focus as a proxy.
+        return recorded.Category == "Key" && _selectedWindow?.IsFocused == true;
+    }
+
+    public void ClearX11Events()
+    {
+        X11Events.Clear();
+        _x11EventCount = 0;
+        X11EventCountText = "0 条事件";
+        OnPropertyChanged(nameof(HasX11Events));
+    }
+
+    public string BuildX11EventsText()
+    {
+        if (X11Events.Count == 0) return "TuxViewer X11 RECORD 事件（空）";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"TuxViewer X11 RECORD 事件 · {X11Events.Count} 条 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(new string('─', 60));
+        foreach (var record in X11Events.Reverse())
+            sb.AppendLine(record.DisplayText);
+        return sb.ToString();
+    }
+
     public void ClearEvents()
     {
         Events.Clear();
@@ -929,6 +1113,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _inspectCts?.Cancel();
         _eventDebounceCts?.Cancel();
         _monitor.Dispose();
+        _x11EventMonitor.Dispose();
         _eventDebounceCts?.Dispose();
     }
 

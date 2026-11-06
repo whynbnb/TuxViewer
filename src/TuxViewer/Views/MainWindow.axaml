@@ -51,6 +51,23 @@
       </Border>
     </DataTemplate>
 
+    <DataTemplate x:Key="X11RecordTemplate" x:DataType="models:X11RecordedEvent">
+      <Grid ColumnDefinitions="86,116,104,*" ColumnSpacing="8" Margin="0,1">
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding TypeName}" FontSize="10" Foreground="#9BC0FF"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2" Text="{Binding WindowHex}" FontSize="10" Foreground="#F0B57D"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                   ToolTip.Tip="{Binding Summary}" />
+      </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="EventTemplate" x:DataType="models:WindowEventRecord">
       <Grid ColumnDefinitions="86,64,96,*" ColumnSpacing="8" Margin="0,1">
         <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
@@ -575,6 +592,50 @@
                                Text="生成结果只是起点：请确认 app-id / class / title 与应用一致，再按注释中的路径粘贴并重载配置。匹配标题会随窗口标题变化而失效。" />
                   </StackPanel>
                 </ScrollViewer>
+              </TabItem>
+
+              <TabItem Header="X11 事件">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="6,8,10,8">
+                  <Grid RowDefinitions="Auto,Auto">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                      <TextBlock Text="X11 RECORD" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{Binding X11RecordButtonText}"
+                              Click="ToggleX11Record_Click" Classes="pick"
+                              FontSize="11" Padding="10,4" />
+                      <TextBlock Grid.Column="2" Text="{Binding X11RecordStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="3" Text="{Binding X11EventCountText}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center" />
+                      <Button Grid.Column="4" Content="清空" Click="ClearX11Events_Click"
+                              Classes="ghost" FontSize="11" Padding="8,4" />
+                      <Button Grid.Column="5" Content="复制" Click="CopyX11Events_Click"
+                              Classes="ghost" FontSize="11" Padding="8,4" />
+                    </Grid>
+                    <WrapPanel Grid.Row="1" Margin="0,8,0,0" ItemSpacing="12" LineSpacing="5">
+                      <CheckBox Content="键盘" IsChecked="{Binding X11RecordKeys, Mode=TwoWay}" />
+                      <CheckBox Content="鼠标" IsChecked="{Binding X11RecordMouse, Mode=TwoWay}" />
+                      <CheckBox Content="Configure" IsChecked="{Binding X11RecordConfigure, Mode=TwoWay}" />
+                      <CheckBox Content="Property" IsChecked="{Binding X11RecordProperty, Mode=TwoWay}" />
+                      <CheckBox Content="Focus" IsChecked="{Binding X11RecordFocus, Mode=TwoWay}" />
+                      <CheckBox Content="Map / Unmap" IsChecked="{Binding X11RecordMap, Mode=TwoWay}" />
+                      <CheckBox Content="ClientMessage" IsChecked="{Binding X11RecordClientMessage, Mode=TwoWay}" />
+                      <CheckBox Content="其他" IsChecked="{Binding X11RecordOther, Mode=TwoWay}" />
+                      <CheckBox Content="只监视选中窗口" IsChecked="{Binding X11RecordOnlySelected, Mode=TwoWay}" />
+                    </WrapPanel>
+                  </Grid>
+                  <TextBlock Grid.Row="1" Classes="hint" Margin="0,8,0,8"
+                             Text="使用 libXtst RECORD 扩展全局记录事件，不需要修改目标窗口的 event mask。修改过滤条件立即生效；Record 事件与上方“实时事件”相互独立。" />
+                  <ListBox Grid.Row="2" ItemsSource="{Binding X11Events}"
+                           ItemTemplate="{StaticResource X11RecordTemplate}">
+                    <ListBox.Styles>
+                      <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="6,2" />
+                        <Setter Property="Margin" Value="0" />
+                      </Style>
+                    </ListBox.Styles>
+                  </ListBox>
+                </Grid>
               </TabItem>
 
               <TabItem Header="诊断">

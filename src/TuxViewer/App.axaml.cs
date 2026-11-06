@@ -21,6 +21,8 @@ public partial class App : Application
             viewModel.SelectedTabIndex = ReadTabArgument(desktop.Args);
             viewModel.AutoCapture = desktop.Args?.Contains("--capture", StringComparer.OrdinalIgnoreCase) == true;
             viewModel.TreeMode = desktop.Args?.Contains("--tree", StringComparer.OrdinalIgnoreCase) == true;
+            viewModel.AutoRecord = desktop.Args?.Contains("--record", StringComparer.OrdinalIgnoreCase) == true;
+            viewModel.X11RecordOnlySelected = desktop.Args?.Contains("--record-selected", StringComparer.OrdinalIgnoreCase) == true;
             if (TryReadIntArgument(desktop.Args, "--group") is int group)
                 viewModel.TreeGroupModeIndex = Math.Clamp(group, 0, 3);
             var window = new MainWindow { DataContext = viewModel };
@@ -68,7 +70,8 @@ public partial class App : Application
                 "events" or "event" => 6,
                 "screenshot" or "shot" => 7,
                 "rules" or "rule" => 8,
-                "diagnostics" or "diag" => 9,
+                "x11events" or "xrecord" or "record" => 9,
+                "diagnostics" or "diag" => 10,
                 _ => 0,
             };
         }
