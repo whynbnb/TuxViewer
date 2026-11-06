@@ -721,6 +721,71 @@
                 </ScrollViewer>
               </TabItem>
 
+              <TabItem Header="控制">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="窗口状态" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding ControlStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis" MaxWidth="520"
+                                 ToolTip.Tip="{Binding ControlStatus}" />
+                    </Grid>
+                    <WrapPanel ItemSpacing="8" LineSpacing="6">
+                      <Button Content="置顶" Tag="above" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="置底" Tag="below" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="取消置顶 / 置底" Tag="clearabove" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="全屏" Tag="fullon" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="退出全屏" Tag="fulloff" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="切换浮动" Tag="floating" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="启用 Sticky" Tag="stickyon" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="取消 Sticky" Tag="stickoff" Click="ControlAction_Click" Classes="ghost" />
+                    </WrapPanel>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="不透明度（X11 / XWayland）" Classes="section" />
+                    <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
+                      <Slider Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
+                              Value="{Binding OpacityValue, Mode=TwoWay}" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding OpacityValue, StringFormat='{}{0:0}%'}"
+                                 Classes="muted" VerticalAlignment="Center" MinWidth="42" />
+                      <Button Grid.Column="2" Content="应用" Tag="opacity"
+                              Click="ControlAction_Click" Classes="ghost" />
+                      <Button Grid.Column="3" Content="清除" Tag="clearopacity"
+                              Click="ControlAction_Click" Classes="ghost" />
+                    </Grid>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="几何（X11 / Sway；niri 只支持宽高）" Classes="section" />
+                    <Grid ColumnDefinitions="Auto,100,Auto,100,Auto,100,Auto,100,*" ColumnSpacing="8">
+                      <TextBlock Text="X" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="1" Text="{Binding GeoX, Mode=TwoWay}" />
+                      <TextBlock Grid.Column="2" Text="Y" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="3" Text="{Binding GeoY, Mode=TwoWay}" />
+                      <TextBlock Grid.Column="4" Text="宽" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="5" Text="{Binding GeoW, Mode=TwoWay}" />
+                      <TextBlock Grid.Column="6" Text="高" Classes="muted" VerticalAlignment="Center" />
+                      <TextBox Grid.Column="7" Text="{Binding GeoH, Mode=TwoWay}" />
+                      <Button Grid.Column="8" Content="应用几何" Tag="geometry"
+                              Click="ControlAction_Click" Classes="ghost" HorizontalAlignment="Left" />
+                    </Grid>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="进程" Classes="section" />
+                    <ItemsControl ItemsSource="{Binding ProcessRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+                    <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,8,0,0">
+                      <Button Content="发送关闭请求" Tag="close" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{Binding ForceKillButtonText}" Tag="kill"
+                              Click="ControlAction_Click" Classes="danger" />
+                      <Button Content="打开可执行文件目录" Tag="openfolder" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="复制进程信息" Tag="copyproc" Click="ControlAction_Click" Classes="ghost" />
+                    </WrapPanel>
+                    <TextBlock Classes="hint"
+                               Text="“强制结束”只会对 X11 / XWayland 客户端调用 XKillClient，需要二次点击确认；Wayland 原生窗口请使用合成器或应用自身的退出方式。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">

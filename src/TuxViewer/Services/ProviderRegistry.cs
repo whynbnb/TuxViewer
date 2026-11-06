@@ -232,6 +232,160 @@ public sealed class ProviderRegistry : IDisposable
         return false;
     }
 
+    public Task<(bool Ok, string Message)> SetAboveAsync(
+        WindowInfo window, bool below, bool clear, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            X11.Inspector.SetAbove(id.Value, below, clear);
+            return Task.FromResult((true, clear ? "已清除置顶 / 置底" : below ? "已请求置底" : "已请求置顶"));
+        }
+        return Task.FromResult((false, "该窗口不是 X11 / XWayland，当前后端不支持置顶 / 置底"));
+    }
+
+    public Task<(bool Ok, string Message)> SetFullscreenAsync(
+        WindowInfo window, bool enabled, CancellationToken cancellationToken)
+        => RunWindowActionAsync(window, "全屏", enabled, cancellationToken);
+
+    public Task<(bool Ok, string Message)> SetStickyAsync(
+        WindowInfo window, bool enabled, CancellationToken cancellationToken)
+        => RunWindowActionAsync(window, "sticky", enabled, cancellationToken);
+
+    public Task<(bool Ok, string Message)> ToggleFloatingAsync(
+        WindowInfo window, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(window.NativeId))
+            return Task.FromResult((false, "缺少原生窗口 ID"));
+        return window.SourceId switch
+        {
+            "niri" => RunCommandActionAsync(
+                "niri", ["msg", "action", "toggle-window-floating", "--id", window.NativeId],
+                "已切换 niri 浮动状态", cancellationToken),
+            "sway" => RunCommandActionAsync(
+                "swaymsg", [$"[con_id={window.NativeId}]", "floating", "toggle"],
+                "已切换 Sway 浮动状态", cancellationToken),
+            "hyprland" => RunCommandActionAsync(
+                "hyprctl", ["dispatch", "togglefloating", $"address:{window.NativeId}"],
+                "已切换 Hyprland 浮动状态", cancellationToken),
+            _ => Task.FromResult((false, "当前后端不支持浮动切换")),
+        };
+    }
+
+    public Task<(bool Ok, string Message)> SetOpacityAsync(
+        WindowInfo window, double opacity, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            var ok = X11.Inspector.SetOpacity(id.Value, opacity);
+            return Task.FromResult((ok, ok ? $"已设置不透明度 {opacity:0.00}" : "设置不透明度失败"));
+        }
+        return Task.FromResult((false, "透明度仅支持 X11 / XWayland 窗口"));
+    }
+
+    public Task<(bool Ok, string Message)> ClearOpacityAsync(
+        WindowInfo window, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            var ok = X11.Inspector.ClearOpacity(id.Value);
+            return Task.FromResult((ok, ok ? "已清除不透明度" : "清除不透明度失败"));
+        }
+        return Task.FromResult((false, "透明度仅支持 X11 / XWayland 窗口"));
+    }
+
+    public async Task<(bool Ok, string Message)> MoveResizeAsync(
+        WindowInfo window, int x, int y, int width, int height, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            X11.Inspector.MoveResize(id.Value, x, y, width, height);
+            return (true, $"已移动 / 调整到 {width}×{height} @ {x},{y}");
+        }
+
+        if (window.SourceId == "niri" && !string.IsNullOrWhiteSpace(window.NativeId))
+        {
+            if (width > 0)
+                await CommandRunner.TryRunAsync(
+                    "niri", ["msg", "action", "set-window-width", "--id", window.NativeId, $"{width}"],
+                    4000, cancellationToken);
+            if (height > 0)
+                await CommandRunner.TryRunAsync(
+                    "niri", ["msg", "action", "set-window-height", "--id", window.NativeId, $"{height}"],
+                    4000, cancellationToken);
+            return (true, "已请求 niri 调整窗口宽高（位置由布局决定）");
+        }
+
+        if (window.SourceId == "sway" && !string.IsNullOrWhiteSpace(window.NativeId))
+        {
+            var commands = new List<string>();
+            if (width > 0 && height > 0) commands.Add($"resize set {width} {height}");
+            commands.Add($"move position {x} {y}");
+            var result = await CommandRunner.TryRunAsync(
+                "swaymsg", [$"[con_id={window.NativeId}]", string.Join(", ", commands)],
+                4000, cancellationToken);
+            return (result?.Success == true, result?.Success == true ? "已请求 Sway 调整几何" : "Sway 调整几何失败");
+        }
+
+        return (false, "当前后端仅支持宽高调整（位置由合成器布局决定）");
+    }
+
+    public Task<(bool Ok, string Message)> KillAsync(
+        WindowInfo window, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            X11.Inspector.KillClient(id.Value);
+            return Task.FromResult((true, $"已强制结束 X11 客户端 0x{id:x}"));
+        }
+        return Task.FromResult((false, "强制结束仅支持 X11 / XWayland 客户端"));
+    }
+
+    private Task<(bool Ok, string Message)> RunWindowActionAsync(
+        WindowInfo window, string label, bool enabled, CancellationToken cancellationToken)
+    {
+        var id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (id is not null && X11?.IsAvailable == true)
+        {
+            if (label == "全屏") X11.Inspector.SetFullscreen(id.Value, enabled);
+            else X11.Inspector.SetSticky(id.Value, enabled);
+            return Task.FromResult((true, $"已请求{(enabled ? "启用" : "取消")}{label}"));
+        }
+
+        return window.SourceId switch
+        {
+            "niri" when label == "全屏" && !string.IsNullOrWhiteSpace(window.NativeId) =>
+                RunCommandActionAsync(
+                    "niri", ["msg", "action", "fullscreen-window", "--id", window.NativeId],
+                    "已切换 niri 全屏", cancellationToken),
+            "sway" when !string.IsNullOrWhiteSpace(window.NativeId) =>
+                RunCommandActionAsync(
+                    "swaymsg",
+                    [$"[con_id={window.NativeId}]", label == "全屏" ? "fullscreen toggle" : "sticky toggle"],
+                    label == "全屏" ? "已切换 Sway 全屏" : "已切换 Sway sticky", cancellationToken),
+            "hyprland" when !string.IsNullOrWhiteSpace(window.NativeId) =>
+                RunCommandActionAsync(
+                    "hyprctl",
+                    ["dispatch", label == "全屏" ? "fullscreen" : "pin",
+                     label == "全屏" ? "0" : $"address:{window.NativeId}"],
+                    label == "全屏" ? "已切换 Hyprland 全屏" : "已切换 Hyprland pin", cancellationToken),
+            _ => Task.FromResult((false, $"当前后端不支持{label}")),
+        };
+    }
+
+    private static async Task<(bool Ok, string Message)> RunCommandActionAsync(
+        string executable, string[] args, string successMessage, CancellationToken cancellationToken)
+    {
+        var result = await CommandRunner.TryRunAsync(executable, args, 4000, cancellationToken);
+        return result?.Success == true
+            ? (true, successMessage)
+            : (false, result?.StdErr is { Length: > 0 } error ? error : $"{executable} 调用失败");
+    }
+
     public async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
     {
         // X11/XWayland windows can get a precise shaped-border overlay, even when the

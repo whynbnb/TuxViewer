@@ -100,6 +100,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _globalHotkeyEnabled;
     private string _globalHotkeyStatus = "未启用";
 
+    private string _controlStatus = "";
+    private double _opacityValue = 100;
+    private string _geoX = "";
+    private string _geoY = "";
+    private string _geoW = "";
+    private string _geoH = "";
+    private bool _forceKillArmed;
+    private CancellationTokenSource? _forceKillResetCts;
+
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
@@ -166,6 +175,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 _lastX11PropertySnapshot.Clear();
                 ResetScreenshot();
                 ResetAtspi();
+                ResetControlFields(value);
                 RegenerateRule();
             }
             OnPropertyChanged();
@@ -403,6 +413,48 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public string HotkeyConfig => GlobalHotkeyService.BuildCompositorConfig();
+
+    public string ControlStatus
+    {
+        get => _controlStatus;
+        private set => Set(ref _controlStatus, value);
+    }
+
+    public double OpacityValue
+    {
+        get => _opacityValue;
+        set => Set(ref _opacityValue, value);
+    }
+
+    public string GeoX
+    {
+        get => _geoX;
+        set => Set(ref _geoX, value);
+    }
+
+    public string GeoY
+    {
+        get => _geoY;
+        set => Set(ref _geoY, value);
+    }
+
+    public string GeoW
+    {
+        get => _geoW;
+        set => Set(ref _geoW, value);
+    }
+
+    public string GeoH
+    {
+        get => _geoH;
+        set => Set(ref _geoH, value);
+    }
+
+    public string ForceKillButtonText => _forceKillArmed ? "再次点击确认强制结束" : "强制结束客户端";
+
+    public string ProcessExeText => Process?.Exe ?? "—";
+    public string ProcessCmdlineText => Process?.Cmdline ?? "—";
+    public string ProcessPidText => SelectedWindow?.Pid?.ToString() ?? "—";
 
     public bool X11RecordEnabled
     {
@@ -1205,6 +1257,148 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string BuildHotkeyText() => HotkeyConfig;
 
+    private void ResetControlFields(WindowInfo? window)
+    {
+        _forceKillArmed = false;
+        _forceKillResetCts?.Cancel();
+        OpacityValue = 100;
+        GeoX = window?.X?.ToString() ?? "";
+        GeoY = window?.Y?.ToString() ?? "";
+        GeoW = window?.Width?.ToString() ?? "";
+        GeoH = window?.Height?.ToString() ?? "";
+        ControlStatus = "";
+        OnPropertyChanged(nameof(ForceKillButtonText));
+    }
+
+    private async Task RunControlAsync(Func<Task<(bool Ok, string Message)>> action, bool refresh = true)
+    {
+        if (SelectedWindow is null) return;
+        try
+        {
+            var (ok, message) = await action();
+            ControlStatus = message;
+            StatusText = message;
+            if (ok && refresh) await RefreshAsync(showBusy: false);
+        }
+        catch (Exception ex)
+        {
+            ControlStatus = $"操作失败：{ex.Message}";
+            StatusText = ControlStatus;
+        }
+    }
+
+    public Task SetAboveSelectedAsync(bool below = false, bool clear = false)
+    {
+        if (SelectedWindow is not { } window) return Task.CompletedTask;
+        return RunControlAsync(() => _service.Registry.SetAboveAsync(window, below, clear, CancellationToken.None));
+    }
+
+    public Task SetFullscreenSelectedAsync(bool enabled)
+    {
+        if (SelectedWindow is not { } window) return Task.CompletedTask;
+        return RunControlAsync(() => _service.Registry.SetFullscreenAsync(window, enabled, CancellationToken.None));
+    }
+
+    public Task SetStickySelectedAsync(bool enabled)
+    {
+        if (SelectedWindow is not { } window) return Task.CompletedTask;
+        return RunControlAsync(() => _service.Registry.SetStickyAsync(window, enabled, CancellationToken.None));
+    }
+
+    public Task ToggleFloatingSelectedAsync()
+    {
+        if (SelectedWindow is not { } window) return Task.CompletedTask;
+        return RunControlAsync(() => _service.Registry.ToggleFloatingAsync(window, CancellationToken.None));
+    }
+
+    public async Task ApplyOpacitySelectedAsync()
+    {
+        if (SelectedWindow is not { } window) return;
+        var opacity = Math.Clamp(OpacityValue / 100.0, 0, 1);
+        await RunControlAsync(() => _service.Registry.SetOpacityAsync(window, opacity, CancellationToken.None));
+    }
+
+    public Task ClearOpacitySelectedAsync()
+    {
+        if (SelectedWindow is not { } window) return Task.CompletedTask;
+        return RunControlAsync(() => _service.Registry.ClearOpacityAsync(window, CancellationToken.None));
+    }
+
+    public async Task ApplyGeometrySelectedAsync()
+    {
+        if (SelectedWindow is not { } window) return;
+        var x = int.TryParse(GeoX, out var parsedX) ? parsedX : window.X ?? 0;
+        var y = int.TryParse(GeoY, out var parsedY) ? parsedY : window.Y ?? 0;
+        var w = int.TryParse(GeoW, out var parsedW) ? parsedW : window.Width ?? 0;
+        var h = int.TryParse(GeoH, out var parsedH) ? parsedH : window.Height ?? 0;
+        await RunControlAsync(() => _service.Registry.MoveResizeAsync(window, x, y, w, h, CancellationToken.None));
+    }
+
+    public async Task ForceKillSelectedAsync()
+    {
+        if (SelectedWindow is not { } window) return;
+        if (!_forceKillArmed)
+        {
+            _forceKillArmed = true;
+            OnPropertyChanged(nameof(ForceKillButtonText));
+            ControlStatus = "危险操作：再次点击“再次点击确认强制结束”将直接终止 X11 客户端";
+            _forceKillResetCts?.Cancel();
+            _forceKillResetCts = new CancellationTokenSource();
+            var token = _forceKillResetCts.Token;
+            _ = Task.Run(async () =>
+            {
+                try { await Task.Delay(5000, token); } catch { return; }
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    if (!_forceKillArmed) return;
+                    _forceKillArmed = false;
+                    OnPropertyChanged(nameof(ForceKillButtonText));
+                    ControlStatus = "已取消强制结束";
+                });
+            });
+            return;
+        }
+
+        _forceKillArmed = false;
+        OnPropertyChanged(nameof(ForceKillButtonText));
+        await RunControlAsync(() => _service.Registry.KillAsync(window, CancellationToken.None));
+    }
+
+    public async Task OpenExeFolderAsync()
+    {
+        var exe = Process?.Exe;
+        if (string.IsNullOrWhiteSpace(exe) && SelectedWindow?.Pid is int pid)
+        {
+            try { exe = new FileInfo($"/proc/{pid}/exe").LinkTarget; } catch { /* ignore */ }
+        }
+        if (string.IsNullOrWhiteSpace(exe))
+        {
+            ControlStatus = "没有可执行文件路径";
+            return;
+        }
+        var directory = Path.GetDirectoryName(exe);
+        if (string.IsNullOrWhiteSpace(directory))
+        {
+            ControlStatus = $"无法解析目录：{exe}";
+            return;
+        }
+        var result = await CommandRunner.TryRunAsync("xdg-open", [directory], 4000, CancellationToken.None);
+        ControlStatus = result?.Success == true ? $"已打开 {directory}" : $"打开目录失败：{result?.StdErr}";
+    }
+
+    public string BuildProcessText()
+    {
+        var process = Process;
+        if (process is null) return SelectedWindow?.Pid?.ToString() ?? "";
+        return string.Join('\n',
+            $"PID: {process.Pid}",
+            $"PPID: {process.ParentPid}",
+            $"Name: {process.Name}",
+            $"Exe: {process.Exe}",
+            $"Cmdline: {process.Cmdline}",
+            $"Cwd: {process.Cwd}");
+    }
+
     public void ClearEvents()
     {
         Events.Clear();
@@ -1241,6 +1435,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _monitor.Dispose();
         _x11EventMonitor.Dispose();
         _globalHotkey.Dispose();
+        _forceKillResetCts?.Cancel();
+        _forceKillResetCts?.Dispose();
         _eventDebounceCts?.Dispose();
     }
 

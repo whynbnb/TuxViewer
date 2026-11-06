@@ -75,7 +75,8 @@ public partial class App : Application
                 "x11events" or "xrecord" or "record" => 9,
                 "atspi" or "controls" or "widgets" => 10,
                 "hotkey" or "shortcut" => 11,
-                "diagnostics" or "diag" => 12,
+                "control" or "actions" => 12,
+                "diagnostics" or "diag" => 13,
                 _ => 0,
             };
         }

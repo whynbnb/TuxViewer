@@ -652,6 +652,151 @@ public sealed class X11Inspector : IDisposable
         }
     }
 
+    public void SetAbove(ulong id, bool below = false, bool clear = false)
+    {
+        if (!IsAvailable) return;
+        lock (_lock)
+        {
+            try
+            {
+                if (clear)
+                {
+                    SendWmState(id, "_NET_WM_STATE_ABOVE", 0);
+                    SendWmState(id, "_NET_WM_STATE_BELOW", 0);
+                }
+                else
+                {
+                    SendWmState(id, below ? "_NET_WM_STATE_BELOW" : "_NET_WM_STATE_ABOVE", 1);
+                }
+                X11Native.XFlush(_display);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    public void SetFullscreen(ulong id, bool enabled)
+    {
+        if (!IsAvailable) return;
+        lock (_lock)
+        {
+            try
+            {
+                SendWmState(id, "_NET_WM_STATE_FULLSCREEN", enabled ? 1 : 0);
+                X11Native.XFlush(_display);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    public void SetSticky(ulong id, bool enabled)
+    {
+        if (!IsAvailable) return;
+        lock (_lock)
+        {
+            try
+            {
+                SendWmState(id, "_NET_WM_STATE_STICKY", enabled ? 1 : 0);
+                X11Native.XFlush(_display);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    public bool SetOpacity(ulong id, double opacity)
+    {
+        if (!IsAvailable || opacity is < 0 or > 1) return false;
+        lock (_lock)
+        {
+            try
+            {
+                var atom = Atom("_NET_WM_WINDOW_OPACITY");
+                if (atom == IntPtr.Zero) return false;
+                var value = (uint)Math.Round(Math.Clamp(opacity, 0, 1) * uint.MaxValue);
+                var bytes = BitConverter.GetBytes(value);
+                X11Native.XChangeProperty(
+                    _display, (IntPtr)(nuint)id, atom, (IntPtr)X11Native.XA_CARDINAL, 32,
+                    X11Native.PropModeReplace, bytes, 1);
+                X11Native.XFlush(_display);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public bool ClearOpacity(ulong id)
+    {
+        if (!IsAvailable) return false;
+        lock (_lock)
+        {
+            try
+            {
+                var atom = Atom("_NET_WM_WINDOW_OPACITY", onlyIfExists: true);
+                if (atom != IntPtr.Zero)
+                    X11Native.XDeleteProperty(_display, (IntPtr)(nuint)id, atom);
+                X11Native.XFlush(_display);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+    }
+
+    public void MoveResize(ulong id, int x, int y, int width, int height)
+    {
+        if (!IsAvailable) return;
+        lock (_lock)
+        {
+            try
+            {
+                X11Native.XMoveResizeWindow(
+                    _display, (IntPtr)(nuint)id, x, y,
+                    (uint)Math.Max(1, width), (uint)Math.Max(1, height));
+                X11Native.XFlush(_display);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    public void KillClient(ulong id)
+    {
+        if (!IsAvailable) return;
+        lock (_lock)
+        {
+            try
+            {
+                X11Native.XKillClient(_display, (IntPtr)(nuint)id);
+                X11Native.XFlush(_display);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    private void SendWmState(ulong id, string property, int action)
+    {
+        var message = new X11Native.XClientMessageEvent
+        {
+            Type = X11Native.ClientMessage,
+            Display = _display,
+            Window = (nuint)id,
+            MessageType = (nuint)Atom("_NET_WM_STATE"),
+            Format = 32,
+            Data1 = action,
+            Data2 = (nint)Atom(property),
+            Data3 = 2,
+            Data4 = 0,
+            Data5 = 0,
+        };
+        X11Native.XSendEvent(
+            _display, _root, false,
+            X11Native.SubstructureRedirectMask | X11Native.SubstructureNotifyMask,
+            ref message);
+    }
+
     public void Close(ulong id)
     {
         if (!IsAvailable) return;

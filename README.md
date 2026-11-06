@@ -91,6 +91,7 @@ TuxViewer 用于回答这些问题：
 - **X11 事件监视器（XRecord）**：全局记录键盘、鼠标、Configure、Property、Focus、Map/Unmap、ClientMessage；无需修改目标窗口 event mask，支持分类过滤和“只监视选中窗口”
 - **AT-SPI2 控件树**：通过 `python3-gi` 读取 GTK/Qt 应用的角色、名称、描述和控件层级；应用需启用无障碍桥
 - **全局拾取热键**：X11 会话用 `XGrabKey` 注册 `Ctrl+Alt+X`；Wayland 提供 niri / Sway / Hyprland 原生快捷键配置，一键复制
+- **窗口控制动作**：置顶 / 置底、全屏、浮动 / Sticky、X11 不透明度、移动 / 调整大小、`WM_DELETE_WINDOW`、`XKillClient` 二次确认、打开可执行文件目录、复制进程信息
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
@@ -303,6 +304,7 @@ TuxViewer/
 - **GNOME**：`org.gnome.Shell.Introspect` 默认只允许 portal 访问；需要安装随附扩展并重新登录。
 - **niri**：IPC 不提供窗口全局屏幕坐标，只能显示尺寸/工作区/输出；拾取和 XWayland 关联不受影响。
 - **XWayland 坐标**：X11 几何是 XWayland 坐标空间，和合成器布局不一定一致。
+- **窗口控制**：置顶 / 置底 / 不透明度 / 精确移动缩放主要面向 X11 / XWayland；Wayland 原生窗口使用各合成器的全屏、浮动、Sticky 等 IPC 能力。
 - **全局热键**：`XGrabKey` 只在 X11 会话或合成器把按键路由到 XWayland 时生效；Wayland 原生环境请使用“热键”页提供的合成器配置。XDG GlobalShortcuts portal 需要桌面 portal 后端支持，本项目不强制依赖。
 - **AT-SPI 控件树**：只有启用无障碍桥的 GTK/Qt 应用会注册到 AT-SPI；纯 X11、游戏引擎和部分 Electron 应用通常不暴露控件树。
 - **Wayland 原生截图**：需要合成器提供截图接口（niri `screenshot-window`、grim）或 `gnome-screenshot`；纯 GNOME Wayland 原生窗口暂不保证可用。

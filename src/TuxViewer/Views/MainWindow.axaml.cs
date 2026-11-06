@@ -205,6 +205,62 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildHotkeyText());
     }
 
+    private async void ControlAction_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || sender is not Button { Tag: string tag }) return;
+        switch (tag)
+        {
+            case "above":
+                await ViewModel.SetAboveSelectedAsync();
+                break;
+            case "below":
+                await ViewModel.SetAboveSelectedAsync(below: true);
+                break;
+            case "clearabove":
+                await ViewModel.SetAboveSelectedAsync(clear: true);
+                break;
+            case "fullon":
+                await ViewModel.SetFullscreenSelectedAsync(true);
+                break;
+            case "fulloff":
+                await ViewModel.SetFullscreenSelectedAsync(false);
+                break;
+            case "floating":
+                await ViewModel.ToggleFloatingSelectedAsync();
+                break;
+            case "stickyon":
+                await ViewModel.SetStickySelectedAsync(true);
+                break;
+            case "stickoff":
+                await ViewModel.SetStickySelectedAsync(false);
+                break;
+            case "opacity":
+                await ViewModel.ApplyOpacitySelectedAsync();
+                break;
+            case "clearopacity":
+                await ViewModel.ClearOpacitySelectedAsync();
+                break;
+            case "geometry":
+                await ViewModel.ApplyGeometrySelectedAsync();
+                break;
+            case "close":
+                await ViewModel.CloseSelectedAsync();
+                break;
+            case "kill":
+                await ViewModel.ForceKillSelectedAsync();
+                break;
+            case "openfolder":
+                await ViewModel.OpenExeFolderAsync();
+                break;
+            case "copyproc":
+            {
+                var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+                if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildProcessText());
+                break;
+            }
+        }
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;

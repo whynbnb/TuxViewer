@@ -19,7 +19,7 @@ internal static class Program
                 用法:
                   TuxViewer [--select <id|app_id|标题>] [--capture] [--tree] [--group 0-3]
                             [--record] [--record-selected] [--atspi-load] [--hotkey]
-                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|diagnostics>]
+                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|control|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]
