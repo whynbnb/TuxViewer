@@ -19,8 +19,6 @@ public partial class App : Application
             var viewModel = new MainWindowViewModel(service);
             viewModel.InitialSelection = ReadSelectArgument(desktop.Args);
             viewModel.SelectedTabIndex = ReadTabArgument(desktop.Args);
-            viewModel.PickModeIndex = string.Equals(ReadArg(desktop.Args, "--pick-mode"), "drag",
-                StringComparison.OrdinalIgnoreCase) ? 1 : 0;
             var window = new MainWindow { DataContext = viewModel };
             window.Closed += (_, _) => service.Dispose();
             desktop.MainWindow = window;
@@ -37,14 +35,6 @@ public partial class App : Application
             if (string.Equals(args[i], "--select", StringComparison.OrdinalIgnoreCase))
                 return args[i + 1];
         }
-        return null;
-    }
-
-    private static string? ReadArg(string[]? args, string name)
-    {
-        if (args is null) return null;
-        for (var i = 0; i < args.Length - 1; i++)
-            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) return args[i + 1];
         return null;
     }
 

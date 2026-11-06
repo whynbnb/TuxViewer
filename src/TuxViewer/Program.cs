@@ -17,7 +17,7 @@ internal static class Program
                 TuxViewer — Linux 桌面环境 / 窗口检视器
 
                 用法:
-                  TuxViewer [--select <id|app_id|标题>] [--pick-mode click|drag]
+                  TuxViewer [--select <id|app_id|标题>]
                             [--tab <overview|process|x11|wayland|env|raw|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
@@ -28,7 +28,7 @@ internal static class Program
                   TUXVIEWER_X11_DEBUG=1           输出 X11 调试日志
 
                 快捷键:
-                  F2 拾取窗口（Shift+F2 = 强制 X11 拾取）   F5 刷新   Esc 取消拾取
+                  F2 点击拾取   F3 拖动拾取   Shift+F2/F3 强制 X11   F5 刷新   Esc 取消
                 """);
             return 0;
         }

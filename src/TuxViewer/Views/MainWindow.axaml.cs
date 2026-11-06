@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using TuxViewer.Models;
 using TuxViewer.ViewModels;
 
 namespace TuxViewer.Views;
@@ -35,14 +36,21 @@ public partial class MainWindow : Window
     private async void Pick_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;
-        await ViewModel.PickAsync();
+        await ViewModel.PickAsync(mode: PickMode.Click);
+        Activate();
+    }
+
+    private async void PickDrag_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.PickAsync(mode: PickMode.Drag);
         Activate();
     }
 
     private async void PickX11_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;
-        await ViewModel.PickAsync(x11Only: true);
+        await ViewModel.PickAsync(x11Only: true, mode: PickMode.Click);
         Activate();
     }
 
@@ -103,7 +111,16 @@ public partial class MainWindow : Window
         {
             case Key.F2:
                 e.Handled = true;
-                await ViewModel.PickAsync(x11Only: e.KeyModifiers.HasFlag(KeyModifiers.Shift));
+                await ViewModel.PickAsync(
+                    x11Only: e.KeyModifiers.HasFlag(KeyModifiers.Shift),
+                    mode: PickMode.Click);
+                Activate();
+                break;
+            case Key.F3:
+                e.Handled = true;
+                await ViewModel.PickAsync(
+                    x11Only: e.KeyModifiers.HasFlag(KeyModifiers.Shift),
+                    mode: PickMode.Drag);
                 Activate();
                 break;
             case Key.F5:

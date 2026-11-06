@@ -30,7 +30,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _includeUnmapped = true;
     private int _backendFilterIndex;
     private int _selectedTabIndex;
-    private int _pickModeIndex;
     private string _pickBanner = "";
     private int? _pickCountdown;
     private bool _hasSelection;
@@ -46,7 +45,6 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         _service = service;
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
-        PickModes = ["点击选择", "拖动选择"];
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
@@ -64,21 +62,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<InfoRow> SessionRows { get; } = [];
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
-    public IReadOnlyList<string> PickModes { get; }
     public string? InitialSelection { get; set; }
-
-    public int PickModeIndex
-    {
-        get => _pickModeIndex;
-        set
-        {
-            if (!Set(ref _pickModeIndex, value)) return;
-            OnPropertyChanged(nameof(CurrentPickMode));
-            OnPropertyChanged(nameof(PickButtonText));
-        }
-    }
-
-    public PickMode CurrentPickMode => PickModeIndex == 1 ? PickMode.Drag : PickMode.Click;
 
     public int SelectedTabIndex
     {
@@ -162,13 +146,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (!Set(ref _isPicking, value)) return;
             OnPropertyChanged(nameof(IsIdle));
-            OnPropertyChanged(nameof(PickButtonText));
         }
     }
-
-    public string PickButtonText => IsPicking
-        ? "拾取中…"
-        : CurrentPickMode == PickMode.Drag ? "拖动拾取" : "点击拾取";
 
     public string PickBanner
     {
@@ -357,7 +336,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public async Task PickAsync(bool x11Only = false, PickMode? mode = null)
     {
         if (IsPicking) return;
-        var pickMode = mode ?? CurrentPickMode;
+        var pickMode = mode ?? PickMode.Click;
         _pickCts?.Cancel();
         _pickCts = new CancellationTokenSource();
         var cts = _pickCts;

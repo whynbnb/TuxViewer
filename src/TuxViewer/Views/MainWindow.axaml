@@ -92,14 +92,12 @@
                   ToolTip.Tip="刷新窗口列表 (F5)" />
           <Button Content="当前焦点" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
                   ToolTip.Tip="读取当前聚焦的窗口" />
-          <ComboBox ItemsSource="{Binding PickModes}"
-                    SelectedIndex="{Binding PickModeIndex, Mode=TwoWay}"
-                    Width="94" MinHeight="32"
-                    ToolTip.Tip="点击选择：单击目标窗口；拖动选择：按住左键拖动准星，松开确认" />
-          <Button Content="{Binding PickButtonText}" Click="Pick_Click" Classes="pick"
-                  IsEnabled="{Binding IsIdle}" ToolTip.Tip="十字准星检视窗口 (F2)" />
+          <Button Content="点击拾取" Click="Pick_Click" Classes="pick"
+                  IsEnabled="{Binding IsIdle}" ToolTip.Tip="点击模式：单击目标窗口 (F2)" />
+          <Button Content="拖动拾取" Click="PickDrag_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="拖动模式：按住左键拖动准星，松开确认 (F3)" />
           <Button Content="X11 拾取" Click="PickX11_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="只使用 X11 指针抓取（Shift+F2），支持点击/拖动，仅 X11 / XWayland 窗口" />
+                  ToolTip.Tip="只使用 X11 指针抓取（Shift+F2 / Shift+F3），仅 X11 / XWayland 窗口" />
         </StackPanel>
       </Grid>
     </Border>
