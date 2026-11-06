@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=TuxViewer
+GenericName=Linux Window Inspector
+Comment=Inspect X11, XWayland and Wayland windows, processes and UI toolkits
+Exec=tuxviewer
+Icon=tuxviewer
+Terminal=false
+Categories=Development;System;Utility;
+Keywords=window;inspector;x11;wayland;spy;toolkit;gtk;qt;
+StartupNotify=true
+StartupWMClass=TuxViewer

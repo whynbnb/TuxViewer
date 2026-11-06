@@ -1,0 +1,156 @@
+﻿using System.Text.Json;
+using Avalonia;
+using TuxViewer.Models;
+using TuxViewer.Services;
+
+namespace TuxViewer;
+
+internal static class Program
+{
+    [STAThread]
+    public static int Main(string[] args)
+    {
+        if (args.Contains("--help", StringComparer.OrdinalIgnoreCase) ||
+            args.Contains("-h", StringComparer.OrdinalIgnoreCase))
+        {
+            Console.WriteLine("""
+                TuxViewer — Linux 桌面环境 / 窗口检视器
+
+                用法:
+                  TuxViewer [--select <id|app_id|标题>] [--tab <overview|process|x11|wayland|env|raw|diagnostics>]
+                  TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
+                  TuxViewer --install-gnome-extension
+
+                环境变量:
+                  TUXVIEWER_BACKEND=wayland|x11   强制 Avalonia 窗口后端（默认 Wayland 优先，失败回退 X11）
+                  TUXVIEWER_X11_DEBUG=1           输出 X11 调试日志
+
+                快捷键:
+                  F2 拾取窗口   F5 刷新   Esc 取消拾取
+                """);
+            return 0;
+        }
+
+        if (args.Contains("--diagnose", StringComparer.OrdinalIgnoreCase))
+            return RunDiagnoseAsync(args).GetAwaiter().GetResult();
+
+        if (args.Contains("--install-gnome-extension", StringComparer.OrdinalIgnoreCase))
+        {
+            Console.WriteLine(GnomeExtensionInstaller.InstallAsync(CancellationToken.None).GetAwaiter().GetResult());
+            return 0;
+        }
+
+        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        return 0;
+    }
+
+    public static AppBuilder BuildAvaloniaApp()
+    {
+        var builder = AppBuilder.Configure<App>()
+            .UsePlatformDetect()
+            .WithInterFont()
+            .LogToTrace();
+
+        // TUXVIEWER_BACKEND=x11 forces the X11 backend (useful on XWayland-only setups);
+        // TUXVIEWER_BACKEND=wayland forces native Wayland; default prefers Wayland with fallback.
+        var backend = Environment.GetEnvironmentVariable("TUXVIEWER_BACKEND")?.Trim().ToLowerInvariant();
+        return backend switch
+        {
+            "x11" => builder,
+            "wayland" => builder.UseWayland(),
+            _ => builder.UseWaylandWithFallback(),
+        };
+    }
+
+    private static async Task<int> RunDiagnoseAsync(string[] args)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var service = new InspectorService();
+        try
+        {
+            await service.InitializeAsync(cts.Token);
+            var windows = await service.RefreshAsync(cts.Token);
+            var protocols = await service.GetWaylandProtocolsAsync(cts.Token);
+
+            if (args.Contains("--json", StringComparer.OrdinalIgnoreCase))
+            {
+                var payload = new
+                {
+                    session = new
+                    {
+                        type = service.Registry.Session.SessionType,
+                        desktop = service.Registry.Session.Desktop,
+                        compositor = service.Registry.Session.Compositor,
+                        compositor_version = service.Registry.Session.CompositorVersion,
+                        wayland_display = service.Registry.Session.WaylandDisplay,
+                        x11_display = service.Registry.Session.X11Display,
+                        x11_wm = service.Registry.Session.X11WmName,
+                    },
+                    providers = service.Registry.GetStatuses(),
+                    wayland_protocols = protocols,
+                    windows,
+                };
+                Console.WriteLine(JsonSerializer.Serialize(payload, new JsonSerializerOptions
+                {
+                    WriteIndented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+                }));
+                return 0;
+            }
+
+            Console.WriteLine($"TuxViewer diagnostics");
+            Console.WriteLine($"  session      : {service.Registry.Session.SessionType}");
+            Console.WriteLine($"  desktop      : {service.Registry.Session.Desktop}");
+            Console.WriteLine($"  compositor   : {service.Registry.Session.Compositor} {service.Registry.Session.CompositorVersion}");
+            Console.WriteLine($"  wayland      : {service.Registry.Session.WaylandDisplay}");
+            Console.WriteLine($"  x11          : {service.Registry.Session.X11Display} (WM: {service.Registry.Session.X11WmName})");
+            Console.WriteLine("  providers:");
+            foreach (var status in service.Registry.GetStatuses())
+                Console.WriteLine($"    [{(status.Available ? "x" : " ")}] {status.Name,-22} {status.Detail}");
+            Console.WriteLine($"  windows      : {windows.Count}");
+            foreach (var window in windows)
+            {
+                Console.WriteLine(
+                    $"    {window.BackendShort,-3} pid={window.Pid?.ToString() ?? "-",-7} " +
+                    $"{window.GeometryText,-22} {window.SourceName,-10} {window.Title}");
+            }
+
+            var detailArg = GetArg(args, "--detail");
+            if (detailArg is not null)
+            {
+                var window = windows.FirstOrDefault(w =>
+                                 string.Equals(w.Id, detailArg, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(w.NativeId, detailArg, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(w.AppId, detailArg, StringComparison.OrdinalIgnoreCase) ||
+                                 string.Equals(w.Title, detailArg, StringComparison.OrdinalIgnoreCase))
+                             ?? windows.FirstOrDefault(w => w.Title.Contains(detailArg, StringComparison.OrdinalIgnoreCase));
+                if (window is null)
+                {
+                    Console.Error.WriteLine($"No window matched '{detailArg}'");
+                    return 2;
+                }
+                var inspection = await service.InspectAsync(window, cts.Token);
+                Console.WriteLine(inspection.RawJson);
+                if (args.Contains("--highlight", StringComparer.OrdinalIgnoreCase))
+                {
+                    service.Highlight(window);
+                    await Task.Delay(2500, cts.Token);
+                }
+            }
+
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex);
+            return 1;
+        }
+    }
+
+    private static string? GetArg(string[] args, string name)
+    {
+        for (var i = 0; i < args.Length - 1; i++)
+            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase)) return args[i + 1];
+        return null;
+    }
+}

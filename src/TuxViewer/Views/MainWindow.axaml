@@ -1,0 +1,410 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="using:TuxViewer.Models"
+        xmlns:vm="using:TuxViewer.ViewModels"
+        x:Class="TuxViewer.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="TuxViewer — Linux 窗口检视器"
+        Icon="avares://TuxViewer/Assets/tuxviewer.png"
+        Width="1440" Height="900" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        KeyDown="Window_KeyDown">
+
+  <Window.Resources>
+    <DataTemplate x:Key="InfoRowTemplate" x:DataType="models:InfoRow">
+      <Grid ColumnDefinitions="176,*" Margin="0,2">
+        <TextBlock Text="{Binding Label}" Foreground="#8795AB" FontSize="12" VerticalAlignment="Top" />
+        <SelectableTextBlock Grid.Column="1" Text="{Binding Value}"
+                             FontFamily="{Binding FontFamily}" FontSize="12"
+                             Foreground="#DCE5F4" TextWrapping="Wrap" />
+      </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="X11PropertyTemplate" x:DataType="models:X11Property">
+      <Border Classes="card" Margin="0,0,0,4" Padding="10,7">
+        <StackPanel Spacing="2">
+          <TextBlock Text="{Binding NameAndType}" FontSize="11" Foreground="#8FA6C9"
+                     FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace" />
+          <SelectableTextBlock Text="{Binding Value}" FontSize="12"
+                               FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                               Foreground="#DCE5F4" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="X11ChildTemplate" x:DataType="models:X11ChildInfo">
+      <Border Classes="card" Margin="0,0,0,3" Padding="9,6">
+        <SelectableTextBlock Text="{Binding DisplayText}" FontSize="11"
+                             FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                             Foreground="#C6D3E8" TextWrapping="Wrap" />
+      </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ProviderTemplate" x:DataType="models:ProviderStatus">
+      <Border Classes="provider" Classes.available="{Binding Available}">
+        <StackPanel Spacing="3">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
+            <Border Grid.Column="1">
+              <Border Classes="badge" Classes.accent="{Binding Available}">
+                <TextBlock Text="{Binding AvailabilityText}" />
+              </Border>
+            </Border>
+          </Grid>
+          <TextBlock Text="{Binding Detail}" Classes="hint" />
+          <TextBlock Text="{Binding CapabilityText}" Classes="hint" Foreground="#6E7F98" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,*,Auto">
+
+    <!-- Top bar -->
+    <Border Grid.Row="0" Background="#0E131D" BorderBrush="#222B3B" BorderThickness="0,0,0,1" Padding="16,10">
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <Border Width="38" Height="38" CornerRadius="11" Background="#4F8CFF">
+            <TextBlock Text="TV" FontSize="15" FontWeight="Bold" Foreground="#08101E"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <StackPanel VerticalAlignment="Center" Spacing="1">
+            <TextBlock Text="TuxViewer" FontSize="20" FontWeight="Bold" LetterSpacing="0.4" />
+            <TextBlock Text="Linux 桌面环境 / 窗口检视器" FontSize="11" Foreground="#7E8CA3" />
+          </StackPanel>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="7"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+          <Border Classes="badge accent">
+            <TextBlock Text="{Binding SessionSummary}" />
+          </Border>
+          <Border Classes="badge">
+            <TextBlock Text="{Binding CountsText}" />
+          </Border>
+          <Border Classes="badge" IsVisible="{Binding AutoRefresh}">
+            <TextBlock Text="AUTO 3s" />
+          </Border>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
+          <Button Content="刷新" Click="Refresh_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="刷新窗口列表 (F5)" />
+          <Button Content="当前焦点" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="读取当前聚焦的窗口" />
+          <Button Content="{Binding PickButtonText}" Click="Pick_Click" Classes="pick"
+                  IsEnabled="{Binding IsIdle}" ToolTip.Tip="十字准星检视窗口 (F2)" />
+          <Button Content="X11 拾取" Click="PickX11_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="只使用 X11 指针抓取（仅 X11 / XWayland 窗口）" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <!-- Main content -->
+    <Grid Grid.Row="1">
+      <Grid ColumnDefinitions="470,6,*">
+
+        <!-- Window list -->
+        <Border Grid.Column="0" Classes="panel" Margin="12,12,0,12" ClipToBounds="True">
+          <DockPanel>
+            <Grid DockPanel.Dock="Top" Margin="12,12,12,0" RowDefinitions="Auto,Auto,Auto">
+              <TextBox Grid.Row="0" PlaceholderText="搜索标题、应用 ID、PID、窗口 ID…"
+                       Text="{Binding FilterText, Mode=TwoWay}" />
+              <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                <ComboBox ItemsSource="{Binding BackendFilters}"
+                          SelectedIndex="{Binding BackendFilterIndex, Mode=TwoWay}" />
+                <ToggleButton Grid.Column="1" Content="自动刷新" Classes="chip"
+                              IsChecked="{Binding AutoRefresh, Mode=TwoWay}" Margin="8,0,0,0" />
+              </Grid>
+              <WrapPanel Grid.Row="2" Margin="0,8,0,0" ItemSpacing="5" LineSpacing="5">
+                <ToggleButton Content="隐藏本应用" Classes="chip"
+                              IsChecked="{Binding HideOwnWindows, Mode=TwoWay}" />
+                <ToggleButton Content="含原始 X11" Classes="chip"
+                              IsChecked="{Binding IncludeRawX11, Mode=TwoWay}"
+                              ToolTip.Tip="显示已合并到 Wayland 条目中的原始 X11 窗口" />
+                <ToggleButton Content="含未映射" Classes="chip"
+                              IsChecked="{Binding IncludeUnmapped, Mode=TwoWay}" />
+              </WrapPanel>
+            </Grid>
+
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="12,12,12,6">
+              <TextBlock Text="窗口 / TOPLEVEL" Classes="section" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="1" Text="来源 · 后端 · 几何" FontSize="11" Foreground="#66758C" />
+            </Grid>
+
+            <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow, Mode=TwoWay}"
+                     Margin="8,0,8,8">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="models:WindowInfo">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                    <Border Classes="badge" Classes.x11="{Binding IsX11}" Classes.wl="{Binding IsWayland}"
+                            Width="38" Height="26" Padding="0" HorizontalAlignment="Left"
+                            VerticalAlignment="Center">
+                      <TextBlock Text="{Binding BackendShort}" FontSize="10" FontWeight="Bold"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                 TextTrimming="CharacterEllipsis" />
+                      <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#7E8CA3"
+                                 TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
+                                HorizontalAlignment="Right">
+                      <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="#93A4BC"
+                                 FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                 HorizontalAlignment="Right" />
+                      <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="#4F8CFF"
+                                 HorizontalAlignment="Right" />
+                    </StackPanel>
+                  </Grid>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </DockPanel>
+        </Border>
+
+        <!-- Details -->
+        <Border Grid.Column="2" Classes="panel" Margin="0,12,12,12" ClipToBounds="True">
+          <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Background="#101724" BorderBrush="#232C3D" BorderThickness="0,0,0,1"
+                    Padding="16,12">
+              <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                  <SelectableTextBlock Text="{Binding SelectedTitle}" FontSize="18" FontWeight="Bold"
+                                       TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding SelectedSubtitle}" FontSize="11" Foreground="#7E8CA3"
+                             TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6"
+                            VerticalAlignment="Top">
+                  <Border Classes="badge" Classes.x11="{Binding SelectedWindow.IsX11}"
+                          Classes.wl="{Binding SelectedWindow.IsWayland}">
+                    <TextBlock Text="{Binding SelectedBackend}" />
+                  </Border>
+                  <Border Classes="badge">
+                    <TextBlock Text="{Binding SelectedPid}" />
+                  </Border>
+                </StackPanel>
+                <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*"
+                      Margin="0,10,0,0">
+                  <Button Content="复制摘要" Click="CopySummary_Click" Classes="ghost" IsEnabled="{Binding HasSelection}" />
+                  <Button Grid.Column="1" Content="复制 JSON" Click="CopyJson_Click" Classes="ghost"
+                          IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
+                  <Button Grid.Column="2" Content="高亮" Click="Highlight_Click" Classes="ghost"
+                          IsEnabled="{Binding HasSelection}" Margin="6,0,0,0"
+                          ToolTip.Tip="在 X11 屏幕上绘制边框；Wayland 窗口请用“聚焦”" />
+                  <Button Grid.Column="3" Content="聚焦" Click="Focus_Click" Classes="ghost"
+                          IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
+                  <Button Grid.Column="4" Content="关闭窗口" Click="Close_Click" Classes="danger"
+                          IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
+                  <TextBlock Grid.Column="5" Text="{Binding SelectedId, StringFormat='ID {0}'}" Classes="muted" FontSize="10"
+                             FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                             HorizontalAlignment="Right" VerticalAlignment="Center"
+                             TextTrimming="CharacterEllipsis" Margin="12,0,0,0" />
+                </Grid>
+              </Grid>
+            </Border>
+
+            <TabControl Grid.Row="1" Margin="10,8,10,10"
+                        SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+              <TabItem Header="概览">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12">
+                    <TextBlock Text="窗口属性" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding OverviewRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+                    <Border Classes="divider" />
+                    <TextBlock Classes="hint"
+                               Text="“后端”为 X11 时表示该窗口是 X11 客户端；在 Wayland 会话下它就是 XWayland 窗口。进程页会进一步显示它实际连接的 X11 / Wayland socket，以及 GTK/Qt/Electron/Flutter 等工具包证据。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
+              <TabItem Header="进程">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12">
+                    <TextBlock Text="{Binding ProcessHeader}" FontSize="13" FontWeight="SemiBold"
+                               TextWrapping="Wrap" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding ProcessRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="工具包证据" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding ToolkitEvidence}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="5" LineSpacing="5" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:CompileBindings="False">
+                          <Border Classes="badge">
+                            <TextBlock Text="{Binding}" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="关键动态库" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding KeyLibraries}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="5" LineSpacing="5" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:CompileBindings="False">
+                          <Border Classes="badge">
+                            <TextBlock Text="{Binding}" FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                       FontSize="10" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
+              <TabItem Header="X11 属性">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="6,8,10,8">
+                  <TextBlock Grid.Row="0" Text="X11 窗口属性" Classes="section" Margin="0,0,0,6" />
+                  <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding X11Rows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+                  </ScrollViewer>
+                  <TextBlock Grid.Row="2" Text="{Binding X11Details.Properties.Count, StringFormat='{}{0} 个 X11 属性（点击复制）'}"
+                             Classes="section" Margin="0,12,0,6" />
+                  <ScrollViewer Grid.Row="3" MaxHeight="250" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding X11Properties}" ItemTemplate="{StaticResource X11PropertyTemplate}" />
+                  </ScrollViewer>
+                  <TextBlock Grid.Row="4" Text="{Binding X11Details.Children.Count, StringFormat='{}{0} 个子窗口'}"
+                             Classes="section" Margin="0,12,0,6" IsVisible="{Binding HasX11Details}" />
+                  <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding X11Children}" ItemTemplate="{StaticResource X11ChildTemplate}" />
+                  </ScrollViewer>
+                </Grid>
+              </TabItem>
+
+              <TabItem Header="Wayland">
+                <Grid RowDefinitions="Auto,*" Margin="6,8,10,8">
+                  <ItemsControl Grid.Row="0" ItemsSource="{Binding WaylandRows}"
+                                ItemTemplate="{StaticResource InfoRowTemplate}" />
+                  <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
+                    <StackPanel>
+                      <TextBlock Text="合成器原始数据" Classes="section" Margin="0,0,0,6" />
+                      <SelectableTextBlock Text="{Binding NativeJson}" FontSize="11"
+                                           FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                           Foreground="#B9C9E2" TextWrapping="Wrap" />
+                    </StackPanel>
+                  </ScrollViewer>
+                </Grid>
+              </TabItem>
+
+              <TabItem Header="环境">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12">
+                    <TextBlock Text="进程环境变量（优先级排序）" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding EnvironmentRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+                    <Border Classes="divider" />
+                    <TextBlock Text="socket 连接" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding SocketRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
+              <TabItem Header="原始数据">
+                <Grid RowDefinitions="Auto,*" Margin="6,8,10,8">
+                  <TextBlock Grid.Row="0" Text="完整检视 JSON（窗口 + 进程 + X11 属性 + socket + 环境）"
+                             Classes="section" Margin="0,0,0,6" />
+                  <TextBox Grid.Row="1" Text="{Binding RawJson}" IsReadOnly="True" AcceptsReturn="True"
+                           TextWrapping="NoWrap" FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                           FontSize="11" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                           ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                </Grid>
+              </TabItem>
+
+              <TabItem Header="诊断">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="2">
+                    <TextBlock Text="会话" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding SessionRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+
+                    <Border Classes="divider" />
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
+                      <TextBlock Text="窗口后端" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="刷新诊断" Click="RefreshDiagnostics_Click"
+                              Classes="ghost" FontSize="11" Padding="8,4" />
+                    </Grid>
+                    <ItemsControl ItemsSource="{Binding Diagnostics}" ItemTemplate="{StaticResource ProviderTemplate}" />
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="Wayland 全局协议（wayland-info）" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding WaylandProtocols}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="5" LineSpacing="5" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:CompileBindings="False">
+                          <Border Classes="badge">
+                            <TextBlock Text="{Binding}" FontSize="10" />
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="GNOME 支持" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Classes="hint"
+                               Text="GNOME Shell 默认禁止第三方读取窗口列表。TuxViewer 附带一个可选扩展，安装并重新登录后即可枚举窗口和按指针拾取。" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                      <Button Content="安装 GNOME 扩展" Click="InstallGnome_Click" Classes="ghost" />
+                      <TextBlock Text="{Binding GnomeInstallStatus}" Classes="hint" VerticalAlignment="Center"
+                                 MaxWidth="520" />
+                    </StackPanel>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="限制说明" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Classes="hint"
+                               Text="Wayland 不允许普通客户端全局抓取输入或读取其他窗口内容。TuxViewer 会按合成器选择原生方案：niri pick-window、KWin queryWindowInfo、Hyprland 指针坐标、Sway 聚焦窗口、GNOME 扩展。X11 / XWayland 窗口则使用真正的全局指针抓取。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+            </TabControl>
+          </Grid>
+        </Border>
+      </Grid>
+
+      <!-- Pick banner -->
+      <Border IsVisible="{Binding IsPicking}" ZIndex="10"
+              HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,22,0,0"
+              Background="#F2172338" BorderBrush="#4F8CFF" BorderThickness="1" CornerRadius="10"
+              Padding="14,10" BoxShadow="0 8 30 0 #80000000">
+        <StackPanel Orientation="Horizontal" Spacing="12">
+          <TextBlock Text="◎" FontSize="20" Foreground="#7EABFF" VerticalAlignment="Center" />
+          <StackPanel Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding PickBanner}" FontSize="13" FontWeight="SemiBold" />
+            <TextBlock Text="提示：X11 抓取时左键选择，右键 / Esc 取消" FontSize="10" Foreground="#7E8CA3" />
+          </StackPanel>
+          <Border Classes="badge accent" IsVisible="{Binding HasPickCountdown}">
+            <TextBlock Text="{Binding PickCountdown}" />
+          </Border>
+          <Button Content="取消" Click="CancelPick_Click" Classes="ghost" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <!-- Status bar -->
+    <Border Grid.Row="2" Background="#0E131D" BorderBrush="#222B3B" BorderThickness="0,1,0,0"
+            Padding="14,6">
+      <Grid ColumnDefinitions="*,Auto,Auto">
+        <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#93A4BC"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding Session.SessionType}" FontSize="10"
+                   Foreground="#66758C" Margin="10,0" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding LastUpdatedText, StringFormat='更新 {0}'}"
+                   FontSize="10" Foreground="#66758C" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+  </Grid>
+</Window>
