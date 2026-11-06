@@ -7,6 +7,8 @@
 
 ![TuxViewer 进程与工具包](docs/process.png)
 
+![TuxViewer 输出与布局](docs/outputs.png)
+
 TuxViewer 用于回答这些问题：
 
 - 这个窗口是 **X11 / XWayland 应用**，还是 **Wayland 原生应用**？
