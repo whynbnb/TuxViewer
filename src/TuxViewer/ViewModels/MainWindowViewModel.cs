@@ -1540,6 +1540,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var name = string.IsNullOrWhiteSpace(SnapshotName)
             ? $"{SelectedWindow.Title} {DateTime.Now:MM-dd HH:mm}"
             : SnapshotName.Trim();
+        if (ScreenshotPng is not { Length: > 0 })
+            await EnsureScreenshotAsync();
         var snapshot = BuildCurrentSnapshot(name, includeScreenshot: true);
         if (snapshot is null) return;
         try
