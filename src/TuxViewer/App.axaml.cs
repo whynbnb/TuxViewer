@@ -51,7 +51,8 @@ public partial class App : Application
                 "wayland" or "wl" => 3,
                 "env" or "environment" => 4,
                 "raw" or "json" => 5,
-                "diagnostics" or "diag" => 6,
+                "events" or "event" => 6,
+                "diagnostics" or "diag" => 7,
                 _ => 0,
             };
         }

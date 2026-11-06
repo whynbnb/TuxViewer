@@ -12,25 +12,61 @@
 
   <Window.Resources>
     <DataTemplate x:Key="InfoRowTemplate" x:DataType="models:InfoRow">
-      <Grid ColumnDefinitions="176,*" Margin="0,2">
+      <Grid ColumnDefinitions="176,*,Auto" Margin="0,2" ColumnSpacing="8">
         <TextBlock Text="{Binding Label}" Foreground="#8795AB" FontSize="12"
                    LineHeight="18" VerticalAlignment="Top" />
-        <SelectableTextBlock Grid.Column="1" Text="{Binding Value}"
-                             FontFamily="{Binding FontFamily}" FontSize="12"
-                             LineHeight="18" Foreground="#DCE5F4" TextWrapping="Wrap" />
+        <StackPanel Grid.Column="1" Spacing="1">
+          <SelectableTextBlock Text="{Binding Value}"
+                               FontFamily="{Binding FontFamily}" FontSize="12"
+                               LineHeight="18" Foreground="#DCE5F4" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding ChangeText}" IsVisible="{Binding IsChanged}"
+                     FontSize="10" Foreground="#F6C177" TextWrapping="Wrap" />
+        </StackPanel>
+        <Border Grid.Column="2" Classes="change-badge" IsVisible="{Binding IsChanged}"
+                VerticalAlignment="Top" Margin="0,2,0,0">
+          <TextBlock Text="CHANGED" />
+        </Border>
       </Grid>
     </DataTemplate>
 
     <DataTemplate x:Key="X11PropertyTemplate" x:DataType="models:X11Property">
-      <Border Classes="card" Margin="0,0,0,4" Padding="10,7">
+      <Border Classes="card" Classes.changed="{Binding IsChanged}" Margin="0,0,0,4" Padding="10,7">
         <StackPanel Spacing="2">
-          <TextBlock Text="{Binding NameAndType}" FontSize="11" Foreground="#8FA6C9"
-                     FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace" />
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Text="{Binding NameAndType}" FontSize="11" Foreground="#8FA6C9"
+                       FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                       TextWrapping="Wrap" />
+            <Border Grid.Column="1" Classes="change-badge" IsVisible="{Binding IsChanged}">
+              <TextBlock Text="CHANGED" />
+            </Border>
+          </Grid>
           <SelectableTextBlock Text="{Binding Value}" FontSize="12"
                                FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                                Foreground="#DCE5F4" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding ChangeText}" IsVisible="{Binding IsChanged}"
+                     FontSize="10" Foreground="#F6C177"
+                     FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                     TextWrapping="Wrap" />
         </StackPanel>
       </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="EventTemplate" x:DataType="models:WindowEventRecord">
+      <Grid ColumnDefinitions="86,64,96,*" ColumnSpacing="8" Margin="0,1">
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <Border Grid.Column="1" Classes="tag" HorizontalAlignment="Left"
+                VerticalAlignment="Center">
+          <TextBlock Text="{Binding Source}" />
+        </Border>
+        <TextBlock Grid.Column="2" Text="{Binding KindText}" FontSize="10" Foreground="#9BC0FF"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                   ToolTip.Tip="{Binding Summary}" />
+      </Grid>
     </DataTemplate>
 
     <DataTemplate x:Key="X11ChildTemplate" x:DataType="models:X11ChildInfo">
@@ -84,7 +120,7 @@
             <TextBlock Text="{Binding CountsText}" />
           </Border>
           <Border Classes="badge" IsVisible="{Binding AutoRefresh}">
-            <TextBlock Text="AUTO 3s" />
+            <TextBlock Text="{Binding AutoRefreshBadge}" />
           </Border>
         </StackPanel>
 
@@ -127,6 +163,9 @@
                               ToolTip.Tip="显示已合并到 Wayland 条目中的原始 X11 窗口" />
                 <ToggleButton Content="含未映射" Classes="chip"
                               IsChecked="{Binding IncludeUnmapped, Mode=TwoWay}" />
+                <ToggleButton Content="实时事件" Classes="chip"
+                              IsChecked="{Binding RealtimeEnabled, Mode=TwoWay}"
+                              ToolTip.Tip="监听 X11 PropertyNotify / niri / Sway / Hyprland 事件" />
               </WrapPanel>
             </Grid>
 
@@ -344,11 +383,47 @@
                 </Grid>
               </TabItem>
 
+              <TabItem Header="事件">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="6,8,10,8">
+                  <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,6">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+                      <TextBlock Text="实时事件" Classes="section" VerticalAlignment="Center" />
+                      <Border Grid.Column="1" Classes="badge accent" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding RealtimeSummary}" />
+                      </Border>
+                      <TextBlock Grid.Column="2" Text="{Binding EventCountText}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center" />
+                      <Button Grid.Column="3" Content="清空" Click="ClearEvents_Click"
+                              Classes="ghost" FontSize="11" Padding="8,4" />
+                      <Button Grid.Column="4" Content="复制" Click="CopyEvents_Click"
+                              Classes="ghost" FontSize="11" Padding="8,4" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
+                               Text="实时事件来自 X11 PropertyNotify / ConfigureNotify / Map / Destroy / Focus、niri event-stream、Sway subscribe 和 Hyprland socket2。属性变化会在“概览”和“X11 属性”页标黄并显示旧值。" />
+                  </Grid>
+                  <ListBox Grid.Row="1" ItemsSource="{Binding Events}"
+                           ItemTemplate="{StaticResource EventTemplate}">
+                    <ListBox.Styles>
+                      <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="6,2" />
+                        <Setter Property="Margin" Value="0" />
+                      </Style>
+                    </ListBox.Styles>
+                  </ListBox>
+                  <TextBlock Grid.Row="2" Classes="hint" Margin="0,6,0,0"
+                             Text="提示：事件列表只保留最近 800 条；暂停“实时事件”开关后不再记录。" />
+                </Grid>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">
                     <TextBlock Text="会话" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding SessionRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="实时监控" Classes="section" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding RealtimeRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
 
                     <Border Classes="divider" />
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">

@@ -104,6 +104,15 @@ public partial class MainWindow : Window
 
     private void RefreshDiagnostics_Click(object? sender, RoutedEventArgs e) => ViewModel?.RefreshDiagnostics();
 
+    private void ClearEvents_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearEvents();
+
+    private async void CopyEvents_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildEventsText());
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;

@@ -179,12 +179,23 @@ public sealed class WindowInfo : INotifyPropertyChanged
     }
 }
 
-public sealed class InfoRow(string label, string? value, bool mono = false, bool wrap = false)
+public sealed class InfoRow(
+    string label,
+    string? value,
+    bool mono = false,
+    bool wrap = false,
+    bool changed = false,
+    string? oldValue = null)
 {
     public string Label { get; } = label;
     public string Value { get; } = string.IsNullOrWhiteSpace(value) ? "—" : value!;
     public bool IsMono { get; } = mono;
     public bool Wrap { get; } = wrap;
+    public bool IsChanged { get; } = changed;
+    public string? OldValue { get; } = oldValue;
+    public string ChangeText => IsChanged
+        ? OldValue is null || OldValue.Length == 0 ? "已变化" : $"旧值：{OldValue}"
+        : "";
     public string FontFamily => IsMono
         ? "Cascadia Mono,DejaVu Sans Mono,Noto Sans Mono,monospace"
         : "Inter,Noto Sans CJK SC,Noto Sans SC,sans-serif";
@@ -196,8 +207,73 @@ public sealed class X11Property
     public required string Type { get; init; }
     public required int Format { get; init; }
     public required string Value { get; init; }
+    public bool IsChanged { get; init; }
+    public string? PreviousValue { get; init; }
     public string NameAndType => $"{Name}  [{Type}/{Format}]";
+    public string ChangeText => IsChanged
+        ? PreviousValue is null || PreviousValue.Length == 0
+            ? "已变化"
+            : $"旧值：{Truncate(PreviousValue)}"
+        : "";
+    public bool HasChange => IsChanged;
+
+    public X11Property WithChange(bool changed, string? previous) => new()
+    {
+        Name = Name,
+        Type = Type,
+        Format = Format,
+        Value = Value,
+        IsChanged = changed,
+        PreviousValue = previous,
+    };
+
+    private static string Truncate(string value)
+        => value.Length <= 220 ? value : value[..220] + " …";
 }
+
+public enum MonitorEventKind
+{
+    Unknown,
+    Property,
+    Title,
+    Configure,
+    Map,
+    Unmap,
+    Focus,
+    Opened,
+    Closed,
+    Workspace,
+    Generic,
+}
+
+public sealed class WindowEventRecord
+{
+    public DateTime Timestamp { get; init; } = DateTime.Now;
+    public required string Source { get; init; }
+    public string? NativeId { get; init; }
+    public string? AppId { get; init; }
+    public MonitorEventKind Kind { get; init; }
+    public string Summary { get; init; } = "";
+    public string? Detail { get; init; }
+
+    public string TimeText => Timestamp.ToString("HH:mm:ss.fff");
+    public string KindText => Kind switch
+    {
+        MonitorEventKind.Property => "PROPERTY",
+        MonitorEventKind.Title => "TITLE",
+        MonitorEventKind.Configure => "CONFIGURE",
+        MonitorEventKind.Map => "MAP",
+        MonitorEventKind.Unmap => "UNMAP",
+        MonitorEventKind.Focus => "FOCUS",
+        MonitorEventKind.Opened => "OPEN",
+        MonitorEventKind.Closed => "CLOSE",
+        MonitorEventKind.Workspace => "WORKSPACE",
+        MonitorEventKind.Generic => "EVENT",
+        _ => "UNKNOWN",
+    };
+    public string DisplayText => $"{TimeText}  {Source,-8} {KindText,-10} {Summary}";
+}
+
 
 public sealed class X11ChildInfo
 {

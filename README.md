@@ -75,14 +75,17 @@ TuxViewer 用于回答这些问题：
 ### 5. 交互与工作流
 
 - 窗口列表：应用图标、WL/X11 标签、搜索、后端筛选、隐藏本应用、包含原始 X11 窗口、包含未映射窗口
+- **实时事件监控**：X11 `PropertyNotify` / `ConfigureNotify` / `Map` / `Destroy` / `Focus`，niri event-stream、Sway subscribe、Hyprland socket2
+- 属性变化即时刷新，并在“概览”“X11 属性”中标黄显示旧值 → 新值
+- “事件”页保留最近 800 条实时事件，可清空 / 复制
 - 图标优先从 `.desktop` / 图标主题解析；无法解析时显示应用首字母占位
 - **两种拾取模式**：
   - **点击拾取**：出现十字准星，悬停高亮，单击确认
   - **拖动拾取**：按住左键拖动准星，拖动过程中实时高亮，松开确认
-- 3 秒自动刷新（可关闭）
+- 自动刷新兜底：实时事件可用时 15 秒，否则 3 秒（可关闭）
 - 拾取后自动定位详情，并自动高亮选中窗口
 - 复制摘要 / 完整 JSON
-- 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、诊断
+- 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
 - X11 抓取时：点击模式左键单击；拖动模式按住左键拖动后松开；右键 / `Esc` 取消
@@ -259,6 +262,7 @@ TuxViewer/
 │  │  ├─ ProcessResolver.cs         # 无 _NET_WM_PID 时的名称匹配
 │  │  ├─ ProviderRegistry.cs        # 后端注册、XWayland 合并、拾取调度
 │  │  ├─ SessionDetector.cs         # 会话 / 合成器 / Wayland 协议
+│  │  ├─ RealtimeMonitor.cs         # X11 / niri / Sway / Hyprland 实时事件
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）

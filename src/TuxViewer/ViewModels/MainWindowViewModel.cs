@@ -42,6 +42,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _isRefreshing;
     private bool _syncingWindows;
 
+    private readonly RealtimeMonitor _monitor = new();
+    private readonly Dictionary<string, string> _lastOverviewSnapshot = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _lastX11RowSnapshot = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> _lastX11PropertySnapshot = new(StringComparer.Ordinal);
+    private CancellationTokenSource? _eventDebounceCts;
+    private string _lastDiffWindowId = "";
+    private bool _realtimeEnabled = true;
+    private string _realtimeSummary = "未启动";
+    private int _eventCount;
+    private string _eventCountText = "0 条事件";
+    private int _changeGeneration;
+
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
@@ -61,7 +73,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<string> KeyLibraries { get; } = [];
     public ObservableCollection<ProviderStatus> Diagnostics { get; } = [];
     public ObservableCollection<InfoRow> SessionRows { get; } = [];
+    public ObservableCollection<InfoRow> RealtimeRows { get; } = [];
     public ObservableCollection<string> WaylandProtocols { get; } = [];
+    public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public string? InitialSelection { get; set; }
 
@@ -79,6 +93,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (_syncingWindows && value is null) return;
             if (ReferenceEquals(_selectedWindow, value)) return;
             _selectedWindow = value;
+            if (value is not null && !string.Equals(_lastDiffWindowId, value.Id, StringComparison.Ordinal))
+            {
+                _lastDiffWindowId = value.Id;
+                _lastOverviewSnapshot.Clear();
+                _lastX11RowSnapshot.Clear();
+                _lastX11PropertySnapshot.Clear();
+            }
+            else if (value is null)
+            {
+                _lastDiffWindowId = "";
+                _lastOverviewSnapshot.Clear();
+                _lastX11RowSnapshot.Clear();
+                _lastX11PropertySnapshot.Clear();
+            }
             OnPropertyChanged();
             HasSelection = value is not null;
             OnPropertyChanged(nameof(SelectedTitle));
@@ -130,7 +158,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool AutoRefresh
     {
         get => _autoRefresh;
-        set { if (Set(ref _autoRefresh, value)) StatusText = value ? "自动刷新已开启（每 3 秒）" : "自动刷新已关闭"; }
+        set
+        {
+            if (!Set(ref _autoRefresh, value)) return;
+            StatusText = value
+                ? _monitor.IsRunning ? "自动刷新已开启（实时事件 + 15 秒兜底）" : "自动刷新已开启（每 3 秒）"
+                : "自动刷新已关闭";
+        }
     }
 
     public bool IsBusy
@@ -250,6 +284,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         private set => Set(ref _gnomeInstallStatus, value);
     }
 
+    public bool RealtimeEnabled
+    {
+        get => _realtimeEnabled;
+        set
+        {
+            if (!Set(ref _realtimeEnabled, value)) return;
+            StatusText = value ? "实时监控已开启" : "实时监控已暂停（仅保留自动刷新）";
+        }
+    }
+
+    public string RealtimeSummary
+    {
+        get => _realtimeSummary;
+        private set => Set(ref _realtimeSummary, value);
+    }
+
+    public string EventCountText
+    {
+        get => _eventCountText;
+        private set => Set(ref _eventCountText, value);
+    }
+
+    public bool HasEvents => Events.Count > 0;
+
+    public string AutoRefreshBadge => _monitor.IsRunning ? "AUTO 15s" : "AUTO 3s";
+
+    public bool IsRealtimeActive => _monitor.IsRunning;
+
     public SessionInfo Session => _service.Registry.Session;
 
     public async Task InitializeAsync()
@@ -279,6 +341,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 }
             }
             await LoadDiagnosticsAsync();
+            StartMonitoring();
             StartAutoRefresh();
             StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
         }
@@ -482,6 +545,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SessionRows.Add(new InfoRow("XDG_SESSION_TYPE", Environment.GetEnvironmentVariable("XDG_SESSION_TYPE")));
                 SessionRows.Add(new InfoRow("DBUS_SESSION_BUS_ADDRESS", Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"), true));
                 SessionRows.Add(new InfoRow("进程 socket 检测", "通过 /proc/<pid>/fd + /proc/net/unix 判断 X11/Wayland 连接", wrap: true));
+                RealtimeRows.Clear();
+                RealtimeRows.Add(new InfoRow("状态", _monitor.IsRunning ? "运行中" : "未运行"));
+                RealtimeRows.Add(new InfoRow("后端", _monitor.StatusText, wrap: true));
+                RealtimeRows.Add(new InfoRow("事件数量", EventCountText));
+                RealtimeRows.Add(new InfoRow("兜底刷新", _monitor.IsRunning ? "15 秒（实时事件优先）" : "3 秒轮询"));
+                RealtimeRows.Add(new InfoRow("说明", "X11 使用独立 Display 连接选择 PropertyChange / StructureNotify / FocusChange；Wayland 使用合成器事件流。", wrap: true));
                 WaylandProtocols.Clear();
                 foreach (var protocol in protocols) WaylandProtocols.Add(protocol);
                 UpdateSessionUi();
@@ -499,13 +568,118 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void RefreshDiagnostics() => _ = LoadDiagnosticsAsync();
 
+    private void StartMonitoring()
+    {
+        try
+        {
+            _monitor.Start(OnRealtimeEvent);
+            RealtimeSummary = _monitor.IsRunning ? _monitor.StatusText : "不可用";
+            OnPropertyChanged(nameof(AutoRefreshBadge));
+            OnPropertyChanged(nameof(IsRealtimeActive));
+        }
+        catch (Exception ex)
+        {
+            RealtimeSummary = $"启动失败：{ex.Message}";
+        }
+    }
+
+    private void OnRealtimeEvent(WindowEventRecord record)
+        => Dispatcher.UIThread.Post(() => HandleRealtimeEvent(record));
+
+    private void HandleRealtimeEvent(WindowEventRecord record)
+    {
+        if (!RealtimeEnabled) return;
+
+        Events.Insert(0, record);
+        while (Events.Count > 800) Events.RemoveAt(Events.Count - 1);
+        _eventCount++;
+        EventCountText = $"{_eventCount} 条事件";
+        OnPropertyChanged(nameof(HasEvents));
+
+        var selected = SelectedWindow;
+        var affectsSelected = selected is not null && MatchesRealtime(selected, record);
+
+        _eventDebounceCts?.Cancel();
+        _eventDebounceCts = new CancellationTokenSource();
+        var token = _eventDebounceCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(affectsSelected ? 160 : 380, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (token.IsCancellationRequested) return;
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (token.IsCancellationRequested || !RealtimeEnabled) return;
+                await RefreshAsync(showBusy: false);
+                if (token.IsCancellationRequested) return;
+                var current = SelectedWindow;
+                if (affectsSelected && current is not null && MatchesRealtime(current, record))
+                    await InspectSelectedAsync(current, diff: true);
+            });
+        }, token);
+    }
+
+    private static bool MatchesRealtime(WindowInfo window, WindowEventRecord record)
+    {
+        if (string.IsNullOrEmpty(record.NativeId) || record.NativeId == "root")
+            return record.Kind == MonitorEventKind.Focus;
+
+        if (record.Source == "X11")
+        {
+            var id = ParseX11Id(record.NativeId);
+            if (id is null) return false;
+            if (window.X11WindowId == id || window.LinkedX11WindowId == id) return true;
+            return ParseX11Id(window.NativeId) == id;
+        }
+
+        return string.Equals(window.SourceId, record.Source, StringComparison.OrdinalIgnoreCase) &&
+               string.Equals(window.NativeId, record.NativeId, StringComparison.Ordinal);
+    }
+
+    private static ulong? ParseX11Id(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var text = value.Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            text = text[2..];
+        return ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber, null, out var id) ? id : null;
+    }
+
     private void StartAutoRefresh()
     {
-        _refreshTimer ??= new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        _refreshTimer ??= new DispatcherTimer();
+        _refreshTimer.Interval = TimeSpan.FromSeconds(_monitor.IsRunning ? 15 : 3);
         _refreshTimer.Tick -= OnAutoRefreshTick;
         _refreshTimer.Tick += OnAutoRefreshTick;
         _refreshTimer.Start();
     }
+
+    public void ClearEvents()
+    {
+        Events.Clear();
+        _eventCount = 0;
+        EventCountText = "0 条事件";
+        OnPropertyChanged(nameof(HasEvents));
+    }
+
+    public string BuildEventsText()
+    {
+        if (Events.Count == 0) return "TuxViewer 实时事件（空）";
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"TuxViewer 实时事件 · {Events.Count} 条 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(new string('─', 60));
+        foreach (var record in Events.Reverse())
+            sb.AppendLine(record.DisplayText);
+        return sb.ToString();
+    }
+
 
     private async void OnAutoRefreshTick(object? sender, EventArgs e)
     {
@@ -519,9 +693,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _pickCts?.Cancel();
         _refreshCts?.Cancel();
         _inspectCts?.Cancel();
+        _eventDebounceCts?.Cancel();
+        _monitor.Dispose();
+        _eventDebounceCts?.Dispose();
     }
 
-    private async Task InspectSelectedAsync(WindowInfo window)
+    private async Task InspectSelectedAsync(WindowInfo window, bool diff = false)
     {
         _inspectCts?.Cancel();
         _inspectCts = new CancellationTokenSource();
@@ -541,12 +718,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 RawJson = result.RawJson;
                 NativeJson = PrettyJson(result.Window.RawJson);
                 Summary = result.Summary;
-                BuildOverview(result);
+                var changed = false;
+                changed |= BuildOverview(result, diff);
                 BuildWayland(result.Window);
                 BuildProcess(result);
-                BuildX11(result.X11);
+                changed |= BuildX11(result.X11, diff);
                 BuildSockets(result.Process);
                 OnPropertyChanged(nameof(ProcessHeader));
+                if (changed) ScheduleChangeClear();
             });
         }
         catch (OperationCanceledException) { }
@@ -560,36 +739,72 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    private void BuildOverview(InspectionResult result)
+    private void ScheduleChangeClear()
+    {
+        var generation = ++_changeGeneration;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(3600);
+            }
+            catch { return; }
+            if (generation != _changeGeneration) return;
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                if (generation != _changeGeneration) return;
+                if (SelectedWindow is { } window)
+                    _ = InspectSelectedAsync(window, diff: true);
+            });
+        });
+    }
+
+    private bool BuildOverview(InspectionResult result, bool diff)
     {
         var w = result.Window;
-        OverviewRows.Clear();
-        OverviewRows.Add(new InfoRow("标题", w.Title, wrap: true));
-        OverviewRows.Add(new InfoRow("应用 ID", w.AppId));
-        OverviewRows.Add(new InfoRow("WM_CLASS", w.WmClass));
-        OverviewRows.Add(new InfoRow("后端", w.BackendLabel));
-        OverviewRows.Add(new InfoRow("是否 X11 应用", w.Backend == WindowBackend.X11
+        var rows = new List<InfoRow>();
+
+        void Add(string label, string? value, bool mono = false, bool wrap = false)
+        {
+            var display = string.IsNullOrWhiteSpace(value) ? "—" : value!;
+            string? old = null;
+            var changed = diff && _lastOverviewSnapshot.TryGetValue(label, out old) &&
+                          !string.Equals(old, display, StringComparison.Ordinal);
+            rows.Add(new InfoRow(label, value, mono, wrap, changed, changed ? old : null));
+        }
+
+        Add("标题", w.Title, wrap: true);
+        Add("应用 ID", w.AppId);
+        Add("WM_CLASS", w.WmClass);
+        Add("后端", w.BackendLabel);
+        Add("是否 X11 应用", w.Backend == WindowBackend.X11
             ? (w.IsXWayland ? "是 · XWayland 客户端" : "是 · 原生 X11 客户端")
-            : "否 · Wayland 原生客户端"));
-        OverviewRows.Add(new InfoRow("来源", w.SourceName));
-        OverviewRows.Add(new InfoRow("TuxViewer ID", w.Id, mono: true));
-        OverviewRows.Add(new InfoRow("原生 ID", w.NativeId, mono: true));
+            : "否 · Wayland 原生客户端");
+        Add("来源", w.SourceName);
+        Add("TuxViewer ID", w.Id, mono: true);
+        Add("原生 ID", w.NativeId, mono: true);
         var effectiveX11Id = w.X11WindowId ?? w.LinkedX11WindowId;
-        OverviewRows.Add(new InfoRow("X11 窗口", effectiveX11Id is not null ? $"0x{effectiveX11Id:x}" : null, mono: true));
+        Add("X11 窗口", effectiveX11Id is not null ? $"0x{effectiveX11Id:x}" : null, mono: true);
         if (w.X11WindowId is not null && w.LinkedX11WindowId is not null)
-            OverviewRows.Add(new InfoRow("关联 X11 窗口", $"0x{w.LinkedX11WindowId:x}", mono: true));
-        OverviewRows.Add(new InfoRow("PID", w.Pid?.ToString()));
-        OverviewRows.Add(new InfoRow(w.Backend == WindowBackend.X11 && Session.IsWaylandSession ? "几何（合成器）" : "几何", w.GeometryText, mono: true));
-        OverviewRows.Add(new InfoRow("工作区", w.WorkspaceName ?? w.WorkspaceId?.ToString()));
-        OverviewRows.Add(new InfoRow("输出", w.OutputName));
-        OverviewRows.Add(new InfoRow("焦点", w.IsFocused ? "是" : "否"));
-        OverviewRows.Add(new InfoRow("映射状态", w.IsMapped ? "已映射" : "未映射 / 最小化"));
-        OverviewRows.Add(new InfoRow("Override Redirect", w.IsOverrideRedirect ? "是" : "否"));
+            Add("关联 X11 窗口", $"0x{w.LinkedX11WindowId:x}", mono: true);
+        Add("PID", w.Pid?.ToString());
+        Add(w.Backend == WindowBackend.X11 && Session.IsWaylandSession ? "几何（合成器）" : "几何", w.GeometryText, mono: true);
+        Add("工作区", w.WorkspaceName ?? w.WorkspaceId?.ToString());
+        Add("输出", w.OutputName);
+        Add("焦点", w.IsFocused ? "是" : "否");
+        Add("映射状态", w.IsMapped ? "已映射" : "未映射 / 最小化");
+        Add("Override Redirect", w.IsOverrideRedirect ? "是" : "否");
         foreach (var (key, value) in w.Extra)
         {
-            if (OverviewRows.Any(r => r.Label == key)) continue;
-            OverviewRows.Add(new InfoRow(key, value, wrap: value.Length > 60));
+            if (rows.Any(r => r.Label == key)) continue;
+            Add(key, value, wrap: value.Length > 60);
         }
+
+        OverviewRows.Clear();
+        foreach (var row in rows) OverviewRows.Add(row);
+        _lastOverviewSnapshot.Clear();
+        foreach (var row in rows) _lastOverviewSnapshot[row.Label] = row.Value;
+        return rows.Any(r => r.IsChanged);
     }
 
     private void BuildWayland(WindowInfo window)
@@ -638,32 +853,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             EnvironmentRows.Add(new InfoRow(key, value, mono: true, wrap: value.Length > 80));
     }
 
-    private void BuildX11(X11WindowDetails? x11)
+    private bool BuildX11(X11WindowDetails? x11, bool diff)
     {
         X11Rows.Clear();
         X11Properties.Clear();
         X11Children.Clear();
-        if (x11 is null) return;
-        X11Rows.Add(new InfoRow("窗口 ID", x11.IdHex, mono: true));
-        X11Rows.Add(new InfoRow("标题", x11.Title, wrap: true));
-        X11Rows.Add(new InfoRow("实例 / 类", $"{x11.InstanceName} / {x11.ClassName}", mono: true));
-        X11Rows.Add(new InfoRow("几何 (X11 坐标)", $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}", mono: true));
+        if (x11 is null) return false;
+
+        var rows = new List<InfoRow>();
+        void Add(string label, string? value, bool mono = false, bool wrap = false)
+        {
+            var display = string.IsNullOrWhiteSpace(value) ? "—" : value!;
+            string? old = null;
+            var changed = diff && _lastX11RowSnapshot.TryGetValue(label, out old) &&
+                          !string.Equals(old, display, StringComparison.Ordinal);
+            rows.Add(new InfoRow(label, value, mono, wrap, changed, changed ? old : null));
+        }
+
+        Add("窗口 ID", x11.IdHex, mono: true);
+        Add("标题", x11.Title, wrap: true);
+        Add("实例 / 类", $"{x11.InstanceName} / {x11.ClassName}", mono: true);
+        Add("几何 (X11 坐标)", $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}", mono: true);
         if (Session.IsWaylandSession)
-            X11Rows.Add(new InfoRow("坐标提示", "XWayland 的 X11 坐标可能经过缩放或偏移，和合成器布局不一致", wrap: true));
-        X11Rows.Add(new InfoRow("边框 / 深度", $"{x11.BorderWidth} / {x11.Depth}"));
-        X11Rows.Add(new InfoRow("映射", x11.Mapped ? "viewable" : "unmapped"));
-        X11Rows.Add(new InfoRow("Override Redirect", x11.OverrideRedirect ? "是" : "否"));
-        X11Rows.Add(new InfoRow("Input Only", x11.InputOnly ? "是" : "否"));
-        X11Rows.Add(new InfoRow("窗口类型", x11.WindowType));
-        X11Rows.Add(new InfoRow("WM State", x11.WmState));
-        X11Rows.Add(new InfoRow("Transient For", x11.TransientFor, mono: true));
-        X11Rows.Add(new InfoRow("协议", x11.Protocols, wrap: true));
-        X11Rows.Add(new InfoRow("WM Normal Hints", x11.WmNormalHints, mono: true, wrap: true));
-        X11Rows.Add(new InfoRow("Root / Parent", $"{x11.RootWindow} / {x11.ParentWindow}", mono: true));
-        X11Rows.Add(new InfoRow("直接子窗口", x11.ChildCount.ToString()));
-        X11Rows.Add(new InfoRow("事件掩码", x11.EventMask, mono: true, wrap: true));
-        foreach (var property in x11.Properties) X11Properties.Add(property);
+            Add("坐标提示", "XWayland 的 X11 坐标可能经过缩放或偏移，和合成器布局不一致", wrap: true);
+        Add("边框 / 深度", $"{x11.BorderWidth} / {x11.Depth}");
+        Add("映射", x11.Mapped ? "viewable" : "unmapped");
+        Add("Override Redirect", x11.OverrideRedirect ? "是" : "否");
+        Add("Input Only", x11.InputOnly ? "是" : "否");
+        Add("窗口类型", x11.WindowType);
+        Add("WM State", x11.WmState);
+        Add("Transient For", x11.TransientFor, mono: true);
+        Add("协议", x11.Protocols, wrap: true);
+        Add("WM Normal Hints", x11.WmNormalHints, mono: true, wrap: true);
+        Add("Root / Parent", $"{x11.RootWindow} / {x11.ParentWindow}", mono: true);
+        Add("直接子窗口", x11.ChildCount.ToString());
+        Add("事件掩码", x11.EventMask, mono: true, wrap: true);
+
+        foreach (var row in rows) X11Rows.Add(row);
+        _lastX11RowSnapshot.Clear();
+        foreach (var row in rows) _lastX11RowSnapshot[row.Label] = row.Value;
+
+        var anyChanged = rows.Any(r => r.IsChanged);
+        var current = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var property in x11.Properties)
+        {
+            var changed = false;
+            string? oldValue = null;
+            if (diff && _lastX11PropertySnapshot.TryGetValue(property.Name, out oldValue))
+                changed = !string.Equals(oldValue, property.Value, StringComparison.Ordinal);
+            anyChanged |= changed;
+            X11Properties.Add(changed ? property.WithChange(true, oldValue) : property);
+            current[property.Name] = property.Value;
+        }
+        _lastX11PropertySnapshot.Clear();
+        foreach (var (key, value) in current) _lastX11PropertySnapshot[key] = value;
+
         foreach (var child in x11.Children) X11Children.Add(child);
+        return anyChanged;
     }
 
     private void BuildSockets(ProcessSnapshot? process)

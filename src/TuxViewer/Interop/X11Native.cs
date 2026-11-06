@@ -14,17 +14,30 @@ internal static class X11Native
     public const int InputOutput = 1;
     public const int InputOnly = 2;
 
+    public const int KeyPress = 2;
+    public const int KeyRelease = 3;
     public const int ButtonPress = 4;
     public const int ButtonRelease = 5;
-    public const int KeyPress = 2;
+    public const int FocusIn = 9;
+    public const int FocusOut = 10;
+    public const int CreateNotify = 16;
+    public const int DestroyNotify = 17;
+    public const int UnmapNotify = 18;
+    public const int MapNotify = 19;
+    public const int ReparentNotify = 21;
+    public const int ConfigureNotify = 22;
+    public const int PropertyNotify = 28;
     public const int ClientMessage = 33;
 
+    public const long KeyPressMask = 1L << 0;
     public const long ButtonPressMask = 1L << 2;
     public const long ButtonReleaseMask = 1L << 3;
     public const long PointerMotionMask = 1L << 6;
-    public const long KeyPressMask = 1L << 0;
-    public const long SubstructureRedirectMask = 1L << 20;
+    public const long StructureNotifyMask = 1L << 17;
     public const long SubstructureNotifyMask = 1L << 19;
+    public const long SubstructureRedirectMask = 1L << 20;
+    public const long FocusChangeMask = 1L << 21;
+    public const long PropertyChangeMask = 1L << 22;
 
     public const int GrabModeAsync = 1;
     public const long AnyPropertyType = 0;
@@ -121,6 +134,21 @@ internal static class X11Native
         [FieldOffset(80)] public uint State;
         [FieldOffset(84)] public uint KeyOrButton;
         [FieldOffset(88)] public int SameScreen;
+
+        // PropertyNotify: atom @40, time @48, state @56.
+        [FieldOffset(40)] public nuint Atom;
+        [FieldOffset(48)] public ulong PropertyTime;
+        [FieldOffset(56)] public int NotifyState;
+
+        // ConfigureNotify / CreateNotify / DestroyNotify / ReparentNotify.
+        [FieldOffset(40)] public nuint EventWindow;
+        [FieldOffset(48)] public int ConfigureX;
+        [FieldOffset(52)] public int ConfigureY;
+        [FieldOffset(56)] public int ConfigureWidth;
+        [FieldOffset(60)] public int ConfigureHeight;
+        [FieldOffset(64)] public int ConfigureBorderWidth;
+        [FieldOffset(72)] public nuint ConfigureAbove;
+        [FieldOffset(80)] public int ConfigureOverrideRedirect;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -248,6 +276,34 @@ internal static class X11Native
 
     [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
     public static extern int XCheckMaskEvent(IntPtr display, long eventMask, out XEvent eventReturn);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XSelectInput(IntPtr display, IntPtr window, long eventMask);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XPending(IntPtr display);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XNextEvent(IntPtr display, out XEvent eventReturn);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XKillClient(IntPtr display, IntPtr resource);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XChangeProperty(
+        IntPtr display, IntPtr window, IntPtr property, IntPtr type, int format,
+        int mode, byte[] data, int nelements);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XDeleteProperty(IntPtr display, IntPtr window, IntPtr property);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XGetImage(
+        IntPtr display, IntPtr drawable, int x, int y, uint width, uint height,
+        ulong planeMask, int format);
+
+    [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int XDestroyImage(IntPtr image);
 
     [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
     public static extern int XSendEvent(IntPtr display, IntPtr window, bool propagate, long eventMask, ref XClientMessageEvent eventSend);

@@ -18,7 +18,7 @@ internal static class Program
 
                 用法:
                   TuxViewer [--select <id|app_id|标题>]
-                            [--tab <overview|process|x11|wayland|env|raw|diagnostics>]
+                            [--tab <overview|process|x11|wayland|env|raw|events|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --install-gnome-extension
