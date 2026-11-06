@@ -247,19 +247,22 @@
                     <TextBlock Text="{Binding SelectedPid}" />
                   </Border>
                 </StackPanel>
-                <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*"
+                <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
                       Margin="0,10,0,0">
                   <Button Content="复制摘要" Click="CopySummary_Click" Classes="ghost" IsEnabled="{Binding HasSelection}" />
                   <Button Grid.Column="1" Content="复制 JSON" Click="CopyJson_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
-                  <Button Grid.Column="2" Content="高亮" Click="Highlight_Click" Classes="ghost"
+                  <Button Grid.Column="2" Content="截图" Click="Screenshot_Click" Classes="ghost"
+                          IsEnabled="{Binding HasSelection}" Margin="6,0,0,0"
+                          ToolTip.Tip="捕获选中窗口（X11 XGetImage / niri / grim）" />
+                  <Button Grid.Column="3" Content="高亮" Click="Highlight_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0"
                           ToolTip.Tip="在 X11 屏幕上绘制边框；Wayland 窗口请用“聚焦”" />
-                  <Button Grid.Column="3" Content="聚焦" Click="Focus_Click" Classes="ghost"
+                  <Button Grid.Column="4" Content="聚焦" Click="Focus_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
-                  <Button Grid.Column="4" Content="关闭窗口" Click="Close_Click" Classes="danger"
+                  <Button Grid.Column="5" Content="关闭窗口" Click="Close_Click" Classes="danger"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
-                  <TextBlock Grid.Column="5" Text="{Binding SelectedId, StringFormat='ID {0}'}" Classes="muted" FontSize="10"
+                  <TextBlock Grid.Column="6" Text="{Binding SelectedId, StringFormat='ID {0}'}" Classes="muted" FontSize="10"
                              FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                              HorizontalAlignment="Right" VerticalAlignment="Center"
                              TextTrimming="CharacterEllipsis" Margin="12,0,0,0" />
@@ -412,6 +415,43 @@
                   </ListBox>
                   <TextBlock Grid.Row="2" Classes="hint" Margin="0,6,0,0"
                              Text="提示：事件列表只保留最近 800 条；暂停“实时事件”开关后不再记录。" />
+                </Grid>
+              </TabItem>
+
+              <TabItem Header="截图">
+                <Grid RowDefinitions="Auto,*,Auto" Margin="6,8,10,8">
+                  <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
+                    <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                      <Button Content="重新截图" Click="Screenshot_Click" Classes="ghost"
+                              IsEnabled="{Binding HasSelection}" FontSize="11" Padding="9,4" />
+                      <Button Grid.Column="1" Content="保存 PNG" Click="SaveScreenshot_Click" Classes="ghost"
+                              IsEnabled="{Binding HasScreenshot}" FontSize="11" Padding="9,4" />
+                      <Button Grid.Column="2" Content="复制图片" Click="CopyScreenshot_Click" Classes="ghost"
+                              IsEnabled="{Binding HasScreenshot}" FontSize="11" Padding="9,4" />
+                      <TextBlock Grid.Column="4" Text="{Binding ScreenshotStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center"
+                                 TextTrimming="CharacterEllipsis" MaxWidth="520"
+                                 ToolTip.Tip="{Binding ScreenshotStatus}" />
+                    </Grid>
+                    <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
+                               Text="X11 / XWayland 使用 XGetImage 精确截取窗口；niri 使用 screenshot-window；Sway / Hyprland 使用 grim 按窗口几何截取；GNOME 尝试 gnome-screenshot。" />
+                  </Grid>
+                  <Border Grid.Row="1" Classes="panel" Background="#0A0E15" ClipToBounds="True">
+                    <Panel>
+                      <Image Source="{Binding ScreenshotImage}" Stretch="Uniform" Margin="10"
+                             HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      <TextBlock Text="尚未截图 · 点击工具栏“截图”或上方“重新截图”"
+                                 Classes="muted" FontSize="12"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 IsVisible="{Binding !HasScreenshot}" />
+                    </Panel>
+                  </Border>
+                  <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding ScreenshotSource, StringFormat='来源：{0}'}"
+                               Classes="muted" FontSize="10" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Classes="hint"
+                               Text="截图仅保存在内存中，点击“保存 PNG”写入磁盘。" />
+                  </Grid>
                 </Grid>
               </TabItem>
 

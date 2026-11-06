@@ -19,6 +19,7 @@ public partial class App : Application
             var viewModel = new MainWindowViewModel(service);
             viewModel.InitialSelection = ReadSelectArgument(desktop.Args);
             viewModel.SelectedTabIndex = ReadTabArgument(desktop.Args);
+            viewModel.AutoCapture = desktop.Args?.Contains("--capture", StringComparer.OrdinalIgnoreCase) == true;
             var window = new MainWindow { DataContext = viewModel };
             window.Closed += (_, _) => service.Dispose();
             desktop.MainWindow = window;
@@ -52,7 +53,8 @@ public partial class App : Application
                 "env" or "environment" => 4,
                 "raw" or "json" => 5,
                 "events" or "event" => 6,
-                "diagnostics" or "diag" => 7,
+                "screenshot" or "shot" => 7,
+                "diagnostics" or "diag" => 8,
                 _ => 0,
             };
         }

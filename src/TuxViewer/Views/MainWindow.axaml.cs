@@ -83,6 +83,54 @@ public partial class MainWindow : Window
         await ViewModel.HighlightSelectedAsync();
     }
 
+    private async void Screenshot_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.CaptureScreenshotAsync();
+    }
+
+    private async void SaveScreenshot_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.ScreenshotPng is not { Length: > 0 } png) return;
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return;
+
+        var safeName = string.Concat((ViewModel.SelectedTitle ?? "window")
+            .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        if (safeName.Length > 60) safeName = safeName[..60];
+
+        var file = await storage.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+        {
+            Title = "保存窗口截图",
+            SuggestedFileName = $"{safeName}.png",
+            DefaultExtension = "png",
+            FileTypeChoices =
+            [
+                new Avalonia.Platform.Storage.FilePickerFileType("PNG 图片")
+                {
+                    Patterns = ["*.png"],
+                    MimeTypes = ["image/png"],
+                },
+            ],
+        });
+        if (file is null) return;
+        try
+        {
+            await using var stream = await file.OpenWriteAsync();
+            await stream.WriteAsync(png);
+        }
+        catch { /* user cancelled or disk error */ }
+    }
+
+    private async void CopyScreenshot_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel?.ScreenshotImage is not { } bitmap) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is null) return;
+        try { await clipboard.SetBitmapAsync(bitmap); }
+        catch { /* clipboard backend may not support images */ }
+    }
+
     private async void Focus_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;

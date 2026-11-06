@@ -85,7 +85,8 @@ TuxViewer 用于回答这些问题：
 - 自动刷新兜底：实时事件可用时 15 秒，否则 3 秒（可关闭）
 - 拾取后自动定位详情，并自动高亮选中窗口
 - 复制摘要 / 完整 JSON
-- 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、诊断
+- **选中窗口截图**：X11 / XWayland 用 `XGetImage` 精确捕获；niri 用 `screenshot-window`；Sway / Hyprland 用 `grim`；支持预览、保存 PNG、复制图片
+- 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
 - X11 抓取时：点击模式左键单击；拖动模式按住左键拖动后松开；右键 / `Esc` 取消
@@ -108,6 +109,9 @@ TuxViewer --diagnose --detail xeyes --highlight
 # 命令行 X11 拾取（click / drag），结果输出完整 JSON
 TuxViewer --pick-x11 click --json
 TuxViewer --pick-x11 drag --json
+
+# 截取指定窗口并保存 PNG
+TuxViewer --screenshot xeyes --out xeyes.png
 
 # 安装可选 GNOME Shell 扩展
 TuxViewer --install-gnome-extension
@@ -263,6 +267,7 @@ TuxViewer/
 │  │  ├─ ProviderRegistry.cs        # 后端注册、XWayland 合并、拾取调度
 │  │  ├─ SessionDetector.cs         # 会话 / 合成器 / Wayland 协议
 │  │  ├─ RealtimeMonitor.cs         # X11 / niri / Sway / Hyprland 实时事件
+│  │  ├─ ScreenshotService.cs       # XGetImage / niri / grim 窗口截图
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）
@@ -281,6 +286,7 @@ TuxViewer/
 - **GNOME**：`org.gnome.Shell.Introspect` 默认只允许 portal 访问；需要安装随附扩展并重新登录。
 - **niri**：IPC 不提供窗口全局屏幕坐标，只能显示尺寸/工作区/输出；拾取和 XWayland 关联不受影响。
 - **XWayland 坐标**：X11 几何是 XWayland 坐标空间，和合成器布局不一定一致。
+- **Wayland 原生截图**：需要合成器提供截图接口（niri `screenshot-window`、grim）或 `gnome-screenshot`；纯 GNOME Wayland 原生窗口暂不保证可用。
 - **Wayland 原生高亮**：普通客户端不能在其他 Wayland 窗口上绘制 overlay。niri 原生拾取器只提供点击，不提供悬停高亮；选中后用 urgent 边框高亮。X11/XWayland 窗口支持实时悬停/拖动高亮。
 - **XWayland 高亮**：shape overlay 在部分合成器下可能不可见；niri 26.04 实测可见。
 - **PID**：优先 `_NET_WM_PID`；缺失时使用进程名匹配，极少数情况下可能不准确。

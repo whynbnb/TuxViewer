@@ -430,9 +430,18 @@ public sealed class SessionInfo
         : IsX11Session ? $"X11 · {X11WmName ?? Desktop}" : "未知会话";
 }
 
-public sealed class PickProgress
+public sealed class ScreenshotResult
 {
-    public required string Message { get; init; }
+    public byte[]? Png { get; init; }
+    public string Message { get; init; } = "";
+    public string Source { get; init; } = "";
+    public int Width { get; init; }
+    public int Height { get; init; }
+    public bool Success => Png is { Length: > 0 };
+}
+
+public sealed class PickProgress
+{    public required string Message { get; init; }
     public WindowInfo? HoverWindow { get; init; }
     public int? Countdown { get; init; }
 }

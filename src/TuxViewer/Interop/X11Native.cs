@@ -51,7 +51,8 @@ internal static class X11Native
     public const uint CWBackPixel = 1 << 1;
     public const uint CWOverrideRedirect = 1 << 9;
     public const int CopyFromParent = 0;
-    public const long AllPlanes = ~0L;
+    public const ulong AllPlanes = ~0UL;
+    public const int ZPixmap = 2;
 
     public const int XA_ATOM = 4;
     public const int XA_CARDINAL = 6;
@@ -298,7 +299,7 @@ internal static class X11Native
     public static extern int XDeleteProperty(IntPtr display, IntPtr window, IntPtr property);
 
     [DllImport(X11, CallingConvention = CallingConvention.Cdecl)]
-    public static extern int XGetImage(
+    public static extern IntPtr XGetImage(
         IntPtr display, IntPtr drawable, int x, int y, uint width, uint height,
         ulong planeMask, int format);
 

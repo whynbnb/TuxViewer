@@ -17,10 +17,11 @@ internal static class Program
                 TuxViewer — Linux 桌面环境 / 窗口检视器
 
                 用法:
-                  TuxViewer [--select <id|app_id|标题>]
-                            [--tab <overview|process|x11|wayland|env|raw|events|diagnostics>]
+                  TuxViewer [--select <id|app_id|标题>] [--capture]
+                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
+                  TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]
                   TuxViewer --install-gnome-extension
 
                 环境变量:
@@ -38,6 +39,9 @@ internal static class Program
 
         if (args.Contains("--pick-x11", StringComparer.OrdinalIgnoreCase))
             return RunPickX11Async(args).GetAwaiter().GetResult();
+
+        if (args.Contains("--screenshot", StringComparer.OrdinalIgnoreCase))
+            return RunScreenshotAsync(args).GetAwaiter().GetResult();
 
         if (args.Contains("--install-gnome-extension", StringComparer.OrdinalIgnoreCase))
         {
@@ -190,6 +194,52 @@ internal static class Program
         {
             Console.WriteLine(inspection.Summary);
         }
+        return 0;
+    }
+
+    private static async Task<int> RunScreenshotAsync(string[] args)
+    {
+        IconService.Enabled = false;
+        var target = GetArg(args, "--screenshot");
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            Console.Error.WriteLine("用法：TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]");
+            return 2;
+        }
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var service = new InspectorService();
+        await service.InitializeAsync(cts.Token);
+        var windows = await service.RefreshAsync(cts.Token);
+        var window = windows.FirstOrDefault(w =>
+                         string.Equals(w.Id, target, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(w.NativeId, target, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(w.AppId, target, StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(w.Title, target, StringComparison.OrdinalIgnoreCase))
+                     ?? windows.FirstOrDefault(w => w.Title.Contains(target, StringComparison.OrdinalIgnoreCase));
+        if (window is null)
+        {
+            Console.Error.WriteLine($"No window matched '{target}'");
+            return 3;
+        }
+
+        if (Environment.GetEnvironmentVariable("TUXVIEWER_SHOT_DEBUG") == "1")
+            Console.Error.WriteLine(
+                $"window={window.Id} source={window.SourceId} native={window.NativeId} " +
+                $"x11={window.X11WindowId} linked={window.LinkedX11WindowId} " +
+                $"x11Available={service.Registry.X11?.IsAvailable}");
+
+        var result = await service.CaptureScreenshotAsync(window, cts.Token);
+        if (!result.Success)
+        {
+            Console.Error.WriteLine(result.Message);
+            return 4;
+        }
+
+        var output = GetArg(args, "--out") ?? "tuxviewer-screenshot.png";
+        await File.WriteAllBytesAsync(output, result.Png!, cts.Token);
+        Console.WriteLine($"{result.Message} · {result.Width}×{result.Height} · {result.Source}");
+        Console.WriteLine(Path.GetFullPath(output));
         return 0;
     }
 

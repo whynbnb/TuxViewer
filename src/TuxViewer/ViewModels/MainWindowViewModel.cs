@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using TuxViewer.Models;
 using TuxViewer.Services;
@@ -53,6 +54,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _eventCount;
     private string _eventCountText = "0 条事件";
     private int _changeGeneration;
+    private Bitmap? _screenshotImage;
+    private byte[]? _screenshotPng;
+    private string _screenshotStatus = "";
+    private string _screenshotSource = "";
+    private bool _hasScreenshot;
 
     public MainWindowViewModel(InspectorService service)
     {
@@ -78,6 +84,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public string? InitialSelection { get; set; }
+    public bool AutoCapture { get; set; }
 
     public int SelectedTabIndex
     {
@@ -92,20 +99,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (_syncingWindows && value is null) return;
             if (ReferenceEquals(_selectedWindow, value)) return;
+            var previousId = _selectedWindow?.Id;
+            var sameWindow = value is not null && string.Equals(previousId, value.Id, StringComparison.Ordinal);
             _selectedWindow = value;
-            if (value is not null && !string.Equals(_lastDiffWindowId, value.Id, StringComparison.Ordinal))
+            if (!sameWindow)
             {
-                _lastDiffWindowId = value.Id;
+                _lastDiffWindowId = value?.Id ?? "";
                 _lastOverviewSnapshot.Clear();
                 _lastX11RowSnapshot.Clear();
                 _lastX11PropertySnapshot.Clear();
-            }
-            else if (value is null)
-            {
-                _lastDiffWindowId = "";
-                _lastOverviewSnapshot.Clear();
-                _lastX11RowSnapshot.Clear();
-                _lastX11PropertySnapshot.Clear();
+                ResetScreenshot();
             }
             OnPropertyChanged();
             HasSelection = value is not null;
@@ -308,6 +311,32 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasEvents => Events.Count > 0;
 
+    public Bitmap? ScreenshotImage
+    {
+        get => _screenshotImage;
+        private set => Set(ref _screenshotImage, value);
+    }
+
+    public bool HasScreenshot
+    {
+        get => _hasScreenshot;
+        private set => Set(ref _hasScreenshot, value);
+    }
+
+    public string ScreenshotStatus
+    {
+        get => _screenshotStatus;
+        private set => Set(ref _screenshotStatus, value);
+    }
+
+    public string ScreenshotSource
+    {
+        get => _screenshotSource;
+        private set => Set(ref _screenshotSource, value);
+    }
+
+    public byte[]? ScreenshotPng => _screenshotPng;
+
     public string AutoRefreshBadge => _monitor.IsRunning ? "AUTO 15s" : "AUTO 3s";
 
     public bool IsRealtimeActive => _monitor.IsRunning;
@@ -343,6 +372,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             await LoadDiagnosticsAsync();
             StartMonitoring();
             StartAutoRefresh();
+            if (AutoCapture) await CaptureScreenshotAsync();
             StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
         }
         catch (Exception ex)
@@ -504,6 +534,48 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is null) return;
         await HighlightPickedAsync(SelectedWindow, reportStatus: true);
+    }
+
+    public async Task CaptureScreenshotAsync()
+    {
+        if (SelectedWindow is null) return;
+        var window = SelectedWindow;
+        ScreenshotStatus = "正在截图…";
+        ScreenshotSource = "";
+        try
+        {
+            var result = await _service.CaptureScreenshotAsync(window, CancellationToken.None);
+            if (SelectedWindow?.Id != window.Id) return;
+            if (!result.Success)
+            {
+                ScreenshotStatus = result.Message;
+                return;
+            }
+
+            using var stream = new MemoryStream(result.Png!);
+            var bitmap = new Bitmap(stream);
+            _screenshotPng = result.Png;
+            ScreenshotImage = bitmap;
+            HasScreenshot = true;
+            ScreenshotSource = result.Source;
+            ScreenshotStatus = $"{result.Message} · {result.Width}×{result.Height}";
+            StatusText = $"已截图：{window.Title} · {ScreenshotStatus}";
+            SelectedTabIndex = 7;
+        }
+        catch (Exception ex)
+        {
+            ScreenshotStatus = $"截图失败：{ex.Message}";
+            StatusText = ScreenshotStatus;
+        }
+    }
+
+    private void ResetScreenshot()
+    {
+        _screenshotPng = null;
+        ScreenshotImage = null;
+        HasScreenshot = false;
+        ScreenshotStatus = "";
+        ScreenshotSource = "";
     }
 
     private async Task HighlightPickedAsync(WindowInfo window, bool reportStatus)

@@ -73,6 +73,9 @@ public sealed class InspectorService : IDisposable
     public Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
         => Registry.HighlightAsync(window, durationMs, cancellationToken);
 
+    public Task<ScreenshotResult> CaptureScreenshotAsync(WindowInfo window, CancellationToken cancellationToken)
+        => ScreenshotService.CaptureAsync(window, Registry, cancellationToken);
+
     public bool Highlight(WindowInfo window)
     {
         var id = window.LinkedX11WindowId ?? window.X11WindowId;

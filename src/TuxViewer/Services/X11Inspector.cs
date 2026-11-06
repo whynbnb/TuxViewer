@@ -233,6 +233,143 @@ public sealed class X11Inspector : IDisposable
         }
     }
 
+    /// <summary>Capture a window using XGetImage and return BGRA8888 pixels.</summary>
+    public (byte[] Data, int Width, int Height)? CaptureBgra(ulong id, out string? error)
+    {
+        error = null;
+        if (!IsAvailable)
+        {
+            error = "X11 不可用";
+            return null;
+        }
+
+        lock (_lock)
+        {
+            try
+            {
+                var window = (IntPtr)(nuint)id;
+                if (X11Native.XGetWindowAttributes(_display, window, out var attrs) == 0)
+                {
+                    error = "无法读取窗口属性";
+                    return null;
+                }
+                if (attrs.Width <= 0 || attrs.Height <= 0)
+                {
+                    error = "窗口尺寸无效";
+                    return null;
+                }
+
+                var image = X11Native.XGetImage(
+                    _display, window, 0, 0, (uint)attrs.Width, (uint)attrs.Height,
+                    X11Native.AllPlanes, X11Native.ZPixmap);
+                if (image == IntPtr.Zero)
+                {
+                    error = "XGetImage 失败（窗口可能不可见）";
+                    return null;
+                }
+
+                try
+                {
+                    var data = ConvertXImage(image, attrs.Width, attrs.Height);
+                    if (data is null)
+                    {
+                        error = "无法解析 XImage 像素格式";
+                        return null;
+                    }
+                    return (data, attrs.Width, attrs.Height);
+                }
+                finally
+                {
+                    X11Native.XDestroyImage(image);
+                }
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return null;
+            }
+        }
+    }
+
+    private static byte[]? ConvertXImage(IntPtr image, int width, int height)
+    {
+        // XImage layout (64-bit): data @16, byte_order @24, depth @40,
+        // bytes_per_line @44, bits_per_pixel @48, masks @56/@64/@72.
+        var data = Marshal.ReadIntPtr(image, 16);
+        var byteOrder = Marshal.ReadInt32(image, 24);
+        var bytesPerLine = Marshal.ReadInt32(image, 44);
+        var bitsPerPixel = Marshal.ReadInt32(image, 48);
+        var redMask = (ulong)Marshal.ReadInt64(image, 56);
+        var greenMask = (ulong)Marshal.ReadInt64(image, 64);
+        var blueMask = (ulong)Marshal.ReadInt64(image, 72);
+
+        if (data == IntPtr.Zero || bytesPerLine <= 0 || bitsPerPixel is not (16 or 24 or 32)) return null;
+        var bytesPerPixel = bitsPerPixel / 8;
+        if (bytesPerLine < width * bytesPerPixel) return null;
+
+        var bigEndian = byteOrder == 1;
+        var output = new byte[width * height * 4];
+        var row = new byte[bytesPerLine];
+
+        for (var y = 0; y < height; y++)
+        {
+            Marshal.Copy(data + y * bytesPerLine, row, 0, bytesPerLine);
+            var outRow = y * width * 4;
+            for (var x = 0; x < width; x++)
+            {
+                var offset = x * bytesPerPixel;
+                uint value = bitsPerPixel switch
+                {
+                    32 => ReadUInt32(row, offset, bigEndian),
+                    24 => (uint)(row[offset] | (row[offset + 1] << 8) | (row[offset + 2] << 16)),
+                    16 => (uint)(row[offset] | (row[offset + 1] << 8)),
+                    _ => 0,
+                };
+
+                byte r, g, b;
+                if (redMask == 0 && greenMask == 0 && blueMask == 0)
+                {
+                    // PseudoColor / unknown visual: assume BGR(X) packing.
+                    b = (byte)(value & 0xff);
+                    g = (byte)((value >> 8) & 0xff);
+                    r = (byte)((value >> 16) & 0xff);
+                }
+                else
+                {
+                    r = ExtractComponent(value, redMask);
+                    g = ExtractComponent(value, greenMask);
+                    b = ExtractComponent(value, blueMask);
+                }
+
+                var index = outRow + x * 4;
+                output[index] = b;
+                output[index + 1] = g;
+                output[index + 2] = r;
+                output[index + 3] = 255;
+            }
+        }
+
+        return output;
+    }
+
+    private static uint ReadUInt32(byte[] row, int offset, bool bigEndian)
+    {
+        var value = bigEndian
+            ? (uint)((row[offset] << 24) | (row[offset + 1] << 16) | (row[offset + 2] << 8) | row[offset + 3])
+            : (uint)(row[offset] | (row[offset + 1] << 8) | (row[offset + 2] << 16) | (row[offset + 3] << 24));
+        return value;
+    }
+
+    private static byte ExtractComponent(uint value, ulong mask)
+    {
+        if (mask == 0) return 0;
+        var shift = System.Numerics.BitOperations.TrailingZeroCount(mask);
+        var max = mask >> shift;
+        if (max == 0) return 0;
+        var component = (ulong)(value & mask) >> shift;
+        return (byte)(component * 255 / max);
+    }
+
     public X11WindowDetails? GetDetails(ulong id)
     {
         if (!IsAvailable) return null;
