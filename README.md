@@ -97,6 +97,7 @@ TuxViewer 用于回答这些问题：
 - **报告与快照**：导出 HTML / Markdown / JSON（自动附带截图）；保存窗口快照到 `~/.local/state/TuxViewer/snapshots`，稍后对比新增 / 删除 / 变化字段
 - X11 属性支持按名称 / 类型 / 值过滤
 - **多显示器 / 输出**：显示各输出逻辑坐标、缩放、刷新率、模式和当前工作区；niri 额外显示工作区 / 列布局；提示 XWayland 与合成器坐标差异
+- **设置持久化**：窗口尺寸 / 位置、窗口筛选、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、规则、X11 事件、控件、热键、控制、报告、输出、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
@@ -303,6 +304,7 @@ TuxViewer/
 │  │  ├─ ReportService.cs           # HTML / Markdown 检视报告
 │  │  ├─ SnapshotService.cs         # 窗口快照保存 / 对比
 │  │  ├─ OutputService.cs           # 输出 / 工作区 / 布局信息
+│  │  ├─ SettingsService.cs         # XDG 配置读写 / 防抖保存
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）
@@ -322,6 +324,7 @@ TuxViewer/
 - **niri**：IPC 不提供窗口全局屏幕坐标，只能显示尺寸/工作区/输出；拾取和 XWayland 关联不受影响。
 - **XWayland 坐标**：X11 几何是 XWayland 坐标空间，和合成器布局不一定一致；“输出”页会同时显示两者和缩放比例。
 - **多显示器**：输出信息来自 niri / Sway / Hyprland IPC 或 xrandr；不同合成器的刷新率、变换和工作区字段可能不同。
+- **设置持久化**：只保存偏好和窗口尺寸 / 位置，不保存最后选中的窗口、搜索词或当前 Tab；删除 `~/.config/TuxViewer/settings.json` 即可恢复默认。
 - **窗口控制**：置顶 / 置底 / 不透明度 / 精确移动缩放主要面向 X11 / XWayland；Wayland 原生窗口使用各合成器的全屏、浮动、Sticky 等 IPC 能力。
 - **全局热键**：`XGrabKey` 只在 X11 会话或合成器把按键路由到 XWayland 时生效；Wayland 原生环境请使用“热键”页提供的合成器配置。XDG GlobalShortcuts portal 需要桌面 portal 后端支持，本项目不强制依赖。
 - **AT-SPI 控件树**：只有启用无障碍桥的 GTK/Qt 应用会注册到 AT-SPI；纯 X11、游戏引擎和部分 Electron 应用通常不暴露控件树。

@@ -120,12 +120,18 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _outputNote = "";
     private string _outputSource = "";
 
-    public MainWindowViewModel(InspectorService service)
+    private readonly SettingsService _settingsService;
+    private bool _suppressSettingsSave;
+
+    public MainWindowViewModel(InspectorService service, SettingsService settingsService)
     {
         _service = service;
+        _settingsService = settingsService;
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
         RuleCompositors = ["niri", "Sway", "Hyprland"];
         TreeGroupModes = ["按应用", "按进程", "按工作区", "平铺"];
+        ApplySettings(settingsService.Settings);
+        PropertyChanged += OnPersistedPropertyChanged;
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
@@ -754,8 +760,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public SessionInfo Session => _service.Registry.Session;
 
+    public string SettingsFilePath => _settingsService.FilePath;
+
     public async Task InitializeAsync()
     {
+        _suppressSettingsSave = true;
         try
         {
             await _service.InitializeAsync(CancellationToken.None);
@@ -794,6 +803,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         catch (Exception ex)
         {
             StatusText = $"初始化失败：{ex.Message}";
+        }
+        finally
+        {
+            _suppressSettingsSave = false;
         }
     }
 
@@ -1060,6 +1073,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SessionRows.Add(new InfoRow("XDG_SESSION_TYPE", Environment.GetEnvironmentVariable("XDG_SESSION_TYPE")));
                 SessionRows.Add(new InfoRow("DBUS_SESSION_BUS_ADDRESS", Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"), true));
                 SessionRows.Add(new InfoRow("进程 socket 检测", "通过 /proc/<pid>/fd + /proc/net/unix 判断 X11/Wayland 连接", wrap: true));
+                SessionRows.Add(new InfoRow("设置文件", _settingsService.FilePath, mono: true, wrap: true));
+                SessionRows.Add(new InfoRow("设置持久化", "窗口尺寸 / 筛选 / 开关 / 规则 / XRecord 过滤自动保存；不恢复最后选中的窗口或 Tab", wrap: true));
                 RealtimeRows.Clear();
                 RealtimeRows.Add(new InfoRow("状态", _monitor.IsRunning ? "运行中" : "未运行"));
                 RealtimeRows.Add(new InfoRow("后端", _monitor.StatusText, wrap: true));
@@ -1696,6 +1711,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _forceKillResetCts?.Cancel();
         _forceKillResetCts?.Dispose();
         _eventDebounceCts?.Dispose();
+        PersistNow();
     }
 
     private async Task InspectSelectedAsync(WindowInfo window, bool diff = false)
@@ -2192,6 +2208,100 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         => string.Join(' ', (title ?? "").Split([' ', '\t'], StringSplitOptions.RemoveEmptyEntries)).ToLowerInvariant();
     private static bool Contains(string? value, string query)
         => value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+
+    private static readonly HashSet<string> PersistedProperties = new(StringComparer.Ordinal)
+    {
+        nameof(BackendFilterIndex), nameof(HideOwnWindows), nameof(IncludeRawX11), nameof(IncludeUnmapped),
+        nameof(AutoRefresh), nameof(RealtimeEnabled), nameof(TreeMode), nameof(TreeGroupModeIndex),
+        nameof(RuleCompositorIndex), nameof(RuleFloating), nameof(RuleNoBorder), nameof(RuleFullscreen),
+        nameof(RuleSticky), nameof(RuleMatchTitle), nameof(RuleWidth), nameof(RuleHeight),
+        nameof(RuleWorkspace), nameof(RuleOpacity), nameof(X11RecordKeys), nameof(X11RecordMouse),
+        nameof(X11RecordConfigure), nameof(X11RecordProperty), nameof(X11RecordFocus), nameof(X11RecordMap),
+        nameof(X11RecordClientMessage), nameof(X11RecordOther), nameof(X11RecordOnlySelected),
+    };
+
+    private void ApplySettings(AppSettings settings)
+    {
+        _suppressSettingsSave = true;
+        try
+        {
+            _backendFilterIndex = Math.Clamp(settings.BackendFilterIndex, 0, 4);
+            _hideOwnWindows = settings.HideOwnWindows;
+            _includeRawX11 = settings.IncludeRawX11;
+            _includeUnmapped = settings.IncludeUnmapped;
+            _autoRefresh = settings.AutoRefresh;
+            _realtimeEnabled = settings.RealtimeEnabled;
+            _treeMode = settings.TreeMode;
+            _treeGroupModeIndex = Math.Clamp(settings.TreeGroupModeIndex, 0, 3);
+            _ruleCompositorIndex = Math.Clamp(settings.RuleCompositorIndex, 0, 2);
+            _ruleFloating = settings.RuleFloating;
+            _ruleNoBorder = settings.RuleNoBorder;
+            _ruleFullscreen = settings.RuleFullscreen;
+            _ruleSticky = settings.RuleSticky;
+            _ruleMatchTitle = settings.RuleMatchTitle;
+            _ruleWidth = settings.RuleWidth;
+            _ruleHeight = settings.RuleHeight;
+            _ruleWorkspace = settings.RuleWorkspace;
+            _ruleOpacity = settings.RuleOpacity;
+            _x11RecordKeys = settings.X11RecordKeys;
+            _x11RecordMouse = settings.X11RecordMouse;
+            _x11RecordConfigure = settings.X11RecordConfigure;
+            _x11RecordProperty = settings.X11RecordProperty;
+            _x11RecordFocus = settings.X11RecordFocus;
+            _x11RecordMap = settings.X11RecordMap;
+            _x11RecordClientMessage = settings.X11RecordClientMessage;
+            _x11RecordOther = settings.X11RecordOther;
+            _x11RecordOnlySelected = settings.X11RecordOnlySelected;
+        }
+        finally
+        {
+            _suppressSettingsSave = false;
+        }
+    }
+
+    private void CaptureSettings(AppSettings settings)
+    {
+        settings.BackendFilterIndex = _backendFilterIndex;
+        settings.HideOwnWindows = _hideOwnWindows;
+        settings.IncludeRawX11 = _includeRawX11;
+        settings.IncludeUnmapped = _includeUnmapped;
+        settings.AutoRefresh = _autoRefresh;
+        settings.RealtimeEnabled = _realtimeEnabled;
+        settings.TreeMode = _treeMode;
+        settings.TreeGroupModeIndex = _treeGroupModeIndex;
+        settings.RuleCompositorIndex = _ruleCompositorIndex;
+        settings.RuleFloating = _ruleFloating;
+        settings.RuleNoBorder = _ruleNoBorder;
+        settings.RuleFullscreen = _ruleFullscreen;
+        settings.RuleSticky = _ruleSticky;
+        settings.RuleMatchTitle = _ruleMatchTitle;
+        settings.RuleWidth = _ruleWidth;
+        settings.RuleHeight = _ruleHeight;
+        settings.RuleWorkspace = _ruleWorkspace;
+        settings.RuleOpacity = _ruleOpacity;
+        settings.X11RecordKeys = _x11RecordKeys;
+        settings.X11RecordMouse = _x11RecordMouse;
+        settings.X11RecordConfigure = _x11RecordConfigure;
+        settings.X11RecordProperty = _x11RecordProperty;
+        settings.X11RecordFocus = _x11RecordFocus;
+        settings.X11RecordMap = _x11RecordMap;
+        settings.X11RecordClientMessage = _x11RecordClientMessage;
+        settings.X11RecordOther = _x11RecordOther;
+        settings.X11RecordOnlySelected = _x11RecordOnlySelected;
+    }
+
+    private void OnPersistedPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (_suppressSettingsSave || e.PropertyName is null) return;
+        if (!PersistedProperties.Contains(e.PropertyName)) return;
+        _settingsService.Update(CaptureSettings);
+    }
+
+    public void PersistNow()
+    {
+        _settingsService.Update(CaptureSettings);
+        _settingsService.Flush();
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
