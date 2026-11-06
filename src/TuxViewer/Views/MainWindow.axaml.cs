@@ -183,6 +183,19 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildX11EventsText());
     }
 
+    private async void LoadAtspi_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.LoadAtspiAsync();
+    }
+
+    private async void CopyAtspi_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || !ViewModel.HasAtspiTree) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildAtspiText());
+    }
+
     private async void Window_KeyDown(object? sender, KeyEventArgs e)
     {
         if (ViewModel is null) return;

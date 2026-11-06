@@ -93,6 +93,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _x11EventCountText = "0 条事件";
     private ulong? _selectedX11Id;
     private (int X, int Y, int W, int H)? _selectedX11Rect;
+    private string _atspiStatus = "尚未加载";
+    private string _atspiCountText = "";
 
     public MainWindowViewModel(InspectorService service)
     {
@@ -120,12 +122,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
+    public ObservableCollection<AtspiNode> AtspiTree { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public IReadOnlyList<string> TreeGroupModes { get; }
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
     public bool AutoRecord { get; set; }
+    public bool AutoLoadAtspi { get; set; }
 
     public int SelectedTabIndex
     {
@@ -156,6 +160,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 _lastX11RowSnapshot.Clear();
                 _lastX11PropertySnapshot.Clear();
                 ResetScreenshot();
+                ResetAtspi();
                 RegenerateRule();
             }
             OnPropertyChanged();
@@ -359,6 +364,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public bool HasEvents => Events.Count > 0;
     public bool HasX11Events => X11Events.Count > 0;
+
+    public string AtspiStatus
+    {
+        get => _atspiStatus;
+        private set => Set(ref _atspiStatus, value);
+    }
+
+    public string AtspiCountText
+    {
+        get => _atspiCountText;
+        private set => Set(ref _atspiCountText, value);
+    }
+
+    public bool HasAtspiTree => AtspiTree.Count > 0;
 
     public bool X11RecordEnabled
     {
@@ -611,6 +630,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             StartAutoRefresh();
             if (AutoCapture) await CaptureScreenshotAsync();
             if (AutoRecord) await ToggleX11RecordAsync();
+            if (AutoLoadAtspi) await LoadAtspiAsync();
             StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
         }
         catch (Exception ex)
@@ -1058,6 +1078,57 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         // Raw device key events do not carry a target window; use focus as a proxy.
         return recorded.Category == "Key" && _selectedWindow?.IsFocused == true;
+    }
+
+    public async Task LoadAtspiAsync()
+    {
+        if (SelectedWindow is null)
+        {
+            AtspiStatus = "先选择一个窗口";
+            return;
+        }
+
+        var window = SelectedWindow;
+        AtspiStatus = "正在读取 AT-SPI 控件树…";
+        try
+        {
+            var result = await AtspiService.LoadAsync(window, CancellationToken.None);
+            if (SelectedWindow?.Id != window.Id) return;
+            AtspiTree.Clear();
+            foreach (var root in result.Roots) AtspiTree.Add(root);
+            AtspiStatus = result.Message;
+            AtspiCountText = result.Success ? $"{result.NodeCount} 个控件" : "";
+            OnPropertyChanged(nameof(HasAtspiTree));
+        }
+        catch (Exception ex)
+        {
+            AtspiStatus = $"读取失败：{ex.Message}";
+        }
+    }
+
+    public void ResetAtspi()
+    {
+        AtspiTree.Clear();
+        AtspiStatus = "尚未加载";
+        AtspiCountText = "";
+        OnPropertyChanged(nameof(HasAtspiTree));
+    }
+
+    public string BuildAtspiText()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("TuxViewer · AT-SPI 控件树");
+        sb.AppendLine(new string('─', 50));
+        foreach (var root in AtspiTree) AppendAtspi(sb, root, 0);
+        return sb.ToString();
+    }
+
+    private static void AppendAtspi(System.Text.StringBuilder sb, AtspiNode node, int depth)
+    {
+        sb.Append(new string(' ', depth * 2));
+        sb.Append(node.Role.Length > 0 ? $"[{node.Role}] " : "");
+        sb.AppendLine(node.Title);
+        foreach (var child in node.Children) AppendAtspi(sb, child, depth + 1);
     }
 
     public void ClearX11Events()

@@ -638,6 +638,55 @@
                 </Grid>
               </TabItem>
 
+              <TabItem Header="控件">
+                <Grid RowDefinitions="Auto,Auto,*" Margin="6,8,10,8">
+                  <Grid RowDefinitions="Auto" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                    <TextBlock Text="AT-SPI 控件树" Classes="section" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="加载控件树" Click="LoadAtspi_Click"
+                            Classes="ghost" FontSize="11" Padding="9,4" />
+                    <Button Grid.Column="2" Content="复制" Click="CopyAtspi_Click"
+                            Classes="ghost" FontSize="11" Padding="9,4" />
+                    <TextBlock Grid.Column="3" Text="{Binding AtspiStatus}" Classes="muted"
+                               FontSize="11" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               ToolTip.Tip="{Binding AtspiStatus}" />
+                    <TextBlock Grid.Column="4" Text="{Binding AtspiCountText}" Classes="muted"
+                               FontSize="11" VerticalAlignment="Center" />
+                  </Grid>
+                  <TextBlock Grid.Row="1" Classes="hint" Margin="0,8,0,8"
+                             Text="通过 AT-SPI2 / python3-gi 读取 GTK、Qt 等应用的无障碍控件树。应用必须启用无障碍桥（例如 GTK_MODULES=gail:atk-bridge、QT_ACCESSIBILITY=1 或桌面“屏幕阅读器”支持）。未精确匹配时会显示全部已注册应用。" />
+                  <Panel Grid.Row="2">
+                    <TreeView ItemsSource="{Binding AtspiTree}">
+                      <TreeView.Styles>
+                        <Style Selector="TreeViewItem">
+                          <Setter Property="IsExpanded" Value="{ReflectionBinding IsExpanded, Mode=TwoWay}" />
+                        </Style>
+                      </TreeView.Styles>
+                      <TreeView.ItemTemplate>
+                        <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:AtspiNode">
+                          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" MinHeight="30" Margin="0,1">
+                            <Border Classes="tag" VerticalAlignment="Center" MaxWidth="180">
+                              <TextBlock Text="{Binding RoleShort}" TextTrimming="CharacterEllipsis" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+                              <TextBlock Text="{Binding Title}" FontSize="12"
+                                         TextTrimming="CharacterEllipsis" />
+                              <TextBlock Text="{Binding Description}" IsVisible="{Binding HasDescription}"
+                                         FontSize="10" Foreground="#7E8CA3"
+                                         TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+                          </Grid>
+                        </TreeDataTemplate>
+                      </TreeView.ItemTemplate>
+                    </TreeView>
+                    <TextBlock Text="尚未加载 · 点击上方“加载控件树”"
+                               Classes="muted" FontSize="12"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding !HasAtspiTree}" />
+                  </Panel>
+                </Grid>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">

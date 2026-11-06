@@ -478,6 +478,33 @@ public sealed class ScreenshotResult
     public bool Success => Png is { Length: > 0 };
 }
 
+public sealed class AtspiNode : INotifyPropertyChanged
+{
+    public string Name { get; init; } = "";
+    public string Role { get; init; } = "";
+    public string Description { get; init; } = "";
+    public List<AtspiNode> Children { get; init; } = [];
+
+    private bool _isExpanded;
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded == value) return;
+            _isExpanded = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+        }
+    }
+
+    public string Title => string.IsNullOrWhiteSpace(Name) ? $"({Role})" : Name;
+    public string RoleShort => Role.Length > 22 ? Role[..22] + "…" : Role;
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+    public bool HasChildren => Children.Count > 0;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
 public sealed class X11RecordedEvent
 {
     public DateTime Timestamp { get; init; } = DateTime.Now;

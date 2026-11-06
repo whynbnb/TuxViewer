@@ -23,6 +23,7 @@ public partial class App : Application
             viewModel.TreeMode = desktop.Args?.Contains("--tree", StringComparer.OrdinalIgnoreCase) == true;
             viewModel.AutoRecord = desktop.Args?.Contains("--record", StringComparer.OrdinalIgnoreCase) == true;
             viewModel.X11RecordOnlySelected = desktop.Args?.Contains("--record-selected", StringComparer.OrdinalIgnoreCase) == true;
+            viewModel.AutoLoadAtspi = desktop.Args?.Contains("--atspi-load", StringComparer.OrdinalIgnoreCase) == true;
             if (TryReadIntArgument(desktop.Args, "--group") is int group)
                 viewModel.TreeGroupModeIndex = Math.Clamp(group, 0, 3);
             var window = new MainWindow { DataContext = viewModel };
@@ -71,7 +72,8 @@ public partial class App : Application
                 "screenshot" or "shot" => 7,
                 "rules" or "rule" => 8,
                 "x11events" or "xrecord" or "record" => 9,
-                "diagnostics" or "diag" => 10,
+                "atspi" or "controls" or "widgets" => 10,
+                "diagnostics" or "diag" => 11,
                 _ => 0,
             };
         }
