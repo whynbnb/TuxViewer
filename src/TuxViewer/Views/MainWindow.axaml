@@ -13,10 +13,11 @@
   <Window.Resources>
     <DataTemplate x:Key="InfoRowTemplate" x:DataType="models:InfoRow">
       <Grid ColumnDefinitions="176,*" Margin="0,2">
-        <TextBlock Text="{Binding Label}" Foreground="#8795AB" FontSize="12" VerticalAlignment="Top" />
+        <TextBlock Text="{Binding Label}" Foreground="#8795AB" FontSize="12"
+                   LineHeight="18" VerticalAlignment="Top" />
         <SelectableTextBlock Grid.Column="1" Text="{Binding Value}"
                              FontFamily="{Binding FontFamily}" FontSize="12"
-                             Foreground="#DCE5F4" TextWrapping="Wrap" />
+                             LineHeight="18" Foreground="#DCE5F4" TextWrapping="Wrap" />
       </Grid>
     </DataTemplate>
 
@@ -138,7 +139,7 @@
                      Margin="8,0,8,8">
               <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="models:WindowInfo">
-                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10" Height="40">
                     <Border Classes="badge" Classes.x11="{Binding IsX11}" Classes.wl="{Binding IsWayland}"
                             Width="38" Height="26" Padding="0" HorizontalAlignment="Left"
                             VerticalAlignment="Center">
@@ -147,17 +148,17 @@
                     </Border>
                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                       <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
-                                 TextTrimming="CharacterEllipsis" />
+                                 LineHeight="18" TextTrimming="CharacterEllipsis" />
                       <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="#7E8CA3"
-                                 TextTrimming="CharacterEllipsis" />
+                                 LineHeight="15" TextTrimming="CharacterEllipsis" />
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
                                 HorizontalAlignment="Right">
                       <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="#93A4BC"
                                  FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
-                                 HorizontalAlignment="Right" />
+                                 LineHeight="14" HorizontalAlignment="Right" />
                       <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="#4F8CFF"
-                                 HorizontalAlignment="Right" />
+                                 LineHeight="14" HorizontalAlignment="Right" />
                     </StackPanel>
                   </Grid>
                 </DataTemplate>
@@ -172,11 +173,15 @@
             <Border Grid.Row="0" Background="#101724" BorderBrush="#232C3D" BorderThickness="0,0,0,1"
                     Padding="16,12">
               <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
-                  <SelectableTextBlock Text="{Binding SelectedTitle}" FontSize="18" FontWeight="Bold"
-                                       TextWrapping="Wrap" />
+                <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
+                  <TextBlock Text="{Binding SelectedTitle}" FontSize="18" FontWeight="Bold"
+                             LineHeight="24" Height="28" TextWrapping="NoWrap"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding SelectedTitle}" />
                   <TextBlock Text="{Binding SelectedSubtitle}" FontSize="11" Foreground="#7E8CA3"
-                             TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
+                             LineHeight="16" Height="18" TextWrapping="NoWrap"
+                             TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding SelectedSubtitle}" />
                 </StackPanel>
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6"
                             VerticalAlignment="Top">

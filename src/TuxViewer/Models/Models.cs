@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Text.Json.Serialization;
 
 namespace TuxViewer.Models;
@@ -25,8 +26,10 @@ public enum PickCapability
 }
 
 /// <summary>A single inspected toplevel window, normalised across all providers.</summary>
-public sealed class WindowInfo
+public sealed class WindowInfo : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public required string Id { get; init; }
     public required string SourceId { get; init; }
     public required string SourceName { get; init; }
@@ -112,6 +115,52 @@ public sealed class WindowInfo
     }
 
     [JsonIgnore] public string FocusGlyph => IsFocused ? "●" : "";
+
+    /// <summary>
+    /// Update a window object in place during a refresh so the list selection and
+    /// item containers are not recreated (avoids UI flicker every auto-refresh tick).
+    /// </summary>
+    public void RefreshFrom(WindowInfo other)
+    {
+        Title = other.Title;
+        AppId = other.AppId;
+        WmClass = other.WmClass;
+        Pid = other.Pid;
+        Backend = other.Backend;
+        IsXWayland = other.IsXWayland;
+        IsFocused = other.IsFocused;
+        IsMapped = other.IsMapped;
+        IsOwnWindow = other.IsOwnWindow;
+        IsOverrideRedirect = other.IsOverrideRedirect;
+        MergedIntoWayland = other.MergedIntoWayland;
+        X = other.X;
+        Y = other.Y;
+        Width = other.Width;
+        Height = other.Height;
+        WorkspaceId = other.WorkspaceId;
+        WorkspaceName = other.WorkspaceName;
+        OutputName = other.OutputName;
+        X11WindowId = other.X11WindowId;
+        LinkedX11WindowId = other.LinkedX11WindowId;
+        RawJson = other.RawJson;
+
+        Extra.Clear();
+        foreach (var (key, value) in other.Extra) Extra[key] = value;
+
+        foreach (var name in new[]
+                 {
+                     nameof(Title), nameof(AppId), nameof(WmClass), nameof(Pid), nameof(Backend),
+                     nameof(IsXWayland), nameof(IsFocused), nameof(IsMapped), nameof(IsOwnWindow),
+                     nameof(IsOverrideRedirect), nameof(MergedIntoWayland), nameof(X), nameof(Y),
+                     nameof(Width), nameof(Height), nameof(WorkspaceId), nameof(WorkspaceName),
+                     nameof(OutputName), nameof(X11WindowId), nameof(LinkedX11WindowId), nameof(RawJson),
+                     nameof(IsX11), nameof(IsWayland), nameof(BackendLabel), nameof(BackendShort),
+                     nameof(GeometryText), nameof(PidText), nameof(Subtitle), nameof(FocusGlyph),
+                 })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
 }
 
 public sealed class InfoRow(string label, string? value, bool mono = false, bool wrap = false)

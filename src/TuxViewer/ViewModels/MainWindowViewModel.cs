@@ -40,6 +40,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private ProcessSnapshot? _process;
     private string _gnomeInstallStatus = "";
     private bool _isRefreshing;
+    private bool _syncingWindows;
 
     public MainWindowViewModel(InspectorService service)
     {
@@ -75,6 +76,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         get => _selectedWindow;
         set
         {
+            if (_syncingWindows && value is null) return;
             if (ReferenceEquals(_selectedWindow, value)) return;
             _selectedWindow = value;
             OnPropertyChanged();
@@ -273,7 +275,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                         IncludeRawX11 = true;
                         ApplyFilter();
                     }
-                    SelectedWindow = match;
+                    SelectedWindow = Windows.FirstOrDefault(w => w.Id == match.Id) ?? match;
                 }
             }
             await LoadDiagnosticsAsync();
@@ -286,7 +288,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task RefreshAsync()
+    public async Task RefreshAsync(bool showBusy = true)
     {
         if (_isRefreshing) return;
         _isRefreshing = true;
@@ -295,26 +297,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var token = _refreshCts.Token;
         try
         {
-            IsBusy = true;
-            var selectedId = SelectedWindow?.Id;
+            if (showBusy) IsBusy = true;
             var windows = await _service.RefreshAsync(token);
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 _allWindows.Clear();
                 _allWindows.AddRange(windows);
                 ApplyFilter();
-
-                if (selectedId is not null)
-                {
-                    var normalized = NormalizeId(selectedId);
-                    var selection = _allWindows.FirstOrDefault(w => NormalizeId(w.Id) == normalized);
-                    if (selection is not null && !ReferenceEquals(selection, SelectedWindow))
-                    {
-                        _suppressInspect = true;
-                        SelectedWindow = selection;
-                        _suppressInspect = false;
-                    }
-                }
 
                 UpdateCounts();
                 UpdateSessionUi();
@@ -328,7 +317,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         finally
         {
-            IsBusy = false;
+            if (showBusy) IsBusy = false;
             _isRefreshing = false;
         }
     }
@@ -372,12 +361,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (!_allWindows.Contains(picked)) _allWindows.Add(picked);
             ApplyFilter();
             _suppressInspect = false;
-            SelectedWindow = null;
-            SelectedWindow = picked;
-            PickBanner = $"已选择：{picked.Title}";
-            StatusText = $"{result.Message} · {picked.BackendLabel} · {picked.GeometryText}";
+            var selected = Windows.FirstOrDefault(w => w.Id == picked.Id) ?? picked;
+            SelectedWindow = selected;
+            PickBanner = $"已选择：{selected.Title}";
+            StatusText = $"{result.Message} · {selected.BackendLabel} · {selected.GeometryText}";
             UpdateCounts();
-            _ = HighlightPickedAsync(picked, reportStatus: false);
+            _ = HighlightPickedAsync(selected, reportStatus: false);
         }
         catch (OperationCanceledException)
         {
@@ -414,11 +403,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var picked = _allWindows.FirstOrDefault(w => MatchPicked(w, result.Window)) ?? result.Window;
             if (!_allWindows.Contains(picked)) _allWindows.Add(picked);
             ApplyFilter();
-            SelectedWindow = null;
-            SelectedWindow = picked;
-            StatusText = $"当前焦点：{picked.Title}";
-            PickBanner = $"当前焦点：{picked.Title}";
-            _ = HighlightPickedAsync(picked, reportStatus: false);
+            var selected = Windows.FirstOrDefault(w => w.Id == picked.Id) ?? picked;
+            SelectedWindow = selected;
+            StatusText = $"当前焦点：{selected.Title}";
+            PickBanner = $"当前焦点：{selected.Title}";
+            _ = HighlightPickedAsync(selected, reportStatus: false);
         }
         finally
         {
@@ -521,7 +510,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private async void OnAutoRefreshTick(object? sender, EventArgs e)
     {
         if (!AutoRefresh || IsPicking || _isRefreshing || IsBusy) return;
-        await RefreshAsync();
+        await RefreshAsync(showBusy: false);
     }
 
     public void Shutdown()
@@ -717,21 +706,56 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         var list = filtered.ToList();
-        var selectedId = SelectedWindow?.Id;
-        Windows.Clear();
-        foreach (var window in list) Windows.Add(window);
+        var selected = SelectedWindow;
 
-        if (selectedId is not null)
+        _syncingWindows = true;
+        try
         {
-            var selected = list.FirstOrDefault(w => NormalizeId(w.Id) == NormalizeId(selectedId));
-            if (selected is not null && !ReferenceEquals(selected, SelectedWindow))
+            SyncWindows(list);
+        }
+        finally
+        {
+            _syncingWindows = false;
+        }
+
+        if (selected is not null && !Windows.Contains(selected))
+            SelectedWindow = null;
+
+        UpdateCounts();
+    }
+
+    private void SyncWindows(List<WindowInfo> desired)
+    {
+        var desiredIds = desired.Select(w => w.Id).ToHashSet(StringComparer.Ordinal);
+
+        // Remove only windows that disappeared; never clear the whole collection.
+        for (var i = Windows.Count - 1; i >= 0; i--)
+        {
+            if (!desiredIds.Contains(Windows[i].Id)) Windows.RemoveAt(i);
+        }
+
+        for (var i = 0; i < desired.Count; i++)
+        {
+            var target = desired[i];
+            var existingIndex = -1;
+            for (var j = i; j < Windows.Count; j++)
             {
-                _suppressInspect = true;
-                SelectedWindow = selected;
-                _suppressInspect = false;
+                if (!string.Equals(Windows[j].Id, target.Id, StringComparison.Ordinal)) continue;
+                existingIndex = j;
+                break;
+            }
+
+            if (existingIndex >= 0)
+            {
+                var existing = Windows[existingIndex];
+                existing.RefreshFrom(target);
+                if (existingIndex != i) Windows.Move(existingIndex, i);
+            }
+            else
+            {
+                Windows.Insert(i, target);
             }
         }
-        UpdateCounts();
     }
 
     private void UpdateCounts()
