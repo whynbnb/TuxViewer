@@ -258,6 +258,12 @@ public partial class MainWindow : Window
 
     private void RefreshSnapshots_Click(object? sender, RoutedEventArgs e) => ViewModel?.LoadSnapshots();
 
+    private async void RefreshOutputs_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.LoadOutputsAsync();
+    }
+
     private async Task<IStorageFile?> PickSaveAsync(string title, string suggested, string extension, string mime)
     {
         var storage = TopLevel.GetTopLevel(this)?.StorageProvider;

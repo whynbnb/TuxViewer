@@ -523,6 +523,58 @@ public sealed class X11RecordedEvent
     public string DisplayText => $"{TimeText}  {TypeName,-18} {WindowHex,-12} {Summary}";
 }
 
+public sealed class OutputInfo
+{
+    public string Name { get; init; } = "";
+    public string? Make { get; init; }
+    public string? Model { get; init; }
+    public bool Enabled { get; init; } = true;
+    public bool Primary { get; init; }
+    public int? X { get; init; }
+    public int? Y { get; init; }
+    public int? Width { get; init; }
+    public int? Height { get; init; }
+    public double? Scale { get; init; }
+    public double? RefreshRate { get; init; }
+    public string? Transform { get; init; }
+    public string? Mode { get; init; }
+    public string? Workspace { get; init; }
+
+    public string Title => Primary ? $"{Name} · primary" : Name;
+    public string GeometryText => Width is > 0 && Height is > 0
+        ? $"{Width}×{Height}" + (X is not null && Y is not null ? $" @ {X},{Y}" : "")
+        : "—";
+    public string ScaleText => Scale is > 0 ? $"{Scale:0.##}×" : "—";
+    public string RefreshText => RefreshRate is > 0 ? $"{RefreshRate:0.##} Hz" : "—";
+    public string Detail => string.Join(" · ", new[] { Make, Model }.Where(s => !string.IsNullOrWhiteSpace(s)));
+}
+
+public sealed class WorkspaceInfo
+{
+    public required string Name { get; init; }
+    public string? Output { get; init; }
+    public bool Active { get; init; }
+    public bool Focused { get; init; }
+    public int WindowCount { get; init; }
+    public string? Layout { get; init; }
+    public string DisplayText => $"{Name}{(Active ? " · active" : "")}{(Focused ? " · focused" : "")}";
+    public string Subtitle => string.Join(" · ", new[]
+    {
+        Output,
+        WindowCount > 0 ? $"{WindowCount} 个窗口" : null,
+        Layout,
+    }.Where(s => !string.IsNullOrWhiteSpace(s)));
+}
+
+public sealed class OutputResult
+{
+    public IReadOnlyList<OutputInfo> Outputs { get; init; } = [];
+    public IReadOnlyList<WorkspaceInfo> Workspaces { get; init; } = [];
+    public IReadOnlyList<string> LayoutLines { get; init; } = [];
+    public string Source { get; init; } = "";
+    public string Note { get; init; } = "";
+}
+
 public sealed class WindowSnapshot
 {
     public string Id { get; set; } = Guid.NewGuid().ToString("N");

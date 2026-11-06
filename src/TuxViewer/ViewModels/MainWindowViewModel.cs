@@ -116,6 +116,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _snapshotStatus = "";
     private string _snapshotDiffText = "";
     private string _reportStatus = "";
+    private string _outputStatus = "尚未读取";
+    private string _outputNote = "";
+    private string _outputSource = "";
 
     public MainWindowViewModel(InspectorService service)
     {
@@ -145,6 +148,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
     public ObservableCollection<AtspiNode> AtspiTree { get; } = [];
     public ObservableCollection<WindowSnapshot> Snapshots { get; } = [];
+    public ObservableCollection<OutputInfo> Outputs { get; } = [];
+    public ObservableCollection<WorkspaceInfo> OutputWorkspaces { get; } = [];
+    public ObservableCollection<string> OutputLayoutLines { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public IReadOnlyList<string> TreeGroupModes { get; }
@@ -505,6 +511,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         private set => Set(ref _reportStatus, value);
     }
 
+    public string OutputStatus
+    {
+        get => _outputStatus;
+        private set => Set(ref _outputStatus, value);
+    }
+
+    public string OutputNote
+    {
+        get => _outputNote;
+        private set => Set(ref _outputNote, value);
+    }
+
+    public string OutputSource
+    {
+        get => _outputSource;
+        private set => Set(ref _outputSource, value);
+    }
+
+    public bool HasOutputs => Outputs.Count > 0;
+
     public bool HasSnapshots => Snapshots.Count > 0;
     public bool HasSnapshotDiff => !string.IsNullOrWhiteSpace(SnapshotDiffText);
 
@@ -756,6 +782,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             }
             await LoadDiagnosticsAsync();
             LoadSnapshots();
+            await LoadOutputsAsync();
             StartMonitoring();
             StartAutoRefresh();
             if (AutoCapture) await CaptureScreenshotAsync();
@@ -1599,6 +1626,33 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (ScreenshotPng is { Length: > 0 }) return;
         if (SelectedWindow is null) return;
         await CaptureScreenshotAsync(activateTab: false);
+    }
+
+    public async Task LoadOutputsAsync()
+    {
+        try
+        {
+            var result = await OutputService.GetAsync(_service.Registry, CancellationToken.None);
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                Outputs.Clear();
+                foreach (var output in result.Outputs) Outputs.Add(output);
+                OutputWorkspaces.Clear();
+                foreach (var workspace in result.Workspaces) OutputWorkspaces.Add(workspace);
+                OutputLayoutLines.Clear();
+                foreach (var line in result.LayoutLines) OutputLayoutLines.Add(line);
+                OutputSource = result.Source;
+                OutputStatus = result.Outputs.Count == 0
+                    ? $"{result.Source} · 未检测到输出"
+                    : $"{result.Source} · {result.Outputs.Count} 个输出 · {result.Workspaces.Count} 个工作区";
+                OutputNote = result.Note;
+                OnPropertyChanged(nameof(HasOutputs));
+            });
+        }
+        catch (Exception ex)
+        {
+            OutputStatus = $"读取输出失败：{ex.Message}";
+        }
     }
 
     public void ClearEvents()

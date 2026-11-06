@@ -847,6 +847,81 @@
                 </ScrollViewer>
               </TabItem>
 
+              <TabItem Header="输出">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                      <TextBlock Text="多显示器 / 输出" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding OutputStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center" />
+                      <Button Grid.Column="2" Content="刷新输出" Click="RefreshOutputs_Click"
+                              Classes="ghost" FontSize="11" Padding="9,4" />
+                    </Grid>
+                    <TextBlock Text="{Binding OutputNote}" Classes="hint"
+                               IsVisible="{Binding OutputNote, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+                    <ItemsControl ItemsSource="{Binding Outputs}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:OutputInfo">
+                          <Border Classes="card" Margin="0,0,0,6">
+                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto" RowSpacing="3">
+                              <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" />
+                              <Border Grid.Column="1" Classes="tag">
+                                <TextBlock Text="{Binding GeometryText}" />
+                              </Border>
+                              <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}"
+                                         Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
+                              <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="16">
+                                <TextBlock Text="{Binding ScaleText, StringFormat='缩放 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding RefreshText, StringFormat='刷新率 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding Transform, StringFormat='变换 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding Mode, StringFormat='模式 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding Workspace, StringFormat='工作区 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                              </StackPanel>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="工作区" Classes="section" />
+                    <ItemsControl ItemsSource="{Binding OutputWorkspaces}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                          <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                        </ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:WorkspaceInfo">
+                          <Border Classes="tag" Padding="8,4" ToolTip.Tip="{Binding Subtitle}">
+                            <StackPanel Spacing="1">
+                              <TextBlock Text="{Binding DisplayText}" FontSize="11" />
+                              <TextBlock Text="{Binding Subtitle}" FontSize="9" Foreground="#7E8CA3" />
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="工作区 / 列布局" Classes="section" />
+                    <ItemsControl ItemsSource="{Binding OutputLayoutLines}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:CompileBindings="False">
+                          <SelectableTextBlock Text="{Binding}" FontSize="11"
+                                               FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                               Foreground="#C6D3E8" TextWrapping="Wrap" Margin="0,1" />
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Classes="hint"
+                               Text="输出坐标来自合成器逻辑布局；XWayland 的 X11 根窗口可能经过缩放或偏移，详情页与截图使用 X11 坐标空间。niri 的“列布局”按 pos_in_scrolling_layout 显示每个工作区的列与窗口。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
               <TabItem Header="诊断">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">

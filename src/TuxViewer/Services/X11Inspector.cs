@@ -69,6 +69,20 @@ public sealed class X11Inspector : IDisposable
         }
     }
 
+    public (int Width, int Height)? GetRootGeometry()
+    {
+        if (!IsAvailable) return null;
+        lock (_lock)
+        {
+            try
+            {
+                if (X11Native.XGetWindowAttributes(_display, _root, out var attrs) == 0) return null;
+                return (attrs.Width, attrs.Height);
+            }
+            catch { return null; }
+        }
+    }
+
     public string? GetWmName()
     {
         if (!IsAvailable) return null;

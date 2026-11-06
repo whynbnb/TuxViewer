@@ -77,7 +77,8 @@ public partial class App : Application
                 "hotkey" or "shortcut" => 11,
                 "control" or "actions" => 12,
                 "report" or "snapshot" => 13,
-                "diagnostics" or "diag" => 14,
+                "outputs" or "output" or "monitors" => 14,
+                "diagnostics" or "diag" => 15,
                 _ => 0,
             };
         }
