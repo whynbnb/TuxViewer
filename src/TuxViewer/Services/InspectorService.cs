@@ -20,8 +20,12 @@ public sealed class InspectorService : IDisposable
     public Task<IReadOnlyList<WindowInfo>> RefreshAsync(CancellationToken cancellationToken, bool includeRawX11 = false)
         => Registry.GetWindowsAsync(cancellationToken, includeRawX11);
 
-    public Task<PickResult> PickAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken, bool x11Only = false)
-        => Registry.PickAsync(progress, cancellationToken, x11Only);
+    public Task<PickResult> PickAsync(
+        IProgress<PickProgress>? progress,
+        CancellationToken cancellationToken,
+        PickMode mode = PickMode.Click,
+        bool x11Only = false)
+        => Registry.PickAsync(progress, cancellationToken, mode, x11Only);
 
     public Task<PickResult> PickFocusedAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
         => Registry.PickFocusedAsync(progress, cancellationToken);
@@ -65,6 +69,9 @@ public sealed class InspectorService : IDisposable
 
     public async Task<bool> CloseAsync(WindowInfo window, CancellationToken cancellationToken)
         => await Registry.CloseAsync(window, cancellationToken);
+
+    public Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+        => Registry.HighlightAsync(window, durationMs, cancellationToken);
 
     public bool Highlight(WindowInfo window)
     {

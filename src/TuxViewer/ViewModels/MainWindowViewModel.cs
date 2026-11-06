@@ -30,6 +30,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _includeUnmapped = true;
     private int _backendFilterIndex;
     private int _selectedTabIndex;
+    private int _pickModeIndex;
     private string _pickBanner = "";
     private int? _pickCountdown;
     private bool _hasSelection;
@@ -45,6 +46,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         _service = service;
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
+        PickModes = ["点击选择", "拖动选择"];
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
@@ -62,7 +64,21 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<InfoRow> SessionRows { get; } = [];
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
+    public IReadOnlyList<string> PickModes { get; }
     public string? InitialSelection { get; set; }
+
+    public int PickModeIndex
+    {
+        get => _pickModeIndex;
+        set
+        {
+            if (!Set(ref _pickModeIndex, value)) return;
+            OnPropertyChanged(nameof(CurrentPickMode));
+            OnPropertyChanged(nameof(PickButtonText));
+        }
+    }
+
+    public PickMode CurrentPickMode => PickModeIndex == 1 ? PickMode.Drag : PickMode.Click;
 
     public int SelectedTabIndex
     {
@@ -150,7 +166,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string PickButtonText => IsPicking ? "拾取中…" : "十字准星拾取";
+    public string PickButtonText => IsPicking
+        ? "拾取中…"
+        : CurrentPickMode == PickMode.Drag ? "拖动拾取" : "点击拾取";
 
     public string PickBanner
     {
@@ -336,14 +354,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public async Task PickAsync(bool x11Only = false)
+    public async Task PickAsync(bool x11Only = false, PickMode? mode = null)
     {
         if (IsPicking) return;
+        var pickMode = mode ?? CurrentPickMode;
         _pickCts?.Cancel();
         _pickCts = new CancellationTokenSource();
         var cts = _pickCts;
         IsPicking = true;
-        PickBanner = x11Only ? "X11 模式：左键选择窗口，右键 / Esc 取消" : "正在启动拾取器…";
+        PickBanner = x11Only
+            ? $"X11 {(pickMode == PickMode.Drag ? "拖动" : "点击")}拾取：右键 / Esc 取消"
+            : pickMode == PickMode.Drag
+                ? "拖动准星到目标窗口并松开…"
+                : "正在启动点击拾取器…";
         PickCountdown = null;
 
         var progress = new Progress<PickProgress>(p =>
@@ -354,7 +377,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         try
         {
-            var result = await _service.PickAsync(progress, cts.Token, x11Only);
+            var result = await _service.PickAsync(progress, cts.Token, pickMode, x11Only);
             PickCountdown = null;
             if (result.Window is null)
             {
@@ -375,6 +398,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             PickBanner = $"已选择：{picked.Title}";
             StatusText = $"{result.Message} · {picked.BackendLabel} · {picked.GeometryText}";
             UpdateCounts();
+            _ = HighlightPickedAsync(picked, reportStatus: false);
         }
         catch (OperationCanceledException)
         {
@@ -415,6 +439,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             SelectedWindow = picked;
             StatusText = $"当前焦点：{picked.Title}";
             PickBanner = $"当前焦点：{picked.Title}";
+            _ = HighlightPickedAsync(picked, reportStatus: false);
         }
         finally
         {
@@ -444,15 +469,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (ok) await RefreshAsync();
     }
 
-    public void HighlightSelected()
+    public async Task HighlightSelectedAsync()
     {
         if (SelectedWindow is null) return;
-        var ok = _service.Highlight(SelectedWindow);
-        StatusText = !ok
-            ? "该窗口没有 X11 id，Wayland 下无法全局高亮，可用“聚焦”替代"
-            : Session.IsWaylandSession
-                ? "已在 XWayland 坐标空间绘制高亮；部分合成器不会显示 override-redirect 窗口"
-                : "已在 X11 屏幕上绘制高亮边框（约 2 秒）";
+        await HighlightPickedAsync(SelectedWindow, reportStatus: true);
+    }
+
+    private async Task HighlightPickedAsync(WindowInfo window, bool reportStatus)
+    {
+        try
+        {
+            var ok = await _service.HighlightAsync(window, 2600, CancellationToken.None);
+            if (!reportStatus) return;
+            StatusText = ok
+                ? $"已请求高亮 {window.Title}（约 2.6 秒）"
+                : "当前后端不支持全局高亮，可用“聚焦”替代";
+        }
+        catch
+        {
+            if (reportStatus) StatusText = "高亮请求失败";
+        }
     }
 
     public async Task LoadDiagnosticsAsync()

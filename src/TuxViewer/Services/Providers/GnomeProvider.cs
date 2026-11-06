@@ -130,6 +130,13 @@ public sealed class GnomeProvider : WindowProviderBase
         return result?.Success == true && ParseGVariantBool(result.StdOut);
     }
 
+    public override async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+    {
+        if (!ulong.TryParse(window.NativeId, out var id)) return false;
+        var result = await CallAsync("HighlightWindow", [$"uint64 {id}", $"uint32 {durationMs}"], 3000, cancellationToken);
+        return result?.Success == true && ParseGVariantBool(result.StdOut);
+    }
+
     private static WindowInfo? ParseWindow(JsonElement e)
     {
         if (e.ValueKind != JsonValueKind.Object) return null;

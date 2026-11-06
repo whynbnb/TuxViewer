@@ -51,9 +51,14 @@ public sealed class NiriProvider : WindowProviderBase
         return result;
     }
 
-    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
+    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken)
     {
-        progress?.Report(new PickProgress { Message = "niri：移动十字准星并点击目标窗口（Esc 取消）" });
+        progress?.Report(new PickProgress
+        {
+            Message = mode == PickMode.Drag
+                ? "niri 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）"
+                : "niri：移动十字准星并单击目标窗口（Esc 取消）",
+        });
         var result = await CommandRunner.TryRunAsync(
             "niri", ["msg", "--json", "pick-window"], 180_000, cancellationToken);
 
@@ -105,6 +110,28 @@ public sealed class NiriProvider : WindowProviderBase
         var result = await CommandRunner.TryRunAsync(
             "niri", ["msg", "action", "close-window", "--id", window.NativeId], 3000, cancellationToken);
         return result?.Success == true;
+    }
+
+    public override async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(window.NativeId)) return false;
+        if (window.Extra.TryGetValue("紧急", out var urgent) && urgent == "是") return true;
+
+        var set = await CommandRunner.TryRunAsync(
+            "niri", ["msg", "action", "set-window-urgent", "--id", window.NativeId], 3000, cancellationToken);
+        if (set?.Success != true) return false;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(durationMs, CancellationToken.None);
+                await CommandRunner.TryRunAsync(
+                    "niri", ["msg", "action", "unset-window-urgent", "--id", window.NativeId], 3000, CancellationToken.None);
+            }
+            catch { /* best effort */ }
+        });
+        return true;
     }
 
     private async Task EnsureVersionAsync(CancellationToken cancellationToken)

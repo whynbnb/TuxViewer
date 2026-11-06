@@ -23,9 +23,9 @@ public sealed class X11WindowProvider(X11Inspector inspector, bool isWaylandSess
             return Inspector.GetWindows();
         }, cancellationToken);
 
-    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
+    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken)
     {
-        var id = await Task.Run(() => Inspector.PickInteractive(progress, cancellationToken), cancellationToken);
+        var id = await Task.Run(() => Inspector.PickInteractive(progress, mode, cancellationToken), cancellationToken);
         if (id is null) return null;
 
         var windows = await Task.Run(Inspector.GetWindows, cancellationToken);
@@ -75,6 +75,15 @@ public sealed class X11WindowProvider(X11Inspector inspector, bool isWaylandSess
         {
             if (window.X11WindowId is null) return false;
             Inspector.Close(window.X11WindowId.Value);
+            return true;
+        }, cancellationToken);
+
+    public override Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+        => Task.Run(() =>
+        {
+            var id = window.X11WindowId ?? window.LinkedX11WindowId;
+            if (id is null) return false;
+            Inspector.Highlight(id.Value, durationMs);
             return true;
         }, cancellationToken);
 }

@@ -17,8 +17,10 @@ internal static class Program
                 TuxViewer — Linux 桌面环境 / 窗口检视器
 
                 用法:
-                  TuxViewer [--select <id|app_id|标题>] [--tab <overview|process|x11|wayland|env|raw|diagnostics>]
+                  TuxViewer [--select <id|app_id|标题>] [--pick-mode click|drag]
+                            [--tab <overview|process|x11|wayland|env|raw|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
+                  TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --install-gnome-extension
 
                 环境变量:
@@ -26,13 +28,16 @@ internal static class Program
                   TUXVIEWER_X11_DEBUG=1           输出 X11 调试日志
 
                 快捷键:
-                  F2 拾取窗口   F5 刷新   Esc 取消拾取
+                  F2 拾取窗口（Shift+F2 = 强制 X11 拾取）   F5 刷新   Esc 取消拾取
                 """);
             return 0;
         }
 
         if (args.Contains("--diagnose", StringComparer.OrdinalIgnoreCase))
             return RunDiagnoseAsync(args).GetAwaiter().GetResult();
+
+        if (args.Contains("--pick-x11", StringComparer.OrdinalIgnoreCase))
+            return RunPickX11Async(args).GetAwaiter().GetResult();
 
         if (args.Contains("--install-gnome-extension", StringComparer.OrdinalIgnoreCase))
         {
@@ -145,6 +150,45 @@ internal static class Program
             Console.Error.WriteLine(ex);
             return 1;
         }
+    }
+
+    private static async Task<int> RunPickX11Async(string[] args)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(120));
+        using var service = new InspectorService();
+        var modeText = GetArg(args, "--pick-x11") ?? "click";
+        var mode = string.Equals(modeText, "drag", StringComparison.OrdinalIgnoreCase)
+            ? PickMode.Drag
+            : PickMode.Click;
+
+        await service.InitializeAsync(cts.Token);
+        if (service.Registry.X11?.IsAvailable != true)
+        {
+            Console.Error.WriteLine("X11 / XWayland 不可用");
+            return 2;
+        }
+
+        Console.Error.WriteLine(mode == PickMode.Drag
+            ? "X11 拖动拾取：按住左键拖动，松开选择；右键 / Esc 取消"
+            : "X11 点击拾取：单选目标窗口；右键 / Esc 取消");
+        var progress = new Progress<PickProgress>(p => Console.Error.WriteLine(p.Message));
+        var result = await service.PickAsync(progress, cts.Token, mode, x11Only: true);
+        if (result.Window is null)
+        {
+            Console.Error.WriteLine(result.Message ?? "未选择窗口");
+            return 3;
+        }
+
+        var inspection = await service.InspectAsync(result.Window, cts.Token);
+        if (args.Contains("--json", StringComparer.OrdinalIgnoreCase))
+        {
+            Console.WriteLine(inspection.RawJson);
+        }
+        else
+        {
+            Console.WriteLine(inspection.Summary);
+        }
+        return 0;
     }
 
     private static string? GetArg(string[] args, string name)

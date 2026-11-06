@@ -64,6 +64,26 @@ public sealed class SwayProvider : WindowProviderBase
         return result?.Success == true;
     }
 
+    public override async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(window.NativeId)) return false;
+        var enable = await CommandRunner.TryRunAsync(
+            "swaymsg", [$"[con_id={window.NativeId}]", "urgent", "enable"], 3000, cancellationToken);
+        if (enable?.Success != true) return false;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(durationMs, CancellationToken.None);
+                await CommandRunner.TryRunAsync(
+                    "swaymsg", [$"[con_id={window.NativeId}]", "urgent", "disable"], 3000, CancellationToken.None);
+            }
+            catch { /* best effort */ }
+        });
+        return true;
+    }
+
     private static void Walk(JsonElement node, string? workspace, string? output, List<WindowInfo> result)
     {
         var type = GetString(node, "type");

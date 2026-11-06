@@ -28,6 +28,7 @@ public sealed class X11Inspector : IDisposable
 
     private IntPtr _overlay;
     private CancellationTokenSource? _overlayCts;
+    private int _overlayGeneration;
     private bool _disposed;
 
     public string? DisplayName { get; }
@@ -296,7 +297,7 @@ public sealed class X11Inspector : IDisposable
     }
 
     /// <summary>Run an interactive X11 crosshair pick. Returns the clicked toplevel window id.</summary>
-    public ulong? PickInteractive(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
+    public ulong? PickInteractive(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken)
     {
         if (!IsAvailable) return null;
         lock (_lock)
@@ -304,13 +305,16 @@ public sealed class X11Inspector : IDisposable
             var grabbedPointer = false;
             var grabbedKeyboard = false;
             var cursor = _crosshair;
+            var pressed = false;
+
             try
             {
                 var grab = X11Native.XGrabPointer(
                     _display, _root, false,
-                    X11Native.ButtonPressMask | X11Native.ButtonReleaseMask | X11Native.KeyPressMask,
+                    X11Native.ButtonPressMask | X11Native.ButtonReleaseMask,
                     X11Native.GrabModeAsync, X11Native.GrabModeAsync, IntPtr.Zero, cursor, X11Native.CurrentTime);
                 grabbedPointer = grab == 0;
+                Dbg($"XGrabPointer status={grab}");
                 if (!grabbedPointer)
                 {
                     progress?.Report(new PickProgress { Message = "X11 指针抓取失败（Wayland 下通常只支持 X11 窗口）" });
@@ -324,60 +328,66 @@ public sealed class X11Inspector : IDisposable
                 var lastReport = DateTime.MinValue;
                 var lastHover = 0UL;
 
-                progress?.Report(new PickProgress { Message = "X11 十字准星：左键选择窗口 · 右键 / Esc 取消" });
+                progress?.Report(new PickProgress
+                {
+                    Message = mode == PickMode.Drag
+                        ? "X11 拖动拾取：在目标窗口按住左键拖动，松开选择 · 右键 / Esc 取消"
+                        : "X11 点击拾取：移动准星，单击目标窗口 · 右键 / Esc 取消",
+                });
 
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     while (X11Native.XCheckMaskEvent(
                                _display,
-                               X11Native.ButtonPressMask | X11Native.KeyPressMask,
+                               X11Native.ButtonPressMask | X11Native.ButtonReleaseMask | X11Native.KeyPressMask,
                                out var ev) != 0)
                     {
                         if (ev.Type == X11Native.ButtonPress)
                         {
-                            if (ev.KeyOrButton == 3) return null;
+                            Dbg($"pick ButtonPress button={ev.KeyOrButton} root={ev.RootX},{ev.RootY}");
+                            if (ev.KeyOrButton == 3)
+                            {
+                                HideHighlightUnlocked();
+                                return null;
+                            }
                             if (ev.KeyOrButton != 1) continue;
 
-                            var deep = (ulong)FindDeepestWindow((IntPtr)ev.Window);
-                            var target = FindToplevel(deep);
-                            var title = GetTextProperty(target, "_NET_WM_NAME") ?? GetTextProperty(target, "WM_NAME") ?? "";
-                            var (_, cls) = GetClassHint(target);
-                            var (tx, ty) = TranslateToRoot(target);
-                            X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)target, out var ta);
-                            progress?.Report(new PickProgress
-                            {
-                                Message = $"已选择 X11 窗口 0x{target:x}",
-                                HoverWindow = new WindowInfo
-                                {
-                                    Id = $"x11:0x{target:x}",
-                                    SourceId = "x11",
-                                    SourceName = "X11",
-                                    Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title,
-                                    AppId = cls,
-                                    WmClass = cls,
-                                    Pid = GetPid(target),
-                                    Backend = WindowBackend.X11,
-                                    IsXWayland = _isWaylandSession,
-                                    X = tx,
-                                    Y = ty,
-                                    Width = ta.Width,
-                                    Height = ta.Height,
-                                    X11WindowId = target,
-                                },
-                            });
-                            return target;
-                        }
+                            if (mode == PickMode.Click)
+                                return FinishPick(progress, GetPickTarget(lastHover));
 
-                        if (ev.Type == X11Native.KeyPress && ev.KeyOrButton == escapeKey) return null;
+                            pressed = true;
+                        }
+                        else if (ev.Type == X11Native.ButtonRelease)
+                        {
+                            Dbg($"pick ButtonRelease button={ev.KeyOrButton} root={ev.RootX},{ev.RootY}");
+                            if (ev.KeyOrButton != 1) continue;
+                            if (mode == PickMode.Drag && pressed)
+                                return FinishPick(progress, GetPickTarget(lastHover));
+                            pressed = false;
+                        }
+                        else if (ev.Type == X11Native.KeyPress && ev.KeyOrButton == escapeKey)
+                        {
+                            HideHighlightUnlocked();
+                            return null;
+                        }
                     }
 
                     X11Native.XQueryPointer(
-                        _display, _root, out _, out _, out var rootX, out var rootY, out _, out _, out _);
-                    var hover = FindToplevel((ulong)(nuint)FindDeepestWindow(_root));
+                        _display, _root, out _, out _, out _, out _, out _, out _, out _);
+                    var hover = FindToplevel(GetPickTarget(lastHover));
+                    var hoverChanged = hover != lastHover;
 
-                    if (hover != lastHover || (DateTime.UtcNow - lastReport).TotalMilliseconds > 400)
+                    if (hoverChanged)
                     {
                         lastHover = hover;
+                        if (hover != 0)
+                            ShowHighlightUnlocked(hover, 1400);
+                        else
+                            HideHighlightUnlocked();
+                    }
+
+                    if (hover != 0 && (hoverChanged || (DateTime.UtcNow - lastReport).TotalMilliseconds > 400))
+                    {
                         lastReport = DateTime.UtcNow;
                         var title = GetTextProperty(hover, "_NET_WM_NAME") ?? GetTextProperty(hover, "WM_NAME") ?? "";
                         var (_, cls) = GetClassHint(hover);
@@ -385,7 +395,7 @@ public sealed class X11Inspector : IDisposable
                         X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)hover, out var ha);
                         progress?.Report(new PickProgress
                         {
-                            Message = $"X11 十字准星：0x{hover:x} · {cls ?? "?"} · {title}",
+                            Message = $"X11 {(mode == PickMode.Drag ? "拖动" : "点击")}：0x{hover:x} · {cls ?? "?"} · {title}",
                             HoverWindow = new WindowInfo
                             {
                                 Id = $"x11:0x{hover:x}",
@@ -409,14 +419,17 @@ public sealed class X11Inspector : IDisposable
                     Thread.Sleep(16);
                 }
 
+                HideHighlightUnlocked();
                 return null;
             }
             catch (OperationCanceledException)
             {
+                HideHighlightUnlocked();
                 return null;
             }
             catch
             {
+                HideHighlightUnlocked();
                 return null;
             }
             finally
@@ -426,6 +439,51 @@ public sealed class X11Inspector : IDisposable
                 X11Native.XSync(_display, false);
             }
         }
+    }
+
+    private ulong GetPickTarget(ulong fallback)
+    {
+        var deep = (ulong)(nuint)FindDeepestWindow(_root);
+        return _overlay != IntPtr.Zero && deep == (ulong)_overlay ? fallback : deep;
+    }
+
+    private ulong? FinishPick(IProgress<PickProgress>? progress, ulong deepWindow)
+    {
+        if (deepWindow == 0)
+        {
+            progress?.Report(new PickProgress { Message = "指针下没有可选择的窗口" });
+            return null;
+        }
+
+        var target = FindToplevel(deepWindow);
+        if (target == 0) return null;
+        var title = GetTextProperty(target, "_NET_WM_NAME") ?? GetTextProperty(target, "WM_NAME") ?? "";
+        var (_, cls) = GetClassHint(target);
+        var (tx, ty) = TranslateToRoot(target);
+        X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)target, out var ta);
+        ShowHighlightUnlocked(target, 2600);
+        progress?.Report(new PickProgress
+        {
+            Message = $"已选择 X11 窗口 0x{target:x}",
+            HoverWindow = new WindowInfo
+            {
+                Id = $"x11:0x{target:x}",
+                SourceId = "x11",
+                SourceName = "X11",
+                Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title,
+                AppId = cls,
+                WmClass = cls,
+                Pid = GetPid(target),
+                Backend = WindowBackend.X11,
+                IsXWayland = _isWaylandSession,
+                X = tx,
+                Y = ty,
+                Width = ta.Width,
+                Height = ta.Height,
+                X11WindowId = target,
+            },
+        });
+        return target;
     }
 
     public void Focus(ulong id)
@@ -477,80 +535,86 @@ public sealed class X11Inspector : IDisposable
     public void Highlight(ulong id, int durationMs = 2200)
     {
         if (!IsAvailable) return;
-        lock (_lock)
+        lock (_lock) ShowHighlightUnlocked(id, durationMs);
+    }
+
+    private void ShowHighlightUnlocked(ulong id, int durationMs)
+    {
+        try
         {
-            try
+            var (x, y) = TranslateToRoot(id);
+            if (X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)id, out var attrs) == 0) return;
+            var width = (uint)Math.Max(1, attrs.Width);
+            var height = (uint)Math.Max(1, attrs.Height);
+
+            if (_overlay == IntPtr.Zero)
             {
-                var (x, y) = TranslateToRoot(id);
-                if (X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)id, out var attrs) == 0) return;
-                var width = (uint)Math.Max(1, attrs.Width);
-                var height = (uint)Math.Max(1, attrs.Height);
-
-                if (_overlay == IntPtr.Zero)
+                var set = new X11Native.XSetWindowAttributes
                 {
-                    var set = new X11Native.XSetWindowAttributes
-                    {
-                        BackgroundPixel = 0xFF4F8CFF,
-                        OverrideRedirect = 1,
-                    };
-                    _overlay = X11Native.XCreateWindow(
-                        _display, _root, x, y, width, height, 0,
-                        X11Native.CopyFromParent, X11Native.InputOutput, IntPtr.Zero,
-                        X11Native.CWBackPixel | X11Native.CWOverrideRedirect, ref set);
-                    if (_overlay == IntPtr.Zero) return;
-                    X11Native.XStoreName(_display, _overlay, "TuxViewer Highlight");
-                }
-
-                X11Native.XMoveResizeWindow(_display, _overlay, x, y, width, height);
-                var thickness = (ushort)Math.Clamp(Math.Min(width, height) / 60, 3, 8);
-                var rects = new[]
-                {
-                    new X11Native.XRectangle { X = 0, Y = 0, Width = (ushort)width, Height = thickness },
-                    new X11Native.XRectangle { X = 0, Y = (short)(height - thickness), Width = (ushort)width, Height = thickness },
-                    new X11Native.XRectangle { X = 0, Y = 0, Width = thickness, Height = (ushort)height },
-                    new X11Native.XRectangle { X = (short)(width - thickness), Y = 0, Width = thickness, Height = (ushort)height },
+                    BackgroundPixel = 0xFF4F8CFF,
+                    OverrideRedirect = 1,
                 };
-                X11Native.XShapeCombineRectangles(
-                    _display, _overlay, X11Native.ShapeBounding, 0, 0, rects, rects.Length,
-                    X11Native.ShapeSet, X11Native.Unsorted);
-                X11Native.XMapRaised(_display, _overlay);
-                X11Native.XFlush(_display);
-
-                _overlayCts?.Cancel();
-                _overlayCts = new CancellationTokenSource();
-                var token = _overlayCts.Token;
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(durationMs, token);
-                        lock (_lock)
-                        {
-                            if (_disposed) return;
-                            if (_overlay != IntPtr.Zero) X11Native.XUnmapWindow(_display, _overlay);
-                            X11Native.XFlush(_display);
-                        }
-                    }
-                    catch { /* cancelled */ }
-                }, token);
+                _overlay = X11Native.XCreateWindow(
+                    _display, _root, x, y, width, height, 0,
+                    X11Native.CopyFromParent, X11Native.InputOutput, IntPtr.Zero,
+                    X11Native.CWBackPixel | X11Native.CWOverrideRedirect, ref set);
+                if (_overlay == IntPtr.Zero) return;
+                X11Native.XStoreName(_display, _overlay, "TuxViewer Highlight");
             }
-            catch { /* ignore */ }
+
+            X11Native.XMoveResizeWindow(_display, _overlay, x, y, width, height);
+            var thickness = (ushort)Math.Clamp(Math.Min(width, height) / 60, 3, 8);
+            var rects = new[]
+            {
+                new X11Native.XRectangle { X = 0, Y = 0, Width = (ushort)width, Height = thickness },
+                new X11Native.XRectangle { X = 0, Y = (short)(height - thickness), Width = (ushort)width, Height = thickness },
+                new X11Native.XRectangle { X = 0, Y = 0, Width = thickness, Height = (ushort)height },
+                new X11Native.XRectangle { X = (short)(width - thickness), Y = 0, Width = thickness, Height = (ushort)height },
+            };
+            X11Native.XShapeCombineRectangles(
+                _display, _overlay, X11Native.ShapeBounding, 0, 0, rects, rects.Length,
+                X11Native.ShapeSet, X11Native.Unsorted);
+            X11Native.XMapRaised(_display, _overlay);
+            X11Native.XFlush(_display);
+
+            _overlayCts?.Cancel();
+            _overlayCts = new CancellationTokenSource();
+            var token = _overlayCts.Token;
+            var generation = ++_overlayGeneration;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(durationMs, token);
+                    lock (_lock)
+                    {
+                        if (_disposed || generation != _overlayGeneration) return;
+                        if (_overlay != IntPtr.Zero) X11Native.XUnmapWindow(_display, _overlay);
+                        X11Native.XFlush(_display);
+                    }
+                }
+                catch { /* cancelled */ }
+            }, token);
         }
+        catch { /* ignore */ }
     }
 
     public void HideHighlight()
     {
         if (!IsAvailable) return;
-        lock (_lock)
+        lock (_lock) HideHighlightUnlocked();
+    }
+
+    private void HideHighlightUnlocked()
+    {
+        try
         {
-            try
-            {
-                _overlayCts?.Cancel();
-                if (_overlay != IntPtr.Zero) X11Native.XUnmapWindow(_display, _overlay);
-                X11Native.XFlush(_display);
-            }
-            catch { /* ignore */ }
+            _overlayCts?.Cancel();
+            _overlayGeneration++;
+            if (_overlay != IntPtr.Zero) X11Native.XUnmapWindow(_display, _overlay);
+            X11Native.XFlush(_display);
         }
+        catch { /* ignore */ }
     }
 
     private List<X11Property> GetProperties(ulong id)

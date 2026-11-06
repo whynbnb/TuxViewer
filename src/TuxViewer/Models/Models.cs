@@ -10,6 +10,12 @@ public enum WindowBackend
     Wayland,
 }
 
+public enum PickMode
+{
+    Click,
+    Drag,
+}
+
 public enum PickCapability
 {
     None,

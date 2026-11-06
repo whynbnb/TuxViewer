@@ -18,7 +18,7 @@ public interface IWindowProvider
     Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken);
 
     /// <summary>Compositor-native interactive pick (crosshair).</summary>
-    Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken);
+    Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken);
 
     /// <summary>Pick the window under the pointer, called after a countdown.</summary>
     Task<WindowInfo?> PickAtCursorAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken);
@@ -27,6 +27,9 @@ public interface IWindowProvider
 
     Task<bool> FocusAsync(WindowInfo window, CancellationToken cancellationToken);
     Task<bool> CloseAsync(WindowInfo window, CancellationToken cancellationToken);
+
+    /// <summary>Draw / trigger a short visual highlight on the compositor or X11.</summary>
+    Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken);
 }
 
 public abstract class WindowProviderBase : IWindowProvider
@@ -45,7 +48,7 @@ public abstract class WindowProviderBase : IWindowProvider
 
     public abstract Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken);
 
-    public virtual Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
+    public virtual Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken)
         => Task.FromResult<WindowInfo?>(null);
 
     public virtual Task<WindowInfo?> PickAtCursorAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
@@ -58,6 +61,9 @@ public abstract class WindowProviderBase : IWindowProvider
         => Task.FromResult(false);
 
     public virtual Task<bool> CloseAsync(WindowInfo window, CancellationToken cancellationToken)
+        => Task.FromResult(false);
+
+    public virtual Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
         => Task.FromResult(false);
 
 }

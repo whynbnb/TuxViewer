@@ -92,10 +92,14 @@
                   ToolTip.Tip="刷新窗口列表 (F5)" />
           <Button Content="当前焦点" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
                   ToolTip.Tip="读取当前聚焦的窗口" />
+          <ComboBox ItemsSource="{Binding PickModes}"
+                    SelectedIndex="{Binding PickModeIndex, Mode=TwoWay}"
+                    Width="94" MinHeight="32"
+                    ToolTip.Tip="点击选择：单击目标窗口；拖动选择：按住左键拖动准星，松开确认" />
           <Button Content="{Binding PickButtonText}" Click="Pick_Click" Classes="pick"
                   IsEnabled="{Binding IsIdle}" ToolTip.Tip="十字准星检视窗口 (F2)" />
           <Button Content="X11 拾取" Click="PickX11_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="只使用 X11 指针抓取（仅 X11 / XWayland 窗口）" />
+                  ToolTip.Tip="只使用 X11 指针抓取（Shift+F2），支持点击/拖动，仅 X11 / XWayland 窗口" />
         </StackPanel>
       </Grid>
     </Border>
@@ -384,7 +388,7 @@
           <TextBlock Text="◎" FontSize="20" Foreground="#7EABFF" VerticalAlignment="Center" />
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{Binding PickBanner}" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock Text="提示：X11 抓取时左键选择，右键 / Esc 取消" FontSize="10" Foreground="#7E8CA3" />
+            <TextBlock Text="提示：点击模式单击目标；拖动模式按住拖动后松开；右键 / Esc 取消" FontSize="10" Foreground="#7E8CA3" />
           </StackPanel>
           <Border Classes="badge accent" IsVisible="{Binding HasPickCountdown}">
             <TextBlock Text="{Binding PickCountdown}" />

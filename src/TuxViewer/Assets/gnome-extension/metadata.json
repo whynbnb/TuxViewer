@@ -4,6 +4,6 @@
   "description": "Optional DBus bridge that lets TuxViewer enumerate GNOME Shell windows and pick the window under the cursor.",
   "shell-version": ["45", "46", "47", "48", "49", "50", "51", "52"],
   "session-modes": ["user"],
-  "version": 1,
+  "version": 2,
   "url": "https://local/tuxviewer"
 }

@@ -21,14 +21,14 @@ TuxViewer 用于回答这些问题：
 
 ### 1. 跨桌面环境 / 窗口管理器
 
-| 环境 | 窗口枚举 | 十字准星拾取 | 聚焦 / 关闭 | 说明 |
+| 环境 | 窗口枚举 | 拾取能力 | 聚焦 / 关闭 | 说明 |
 |---|---|---|---|---|
-| **X11 会话（任意 WM/DE）** | ✅ 全量 top-level | ✅ 真正的全局指针抓取 | ✅ / ✅ | Xlib 直接读取 `_NET_CLIENT_LIST`、属性、子窗口 |
-| **niri** | ✅ IPC | ✅ `niri msg pick-window`（合成器原生十字） | ✅ / ✅ | 自动合并 XWayland 窗口的 X11 详情 |
-| **Sway** | ✅ IPC | ⚠️ 聚焦式拾取（3 秒倒计时） | ✅ / ✅ | 读取 `shell=xwayland` 标记 |
-| **Hyprland** | ✅ IPC | ⚠️ 指针停留拾取（3 秒倒计时） | ✅ / ✅ | 使用 `xwayland` 字段 |
+| **X11 会话（任意 WM/DE）** | ✅ 全量 top-level | ✅ 点击 + 拖动 + 实时高亮 | ✅ / ✅ | Xlib 直接读取 `_NET_CLIENT_LIST`、属性、子窗口 |
+| **niri** | ✅ IPC | ✅ 点击式原生十字；XWayland 可走 X11 拖动 | ✅ / ✅ | 自动合并 XWayland 窗口的 X11 详情 |
+| **Sway** | ✅ IPC | ⚠️ 聚焦式拾取（3 秒倒计时）；X11 可拖动 | ✅ / ✅ | 读取 `shell=xwayland` 标记 |
+| **Hyprland** | ✅ IPC | ⚠️ 指针停留拾取（3 秒倒计时）；X11 可拖动 | ✅ / ✅ | 使用 `xwayland` 字段 |
 | **KDE Plasma / KWin** | ⚠️ 仅拾取 | ✅ `org.kde.KWin.queryWindowInfo` 原生十字 | ✗ / ✗ | KWin 不向普通客户端暴露窗口列表 |
-| **GNOME Shell** | ✅ 可选扩展 | ⚠️ 指针停留拾取（3 秒倒计时） | ✅ / ✅ | 需安装 TuxViewer GNOME 扩展 |
+| **GNOME Shell** | ✅ 可选扩展 | ⚠️ 指针停留拾取（3 秒倒计时）；X11 可拖动 | ✅ / ✅ | 需安装 TuxViewer GNOME 扩展 |
 | **其他 wlroots（labwc / wayfire / river…）** | ✅ `wlrctl` | ✗ | ✅ / ✅ | foreign-toplevel 协议没有 PID/几何 |
 | **Weston / COSMIC 等** | ⚠️ 仅 XWayland | ⚠️ 仅 X11 回退 | 视后端 | 仍可检查 XWayland 应用 |
 
@@ -44,7 +44,8 @@ TuxViewer 用于回答这些问题：
 - 子窗口递归树（最多 5 层 / 300 个）
 - `_NET_WM_WINDOW_TYPE`、`_NET_WM_STATE`、`WM_PROTOCOLS`
 - `WM_NORMAL_HINTS`、Transient For、事件掩码
-- 高亮边框（X11 Shape 扩展；XWayland 下取决于合成器）
+- 高亮边框（X11 Shape 扩展，支持悬停实时高亮和选中后高亮）
+- 选中高亮：X11/XWayland 精确边框；niri 用 urgent 边框；Sway 用 urgent；Hyprland 聚焦边框；GNOME 扩展绘制边框
 - 发送 `_NET_CLOSE_WINDOW`、`XSetInputFocus`
 
 ### 3. Wayland 原生信息
@@ -74,13 +75,16 @@ TuxViewer 用于回答这些问题：
 ### 5. 交互与工作流
 
 - 窗口列表：搜索、后端筛选、隐藏本应用、包含原始 X11 窗口、包含未映射窗口
+- **两种拾取模式**：
+  - **点击选择**：出现十字准星，悬停高亮，单击确认
+  - **拖动选择**：按住左键拖动准星，拖动过程中实时高亮，松开确认
 - 3 秒自动刷新（可关闭）
-- 拾取后自动定位详情
+- 拾取后自动定位详情，并自动高亮选中窗口
 - 复制摘要 / 完整 JSON
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
-- 快捷键：`F2` 拾取、`F5` 刷新、`Esc` 取消
-- X11 抓取时：左键选择、右键 / `Esc` 取消
+- 快捷键：`F2` 拾取、`Shift+F2` 强制 X11 拾取、`F5` 刷新、`Esc` 取消
+- X11 抓取时：点击模式左键单击；拖动模式按住左键拖动后松开；右键 / `Esc` 取消
 
 ### 6. CLI / 自动化
 
@@ -97,11 +101,15 @@ TuxViewer --diagnose --detail xeyes
 # 在 X11 屏幕上高亮并保持 2.5 秒
 TuxViewer --diagnose --detail xeyes --highlight
 
+# 命令行 X11 拾取（click / drag），结果输出完整 JSON
+TuxViewer --pick-x11 click --json
+TuxViewer --pick-x11 drag --json
+
 # 安装可选 GNOME Shell 扩展
 TuxViewer --install-gnome-extension
 
-# 启动 GUI 并预选窗口
-TuxViewer --select xeyes
+# 启动 GUI 并预选窗口 / 指定拾取模式
+TuxViewer --select xeyes --pick-mode drag
 
 # 强制后端
 TUXVIEWER_BACKEND=x11     TuxViewer
@@ -162,15 +170,19 @@ dotnet publish src/TuxViewer -c Release -r linux-x64 --self-contained true -o di
 
 ### 十字准星拾取
 
-1. 点击 **十字准星拾取**（或按 `F2`）。
-2. 按提示操作：
-   - **niri / KWin**：合成器会显示原生十字，直接点击目标窗口；`Esc` / 右键取消。
-   - **X11 会话**：TuxViewer 使用 `XGrabPointer` 全局抓取，悬停即显示窗口，左键选择。
+1. 在工具栏选择拾取模式：
+   - **点击选择**：出现十字准星，悬停即高亮，单击确认。
+   - **拖动选择**：出现十字准星后，在目标窗口按住左键拖动，高亮跟随指针，松开确认。
+2. 点击 **拾取** 按钮（或按 `F2`）开始。
+3. 按提示操作：
+   - **X11 / XWayland 窗口**：TuxViewer 使用 `XGrabPointer` 全局抓取，支持真正的点击和拖动，悬停 / 拖动时实时绘制边框。
+   - **niri / KWin**：调用合成器原生拾取器。niri/KWin 的原生实现是点击式；拖动模式会提示并退化为点击确认。
    - **Hyprland / GNOME**：倒计时 3 秒，把指针移到目标窗口上方，结束后读取指针下窗口。
    - **Sway**：倒计时 3 秒，点击目标窗口使其获得焦点，结束后读取焦点窗口。
-3. 拾取完成后窗口会自动加入列表并选中。
+4. 拾取完成后窗口会自动加入列表并选中，并为选中的窗口触发一次短时高亮。
 
-> 如果只想检查 X11 / XWayland 窗口，使用 **X11 拾取** 按钮（即使当前是 Wayland 会话）。
+> 如果只想检查 X11 / XWayland 窗口，使用 **X11 拾取** 按钮（或 `Shift+F2`），即使当前是 Wayland 会话。
+> 在 niri 下，原生 Wayland 窗口的拖动式拾取受合成器 API 限制；可通过 **X11 拾取** 对 XWayland 窗口获得完整拖动 + 实时高亮体验。
 
 ### 判断“是不是 X11 应用”
 
@@ -264,7 +276,8 @@ TuxViewer/
 - **GNOME**：`org.gnome.Shell.Introspect` 默认只允许 portal 访问；需要安装随附扩展并重新登录。
 - **niri**：IPC 不提供窗口全局屏幕坐标，只能显示尺寸/工作区/输出；拾取和 XWayland 关联不受影响。
 - **XWayland 坐标**：X11 几何是 XWayland 坐标空间，和合成器布局不一定一致。
-- **XWayland 高亮**：override-redirect 高亮窗口在部分合成器下不可见，建议用“聚焦”。
+- **Wayland 原生高亮**：普通客户端不能在其他 Wayland 窗口上绘制 overlay。niri 原生拾取器只提供点击，不提供悬停高亮；选中后用 urgent 边框高亮。X11/XWayland 窗口支持实时悬停/拖动高亮。
+- **XWayland 高亮**：shape overlay 在部分合成器下可能不可见；niri 26.04 实测可见。
 - **PID**：优先 `_NET_WM_PID`；缺失时使用进程名匹配，极少数情况下可能不准确。
 - **Flatpak/Snap**：`/proc/<pid>/environ`、`fd` 可能受沙箱/权限限制，此时显示“未知”或使用动态库推断。
 

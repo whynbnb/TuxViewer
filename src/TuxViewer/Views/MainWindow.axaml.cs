@@ -69,7 +69,11 @@ public partial class MainWindow : Window
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.RawJson);
     }
 
-    private void Highlight_Click(object? sender, RoutedEventArgs e) => ViewModel?.HighlightSelected();
+    private async void Highlight_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.HighlightSelectedAsync();
+    }
 
     private async void Focus_Click(object? sender, RoutedEventArgs e)
     {
@@ -99,7 +103,7 @@ public partial class MainWindow : Window
         {
             case Key.F2:
                 e.Handled = true;
-                await ViewModel.PickAsync();
+                await ViewModel.PickAsync(x11Only: e.KeyModifiers.HasFlag(KeyModifiers.Shift));
                 Activate();
                 break;
             case Key.F5:

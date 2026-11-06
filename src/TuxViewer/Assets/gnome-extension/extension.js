@@ -1,5 +1,7 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
+import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -21,6 +23,11 @@ const IFACE_XML = `
       <arg type="t" direction="in"/>
       <arg type="b" direction="out"/>
     </method>
+    <method name="HighlightWindow">
+      <arg type="t" direction="in"/>
+      <arg type="u" direction="in"/>
+      <arg type="b" direction="out"/>
+    </method>
   </interface>
 </node>`;
 
@@ -31,6 +38,7 @@ export default class TuxViewerExtension extends Extension {
     }
 
     disable() {
+        this._clearHighlight();
         if (this._exported) {
             this._exported.unexport();
             this._exported = null;
@@ -61,6 +69,44 @@ export default class TuxViewerExtension extends Extension {
             return false;
         window.delete(global.get_current_time());
         return true;
+    }
+
+    HighlightWindow(id, durationMs) {
+        const window = this._find(id);
+        if (!window)
+            return false;
+
+        this._clearHighlight();
+        const rect = window.get_frame_rect();
+        const actor = new St.Widget({
+            style_class: 'tuxviewer-window-highlight',
+            reactive: false,
+            can_focus: false,
+        });
+        actor.set_position(rect.x, rect.y);
+        actor.set_size(rect.width, rect.height);
+        actor.set_style('border: 3px solid #4F8CFF; border-radius: 6px; background-color: transparent;');
+        Main.uiGroup.add_child(actor);
+        this._highlightActor = actor;
+        this._highlightTimeout = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            Math.max(250, Number(durationMs)),
+            () => {
+                this._clearHighlight();
+                return GLib.SOURCE_REMOVE;
+            });
+        return true;
+    }
+
+    _clearHighlight() {
+        if (this._highlightTimeout) {
+            GLib.source_remove(this._highlightTimeout);
+            this._highlightTimeout = null;
+        }
+        if (this._highlightActor) {
+            this._highlightActor.destroy();
+            this._highlightActor = null;
+        }
     }
 
     _windows() {

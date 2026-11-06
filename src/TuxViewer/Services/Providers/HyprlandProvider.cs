@@ -100,6 +100,45 @@ public sealed class HyprlandProvider : WindowProviderBase
         return result?.Success == true;
     }
 
+    public override async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(window.NativeId)) return false;
+
+        var previousAddress = "";
+        var active = await CommandRunner.TryRunAsync("hyprctl", ["-j", "activewindow"], 2000, cancellationToken);
+        if (active?.Success == true)
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(active.StdOut);
+                if (doc.RootElement.TryGetProperty("address", out var address) &&
+                    address.ValueKind == JsonValueKind.String)
+                    previousAddress = address.GetString() ?? "";
+            }
+            catch { /* ignore */ }
+        }
+
+        var focus = await CommandRunner.TryRunAsync(
+            "hyprctl", ["dispatch", "focuswindow", $"address:{window.NativeId}"], 3000, cancellationToken);
+        if (focus?.Success != true) return false;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(durationMs, CancellationToken.None);
+                if (!string.IsNullOrWhiteSpace(previousAddress) &&
+                    !string.Equals(previousAddress, window.NativeId, StringComparison.OrdinalIgnoreCase))
+                {
+                    await CommandRunner.TryRunAsync(
+                        "hyprctl", ["dispatch", "focuswindow", $"address:{previousAddress}"], 3000, CancellationToken.None);
+                }
+            }
+            catch { /* best effort */ }
+        });
+        return true;
+    }
+
     private async Task<(int X, int Y)?> GetCursorPositionAsync(CancellationToken cancellationToken)
     {
         var json = await CommandRunner.TryRunAsync("hyprctl", ["-j", "cursorpos"], 2000, cancellationToken);

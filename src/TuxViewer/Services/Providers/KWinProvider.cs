@@ -42,10 +42,15 @@ public sealed partial class KWinProvider : WindowProviderBase
     public override Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken)
         => Task.FromResult<IReadOnlyList<WindowInfo>>([]);
 
-    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
+    public override async Task<WindowInfo?> PickInteractiveAsync(IProgress<PickProgress>? progress, PickMode mode, CancellationToken cancellationToken)
     {
         if (_qdbus is null) return null;
-        progress?.Report(new PickProgress { Message = "KWin：移动十字准星并点击目标窗口（Esc 取消）" });
+        progress?.Report(new PickProgress
+        {
+            Message = mode == PickMode.Drag
+                ? "KWin 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）"
+                : "KWin：移动十字准星并单击目标窗口（Esc 取消）",
+        });
 
         var result = await CommandRunner.TryRunAsync(
             _qdbus, ["org.kde.KWin", "/KWin", "org.kde.KWin.queryWindowInfo"], 180_000, cancellationToken);

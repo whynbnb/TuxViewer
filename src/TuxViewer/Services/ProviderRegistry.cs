@@ -73,6 +73,7 @@ public sealed class ProviderRegistry : IDisposable
         var results = await Task.WhenAll(tasks);
         var all = new List<WindowInfo>();
         foreach (var group in results) all.AddRange(group);
+        all.RemoveAll(w => w.Title == "TuxViewer Highlight");
 
         lock (_lock)
         {
@@ -104,14 +105,14 @@ public sealed class ProviderRegistry : IDisposable
     public async Task<PickResult> PickAsync(
         IProgress<PickProgress>? progress,
         CancellationToken cancellationToken,
+        PickMode mode = PickMode.Click,
         bool x11Only = false)
     {
         if (x11Only)
         {
             if (X11?.IsAvailable != true)
                 return new PickResult { Message = "X11 / XWayland 不可用" };
-            progress?.Report(new PickProgress { Message = "X11 十字准星：左键选择 · 右键 / Esc 取消" });
-            var picked = await X11.PickInteractiveAsync(progress, cancellationToken);
+            var picked = await X11.PickInteractiveAsync(progress, mode, cancellationToken);
             return await FinishPickAsync(picked, "X11", progress, cancellationToken);
         }
 
@@ -125,7 +126,7 @@ public sealed class ProviderRegistry : IDisposable
 
         foreach (var provider in interactive)
         {
-            var picked = await provider.PickInteractiveAsync(progress, cancellationToken);
+            var picked = await provider.PickInteractiveAsync(progress, mode, cancellationToken);
             if (picked is not null) return await FinishPickAsync(picked, provider.Name, progress, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
                 return new PickResult { Cancelled = true, Message = "已取消拾取" };
@@ -137,7 +138,9 @@ public sealed class ProviderRegistry : IDisposable
         var cursorProviders = _providers.Where(p => p.IsAvailable && p.Pick == PickCapability.Cursor).ToList();
         foreach (var provider in cursorProviders)
         {
-            await CountdownAsync(progress, "请将鼠标指针移到目标窗口上方", cancellationToken);
+            await CountdownAsync(progress, mode == PickMode.Drag
+                ? "按住并拖动准星到目标窗口上方，松手后读取"
+                : "请将鼠标指针移到目标窗口上方", cancellationToken);
             var picked = await provider.PickAtCursorAsync(progress, cancellationToken);
             if (picked is not null) return await FinishPickAsync(picked, provider.Name, progress, cancellationToken);
         }
@@ -145,7 +148,9 @@ public sealed class ProviderRegistry : IDisposable
         var focusedProviders = _providers.Where(p => p.IsAvailable && p.Pick == PickCapability.Focused).ToList();
         foreach (var provider in focusedProviders)
         {
-            await CountdownAsync(progress, "请点击目标窗口使其获得焦点（不要切回本窗口）", cancellationToken);
+            await CountdownAsync(progress, mode == PickMode.Drag
+                ? "拖动准星到目标窗口，并保持该窗口获得焦点"
+                : "请点击目标窗口使其获得焦点（不要切回本窗口）", cancellationToken);
             var picked = await provider.GetFocusedWindowAsync(cancellationToken);
             if (picked is not null) return await FinishPickAsync(picked, provider.Name, progress, cancellationToken);
         }
@@ -153,7 +158,7 @@ public sealed class ProviderRegistry : IDisposable
         if (X11?.IsAvailable == true)
         {
             progress?.Report(new PickProgress { Message = "回退到 X11 十字准星（仅能选择 X11 / XWayland 窗口）" });
-            var picked = await X11.PickInteractiveAsync(progress, cancellationToken);
+            var picked = await X11.PickInteractiveAsync(progress, mode, cancellationToken);
             if (picked is not null) return await FinishPickAsync(picked, "X11", progress, cancellationToken);
         }
 
@@ -223,6 +228,22 @@ public sealed class ProviderRegistry : IDisposable
         if (provider is not null && await provider.CloseAsync(window, cancellationToken)) return true;
         if (window.LinkedX11WindowId is not null && X11 is not null)
             return await X11.CloseAsync(window, cancellationToken);
+        return false;
+    }
+
+    public async Task<bool> HighlightAsync(WindowInfo window, int durationMs, CancellationToken cancellationToken)
+    {
+        // X11/XWayland windows can get a precise shaped-border overlay, even when the
+        // compositor toplevel is a native Wayland window (the X11 id was merged in).
+        var x11Id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (x11Id is not null && X11?.IsAvailable == true)
+        {
+            X11.Inspector.Highlight(x11Id.Value, durationMs);
+            return true;
+        }
+
+        var provider = _providers.FirstOrDefault(p => p.Id == window.SourceId);
+        if (provider is not null && await provider.HighlightAsync(window, durationMs, cancellationToken)) return true;
         return false;
     }
 
