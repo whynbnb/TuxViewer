@@ -20,6 +20,9 @@ public partial class App : Application
             viewModel.InitialSelection = ReadSelectArgument(desktop.Args);
             viewModel.SelectedTabIndex = ReadTabArgument(desktop.Args);
             viewModel.AutoCapture = desktop.Args?.Contains("--capture", StringComparer.OrdinalIgnoreCase) == true;
+            viewModel.TreeMode = desktop.Args?.Contains("--tree", StringComparer.OrdinalIgnoreCase) == true;
+            if (TryReadIntArgument(desktop.Args, "--group") is int group)
+                viewModel.TreeGroupModeIndex = Math.Clamp(group, 0, 3);
             var window = new MainWindow { DataContext = viewModel };
             window.Closed += (_, _) => service.Dispose();
             desktop.MainWindow = window;
@@ -36,6 +39,16 @@ public partial class App : Application
             if (string.Equals(args[i], "--select", StringComparison.OrdinalIgnoreCase))
                 return args[i + 1];
         }
+        return null;
+    }
+
+    private static int? TryReadIntArgument(string[]? args, string name)
+    {
+        if (args is null) return null;
+        for (var i = 0; i < args.Length - 1; i++)
+            if (string.Equals(args[i], name, StringComparison.OrdinalIgnoreCase) &&
+                int.TryParse(args[i + 1], out var value))
+                return value;
         return null;
     }
 

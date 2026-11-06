@@ -167,6 +167,15 @@
     <Setter Property="MinHeight" Value="32" />
   </Style>
 
+  <Style Selector="TreeView">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+  <Style Selector="TreeViewItem">
+    <Setter Property="Margin" Value="0,0,0,2" />
+  </Style>
+
   <Style Selector="ListBox">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />

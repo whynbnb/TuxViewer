@@ -70,15 +70,23 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _ruleWorkspace = "";
     private string _ruleOpacity = "";
     private string _generatedRule = "";
+    private bool _treeMode;
+    private int _treeGroupModeIndex;
+    private WindowNode? _selectedTreeNode;
+    private string _lockedSelectionId = "";
+    private bool _onlySelectedPid;
+    private int? _pidFilter;
 
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
         RuleCompositors = ["niri", "Sway", "Hyprland"];
+        TreeGroupModes = ["按应用", "按进程", "按工作区", "平铺"];
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
+    public ObservableCollection<WindowNode> WindowTree { get; } = [];
     public ObservableCollection<InfoRow> OverviewRows { get; } = [];
     public ObservableCollection<InfoRow> ProcessRows { get; } = [];
     public ObservableCollection<InfoRow> EnvironmentRows { get; } = [];
@@ -96,6 +104,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
+    public IReadOnlyList<string> TreeGroupModes { get; }
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
 
@@ -115,6 +124,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var previousId = _selectedWindow?.Id;
             var sameWindow = value is not null && string.Equals(previousId, value.Id, StringComparison.Ordinal);
             _selectedWindow = value;
+            if (value is not null && _allWindows.Any(w => string.Equals(w.Id, value.Id, StringComparison.Ordinal)))
+                _lockedSelectionId = "";
             if (!sameWindow)
             {
                 _lastDiffWindowId = value?.Id ?? "";
@@ -324,6 +335,50 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public bool HasEvents => Events.Count > 0;
+
+    public bool TreeMode
+    {
+        get => _treeMode;
+        set
+        {
+            if (!Set(ref _treeMode, value)) return;
+            if (value) BuildTree();
+            else _selectedTreeNode = null;
+        }
+    }
+
+    public int TreeGroupModeIndex
+    {
+        get => _treeGroupModeIndex;
+        set { if (Set(ref _treeGroupModeIndex, value)) BuildTree(); }
+    }
+
+    public WindowNode? SelectedTreeNode
+    {
+        get => _selectedTreeNode;
+        set
+        {
+            if (ReferenceEquals(_selectedTreeNode, value)) return;
+            _selectedTreeNode = value;
+            OnPropertyChanged();
+            if (value?.Window is not { } window) return;
+            _lockedSelectionId = _allWindows.Any(w => string.Equals(w.Id, window.Id, StringComparison.Ordinal))
+                ? ""
+                : window.Id;
+            SelectedWindow = window;
+        }
+    }
+
+    public bool OnlySelectedPid
+    {
+        get => _onlySelectedPid;
+        set
+        {
+            if (!Set(ref _onlySelectedPid, value)) return;
+            _pidFilter = value ? SelectedWindow?.Pid : null;
+            ApplyFilter();
+        }
+    }
 
     public int RuleCompositorIndex
     {
@@ -1112,6 +1167,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (HideOwnWindows) filtered = filtered.Where(w => !w.IsOwnWindow);
         if (!IncludeRawX11) filtered = filtered.Where(w => !w.MergedIntoWayland);
         if (!IncludeUnmapped) filtered = filtered.Where(w => w.IsMapped);
+        if (_pidFilter is int pidFilter) filtered = filtered.Where(w => w.Pid == pidFilter);
 
         filtered = BackendFilterIndex switch
         {
@@ -1144,9 +1200,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _syncingWindows = false;
         }
 
-        if (selected is not null && !Windows.Contains(selected))
+        var keepLocked = TreeMode && selected is not null &&
+                         string.Equals(selected.Id, _lockedSelectionId, StringComparison.Ordinal);
+        if (selected is not null && !Windows.Contains(selected) && !keepLocked)
             SelectedWindow = null;
 
+        if (TreeMode) BuildTree();
         UpdateCounts();
     }
 
@@ -1181,6 +1240,126 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             {
                 Windows.Insert(i, target);
             }
+        }
+    }
+
+    private int _treeChildBudget;
+
+    public void BuildTree()
+    {
+        if (!TreeMode)
+        {
+            WindowTree.Clear();
+            return;
+        }
+
+        var known = AllNodes(WindowTree)
+            .GroupBy(n => n.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First().IsExpanded, StringComparer.Ordinal);
+        var selectedId = SelectedWindow?.Id;
+        _treeChildBudget = 40;
+
+        var roots = new List<WindowNode>();
+        if (TreeGroupModeIndex == 3)
+        {
+            foreach (var window in Windows) roots.Add(BuildWindowNode(window));
+        }
+        else
+        {
+            foreach (var group in Windows
+                         .GroupBy(GroupKey, StringComparer.OrdinalIgnoreCase)
+                         .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                var groupNode = new WindowNode
+                {
+                    Id = $"group:{group.Key}",
+                    GroupTitle = group.Key,
+                    GroupSubtitle = $"{group.Count()} 个窗口",
+                    IsExpanded = true,
+                };
+                foreach (var window in group) groupNode.Children.Add(BuildWindowNode(window));
+                roots.Add(groupNode);
+            }
+        }
+
+        WindowTree.Clear();
+        foreach (var root in roots) WindowTree.Add(root);
+        foreach (var node in AllNodes(WindowTree))
+            node.IsExpanded = known.TryGetValue(node.Id, out var expanded)
+                ? expanded
+                : node.IsGroup || node.Children.Count > 0;
+
+        _selectedTreeNode = AllNodes(WindowTree)
+            .FirstOrDefault(n => n.Window is { } w && string.Equals(w.Id, selectedId, StringComparison.Ordinal));
+        OnPropertyChanged(nameof(SelectedTreeNode));
+    }
+
+    private WindowNode BuildWindowNode(WindowInfo window)
+    {
+        var node = new WindowNode { Id = window.Id, Window = window };
+        var x11Id = window.X11WindowId ?? window.LinkedX11WindowId;
+        if (x11Id is null || _treeChildBudget-- <= 0) return node;
+        if (_service.Registry.X11?.IsAvailable != true) return node;
+
+        IReadOnlyList<X11ChildInfo> children;
+        try { children = _service.Registry.X11.Inspector.GetChildrenLight(x11Id.Value); }
+        catch { return node; }
+        if (children.Count == 0) return node;
+
+        var stack = new List<WindowNode>();
+        foreach (var child in children)
+        {
+            var childWindow = new WindowInfo
+            {
+                Id = $"x11:0x{child.Id:x}",
+                SourceId = "x11",
+                SourceName = "X11 · 子窗口",
+                NativeId = $"0x{child.Id:x}",
+                Title = string.IsNullOrWhiteSpace(child.Title)
+                    ? $"{child.ClassName ?? "子窗口"} 0x{child.Id:x}"
+                    : child.Title,
+                AppId = child.ClassName,
+                WmClass = child.ClassName,
+                Pid = window.Pid,
+                Backend = WindowBackend.X11,
+                IsXWayland = window.IsXWayland,
+                IsMapped = child.Mapped,
+                IsOverrideRedirect = child.OverrideRedirect,
+                X = child.X,
+                Y = child.Y,
+                Width = child.Width,
+                Height = child.Height,
+                X11WindowId = child.Id,
+            };
+            var childNode = new WindowNode { Id = childWindow.Id, Window = childWindow };
+
+            while (stack.Count > child.Depth) stack.RemoveAt(stack.Count - 1);
+            var parent = stack.Count > 0 ? stack[^1] : node;
+            parent.Children.Add(childNode);
+            stack.Add(childNode);
+        }
+
+        if (node.Children.Count > 0)
+            node.IsExpanded = false;
+        return node;
+    }
+
+    private string GroupKey(WindowInfo window) => TreeGroupModeIndex switch
+    {
+        1 => window.Pid is int pid ? $"PID {pid}" : "未知 PID",
+        2 => window.WorkspaceName
+             ?? (window.WorkspaceId is int id ? $"工作区 {id}" : "未知工作区"),
+        _ => !string.IsNullOrWhiteSpace(window.AppId)
+            ? window.AppId!
+            : !string.IsNullOrWhiteSpace(window.WmClass) ? window.WmClass! : window.SourceName,
+    };
+
+    private static IEnumerable<WindowNode> AllNodes(IEnumerable<WindowNode> nodes)
+    {
+        foreach (var node in nodes)
+        {
+            yield return node;
+            foreach (var child in AllNodes(node.Children)) yield return child;
         }
     }
 

@@ -370,6 +370,19 @@ public sealed class X11Inspector : IDisposable
         return (byte)(component * 255 / max);
     }
 
+    /// <summary>Lightweight descendant enumeration for the hierarchy tree.</summary>
+    public IReadOnlyList<X11ChildInfo> GetChildrenLight(ulong id, int maxDepth = 3, int max = 200)
+    {
+        if (!IsAvailable) return [];
+        lock (_lock)
+        {
+            var children = new List<X11ChildInfo>();
+            try { CollectChildren(id, 0, children, max, maxDepth); }
+            catch { /* best effort */ }
+            return children;
+        }
+    }
+
     public X11WindowDetails? GetDetails(ulong id)
     {
         if (!IsAvailable) return null;
@@ -854,9 +867,9 @@ public sealed class X11Inspector : IDisposable
         finally { X11Native.XFree(ptr); }
     }
 
-    private void CollectChildren(ulong id, int depth, List<X11ChildInfo> output, int max)
+    private void CollectChildren(ulong id, int depth, List<X11ChildInfo> output, int max, int maxDepth = 5)
     {
-        if (depth > 5 || output.Count >= max) return;
+        if (depth > maxDepth || output.Count >= max) return;
         var children = GetChildren((IntPtr)(nuint)id);
         foreach (var child in children)
         {
@@ -879,7 +892,7 @@ public sealed class X11Inspector : IDisposable
                 Mapped = attrs.MapState == X11Native.IsViewable,
                 OverrideRedirect = attrs.OverrideRedirect != 0,
             });
-            CollectChildren(child, depth + 1, output, max);
+            CollectChildren(child, depth + 1, output, max, maxDepth);
         }
     }
 

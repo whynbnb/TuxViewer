@@ -75,6 +75,7 @@ TuxViewer 用于回答这些问题：
 ### 5. 交互与工作流
 
 - 窗口列表：应用图标、WL/X11 标签、搜索、后端筛选、隐藏本应用、包含原始 X11 窗口、包含未映射窗口
+- **窗口层次树**：按应用 / 进程 / 工作区分组或平铺，展开 X11 toplevel 的子窗口并点击检视；支持“仅此 PID”过滤
 - **实时事件监控**：X11 `PropertyNotify` / `ConfigureNotify` / `Map` / `Destroy` / `Focus`，niri event-stream、Sway subscribe、Hyprland socket2
 - 属性变化即时刷新，并在“概览”“X11 属性”中标黄显示旧值 → 新值
 - “事件”页保留最近 800 条实时事件，可清空 / 复制

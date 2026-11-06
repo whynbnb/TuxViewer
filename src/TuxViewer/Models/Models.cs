@@ -179,6 +179,44 @@ public sealed class WindowInfo : INotifyPropertyChanged
     }
 }
 
+public sealed class WindowNode : INotifyPropertyChanged
+{
+    public required string Id { get; init; }
+    public WindowInfo? Window { get; init; }
+    public string? GroupTitle { get; init; }
+    public string? GroupSubtitle { get; init; }
+
+    public System.Collections.ObjectModel.ObservableCollection<WindowNode> Children { get; } = [];
+
+    private bool _isExpanded;
+    public bool IsExpanded
+    {
+        get => _isExpanded;
+        set
+        {
+            if (_isExpanded == value) return;
+            _isExpanded = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsExpanded)));
+        }
+    }
+
+    public bool IsGroup => Window is null;
+    public bool IsWindow => Window is not null;
+    public string Title => Window?.Title ?? GroupTitle ?? "?";
+    public string Subtitle => Window?.Subtitle ?? GroupSubtitle ?? "";
+    public Avalonia.Media.Imaging.Bitmap? Icon => Window?.Icon;
+    public bool HasIcon => Window?.Icon is not null;
+    public string IconInitial => IsGroup ? "▾" : Window?.IconInitial ?? "?";
+    public bool IsX11 => Window?.IsX11 == true;
+    public bool IsWayland => Window?.IsWayland == true;
+    public string BackendShort => Window?.BackendShort ?? "";
+    public string BackendLabel => Window?.BackendLabel ?? "";
+    public string GeometryText => Window?.GeometryText ?? "";
+    public string FocusGlyph => Window?.FocusGlyph ?? "";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+}
+
 public sealed class InfoRow(
     string label,
     string? value,
