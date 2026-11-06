@@ -92,6 +92,8 @@ TuxViewer 用于回答这些问题：
 - **AT-SPI2 控件树**：通过 `python3-gi` 读取 GTK/Qt 应用的角色、名称、描述和控件层级；应用需启用无障碍桥
 - **全局拾取热键**：X11 会话用 `XGrabKey` 注册 `Ctrl+Alt+X`；Wayland 提供 niri / Sway / Hyprland 原生快捷键配置，一键复制
 - **窗口控制动作**：置顶 / 置底、全屏、浮动 / Sticky、X11 不透明度、移动 / 调整大小、`WM_DELETE_WINDOW`、`XKillClient` 二次确认、打开可执行文件目录、复制进程信息
+- **报告与快照**：导出 HTML / Markdown / JSON（自动附带截图）；保存窗口快照到 `~/.local/state/TuxViewer/snapshots`，稍后对比新增 / 删除 / 变化字段
+- X11 属性支持按名称 / 类型 / 值过滤
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
@@ -118,6 +120,14 @@ TuxViewer --pick-x11 drag --json
 
 # 截取指定窗口并保存 PNG
 TuxViewer --screenshot xeyes --out xeyes.png
+
+# 导出 HTML / Markdown / JSON 报告（HTML 内嵌截图，Markdown 生成同名 PNG）
+TuxViewer --export html xeyes --out report.html
+TuxViewer --export md   xeyes --out report.md
+TuxViewer --export json xeyes --out report.json
+
+# 保存窗口快照，稍后在“报告”页对比
+TuxViewer --snapshot xeyes --name baseline
 
 # 启用 X11 全局拾取热键（Ctrl+Alt+X）
 TuxViewer --hotkey
@@ -286,6 +296,8 @@ TuxViewer/
 │  │  ├─ X11EventMonitor.cs         # libXtst RECORD 全局事件监视
 │  │  ├─ AtspiService.cs            # AT-SPI2 控件树（python3-gi）
 │  │  ├─ GlobalHotkeyService.cs     # XGrabKey / 合成器快捷键配置
+│  │  ├─ ReportService.cs           # HTML / Markdown 检视报告
+│  │  ├─ SnapshotService.cs         # 窗口快照保存 / 对比
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）

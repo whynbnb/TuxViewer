@@ -76,7 +76,8 @@ public partial class App : Application
                 "atspi" or "controls" or "widgets" => 10,
                 "hotkey" or "shortcut" => 11,
                 "control" or "actions" => 12,
-                "diagnostics" or "diag" => 13,
+                "report" or "snapshot" => 13,
+                "diagnostics" or "diag" => 14,
                 _ => 0,
             };
         }

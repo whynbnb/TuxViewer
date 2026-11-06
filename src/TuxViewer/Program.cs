@@ -19,10 +19,12 @@ internal static class Program
                 用法:
                   TuxViewer [--select <id|app_id|标题>] [--capture] [--tree] [--group 0-3]
                             [--record] [--record-selected] [--atspi-load] [--hotkey]
-                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|control|diagnostics>]
+                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|control|report|diagnostics>]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]
+                  TuxViewer --export <html|md|json> <id|app_id|标题> [--out <file>]
+                  TuxViewer --snapshot <id|app_id|标题> [--name <名称>] [--out <file.json>]
                   TuxViewer --install-gnome-extension
 
                 环境变量:
@@ -43,6 +45,12 @@ internal static class Program
 
         if (args.Contains("--screenshot", StringComparer.OrdinalIgnoreCase))
             return RunScreenshotAsync(args).GetAwaiter().GetResult();
+
+        if (args.Contains("--export", StringComparer.OrdinalIgnoreCase))
+            return RunExportAsync(args).GetAwaiter().GetResult();
+
+        if (args.Contains("--snapshot", StringComparer.OrdinalIgnoreCase))
+            return RunSnapshotAsync(args).GetAwaiter().GetResult();
 
         if (args.Contains("--install-gnome-extension", StringComparer.OrdinalIgnoreCase))
         {
@@ -243,6 +251,141 @@ internal static class Program
         Console.WriteLine(Path.GetFullPath(output));
         return 0;
     }
+
+    private static async Task<int> RunExportAsync(string[] args)
+    {
+        IconService.Enabled = false;
+        var index = Array.FindIndex(args, a => string.Equals(a, "--export", StringComparison.OrdinalIgnoreCase));
+        if (index < 0 || index + 2 >= args.Length)
+        {
+            Console.Error.WriteLine("用法：TuxViewer --export <html|md|json> <id|app_id|标题> [--out <file>]");
+            return 2;
+        }
+
+        var format = args[index + 1].ToLowerInvariant();
+        var target = args[index + 2];
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var service = new InspectorService();
+        await service.InitializeAsync(cts.Token);
+        var window = FindWindow(await service.RefreshAsync(cts.Token), target);
+        if (window is null)
+        {
+            Console.Error.WriteLine($"No window matched '{target}'");
+            return 3;
+        }
+
+        var inspection = await service.InspectAsync(window, cts.Token);
+        var output = GetArg(args, "--out") ?? format switch
+        {
+            "html" => "tuxviewer-report.html",
+            "md" or "markdown" => "tuxviewer-report.md",
+            _ => "tuxviewer-report.json",
+        };
+
+        if (format is "html")
+        {
+            var screenshot = await service.CaptureScreenshotAsync(window, cts.Token);
+            var dataUri = screenshot.Success ? "data:image/png;base64," + Convert.ToBase64String(screenshot.Png!) : null;
+            var html = ReportService.BuildHtml(window, inspection.Process, inspection.X11, dataUri, inspection.RawJson);
+            await File.WriteAllTextAsync(output, html, cts.Token);
+        }
+        else if (format is "md" or "markdown")
+        {
+            var screenshot = await service.CaptureScreenshotAsync(window, cts.Token);
+            var imageName = Path.GetFileNameWithoutExtension(output) + ".png";
+            var markdown = ReportService.BuildMarkdown(
+                window, inspection.Process, inspection.X11,
+                screenshot.Success ? imageName : null, inspection.RawJson);
+            await File.WriteAllTextAsync(output, markdown, cts.Token);
+            if (screenshot.Success)
+            {
+                var directory = Path.GetDirectoryName(Path.GetFullPath(output)) ?? Directory.GetCurrentDirectory();
+                await File.WriteAllBytesAsync(Path.Combine(directory, imageName), screenshot.Png!, cts.Token);
+            }
+        }
+        else
+        {
+            await File.WriteAllTextAsync(output, inspection.RawJson, cts.Token);
+        }
+
+        Console.WriteLine(Path.GetFullPath(output));
+        return 0;
+    }
+
+    private static async Task<int> RunSnapshotAsync(string[] args)
+    {
+        IconService.Enabled = false;
+        var target = GetArg(args, "--snapshot");
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            Console.Error.WriteLine("用法：TuxViewer --snapshot <id|app_id|标题> [--name <名称>] [--out <file.json>]");
+            return 2;
+        }
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+        using var service = new InspectorService();
+        await service.InitializeAsync(cts.Token);
+        var window = FindWindow(await service.RefreshAsync(cts.Token), target);
+        if (window is null)
+        {
+            Console.Error.WriteLine($"No window matched '{target}'");
+            return 3;
+        }
+
+        var inspection = await service.InspectAsync(window, cts.Token);
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["概览/标题"] = window.Title,
+            ["概览/应用 ID"] = window.AppId ?? window.WmClass ?? "—",
+            ["概览/后端"] = window.BackendLabel,
+            ["概览/几何"] = window.GeometryText,
+            ["概览/工作区"] = window.WorkspaceName ?? window.WorkspaceId?.ToString() ?? "—",
+            ["概览/输出"] = window.OutputName ?? "—",
+            ["概览/焦点"] = window.IsFocused ? "是" : "否",
+        };
+        if (inspection.Process is { } process)
+        {
+            values["进程/进程名"] = process.Name ?? "—";
+            values["进程/PID"] = process.Pid.ToString();
+            values["进程/可执行文件"] = process.Exe ?? "—";
+            values["进程/启动命令"] = process.Cmdline ?? "—";
+            values["进程/工具包"] = process.Toolkit.DisplayName;
+        }
+        if (inspection.X11 is { } x11)
+        {
+            values["X11/窗口 ID"] = x11.IdHex;
+            values["X11/实例 / 类"] = $"{x11.InstanceName} / {x11.ClassName}";
+            values["X11/几何"] = $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}";
+            foreach (var property in x11.Properties) values[$"属性/{property.Name}"] = property.Value;
+        }
+
+        var screenshot = await service.CaptureScreenshotAsync(window, cts.Token);
+        var snapshot = new WindowSnapshot
+        {
+            Name = GetArg(args, "--name") ?? $"{window.Title} {DateTime.Now:MM-dd HH:mm}",
+            WindowId = window.Id,
+            Title = window.Title,
+            AppId = window.AppId,
+            Pid = window.Pid,
+            Backend = window.BackendLabel,
+            Geometry = window.GeometryText,
+            Summary = inspection.Summary,
+            RawJson = inspection.RawJson,
+            Values = values,
+            ScreenshotBase64 = screenshot.Success ? Convert.ToBase64String(screenshot.Png!) : null,
+        };
+        await SnapshotService.SaveAsync(snapshot, cts.Token);
+        Console.WriteLine(Path.Combine(SnapshotService.Directory, $"{snapshot.Id}.json"));
+        return 0;
+    }
+
+    private static WindowInfo? FindWindow(IReadOnlyList<WindowInfo> windows, string target)
+        => windows.FirstOrDefault(w =>
+               string.Equals(w.Id, target, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(w.NativeId, target, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(w.AppId, target, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(w.Title, target, StringComparison.OrdinalIgnoreCase))
+           ?? windows.FirstOrDefault(w => w.Title.Contains(target, StringComparison.OrdinalIgnoreCase));
 
     private static string? GetArg(string[] args, string name)
     {

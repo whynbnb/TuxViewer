@@ -417,8 +417,12 @@
                   <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Rows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                   </ScrollViewer>
-                  <TextBlock Grid.Row="2" Text="{Binding X11Details.Properties.Count, StringFormat='{}{0} 个 X11 属性（点击复制）'}"
-                             Classes="section" Margin="0,12,0,6" />
+                  <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,12,0,6">
+                    <TextBlock Text="{Binding X11Details.Properties.Count, StringFormat='{}{0} 个 X11 属性（点击复制）'}"
+                               Classes="section" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Width="300" PlaceholderText="过滤属性名 / 类型 / 值…"
+                             Text="{Binding PropertyFilterText, Mode=TwoWay}" />
+                  </Grid>
                   <ScrollViewer Grid.Row="3" MaxHeight="250" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Properties}" ItemTemplate="{StaticResource X11PropertyTemplate}" />
                   </ScrollViewer>
@@ -782,6 +786,63 @@
                     </WrapPanel>
                     <TextBlock Classes="hint"
                                Text="“强制结束”只会对 X11 / XWayland 客户端调用 XKillClient，需要二次点击确认；Wayland 原生窗口请使用合成器或应用自身的退出方式。" />
+                  </StackPanel>
+                </ScrollViewer>
+              </TabItem>
+
+              <TabItem Header="报告">
+                <ScrollViewer>
+                  <StackPanel Margin="6,8,10,12" Spacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="导出当前检视" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding ReportStatus}" Classes="muted"
+                                 FontSize="11" VerticalAlignment="Center" />
+                    </Grid>
+                    <WrapPanel ItemSpacing="8" LineSpacing="6">
+                      <Button Content="导出 HTML" Click="ExportHtml_Click" Classes="ghost" />
+                      <Button Content="导出 Markdown" Click="ExportMarkdown_Click" Classes="ghost" />
+                      <Button Content="导出 JSON" Click="ExportJson_Click" Classes="ghost" />
+                    </WrapPanel>
+                    <TextBlock Classes="hint"
+                               Text="导出内容包含窗口概览、进程、X11 属性、子窗口、完整 JSON，并自动附带当前窗口截图（HTML 内嵌；Markdown 保存同名 PNG）。" />
+
+                    <Border Classes="divider" />
+                    <TextBlock Text="窗口快照" Classes="section" />
+                    <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                      <TextBox Text="{Binding SnapshotName, Mode=TwoWay}"
+                               PlaceholderText="快照名称（可留空，默认使用标题 + 时间）" />
+                      <Button Grid.Column="1" Content="保存当前快照" Click="SaveSnapshot_Click" Classes="ghost" />
+                      <Button Grid.Column="2" Content="刷新列表" Click="RefreshSnapshots_Click" Classes="ghost" />
+                    </Grid>
+                    <ListBox ItemsSource="{Binding Snapshots}"
+                             SelectedItem="{Binding SelectedSnapshot, Mode=TwoWay}"
+                             MaxHeight="180">
+                      <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:WindowSnapshot">
+                          <StackPanel Spacing="1">
+                            <TextBlock Text="{Binding DisplayText}" FontSize="12" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="#7E8CA3"
+                                       TextTrimming="CharacterEllipsis" />
+                          </StackPanel>
+                        </DataTemplate>
+                      </ListBox.ItemTemplate>
+                    </ListBox>
+                    <WrapPanel ItemSpacing="8" LineSpacing="6">
+                      <Button Content="对比选中快照" Click="CompareSnapshot_Click" Classes="ghost" />
+                      <Button Content="删除选中快照" Click="DeleteSnapshot_Click" Classes="danger" />
+                      <TextBlock Text="{Binding SnapshotStatus}" Classes="muted" FontSize="11"
+                                 VerticalAlignment="Center" />
+                    </WrapPanel>
+                    <TextBox Text="{Binding SnapshotDiffText}" IsReadOnly="True"
+                             AcceptsReturn="True" TextWrapping="NoWrap"
+                             FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                             FontSize="11" MinHeight="180"
+                             IsVisible="{Binding HasSnapshotDiff}"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" />
+                    <TextBlock Classes="hint"
+                               Text="快照保存在 $XDG_STATE_HOME/TuxViewer/snapshots（默认 ~/.local/state/TuxViewer/snapshots），包含窗口概览、X11 属性、进程信息和截图。对比会列出新增、删除和变化的字段。" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>

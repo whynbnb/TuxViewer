@@ -523,6 +523,41 @@ public sealed class X11RecordedEvent
     public string DisplayText => $"{TimeText}  {TypeName,-18} {WindowHex,-12} {Summary}";
 }
 
+public sealed class WindowSnapshot
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString("N");
+    public string Name { get; set; } = "";
+    public DateTime CapturedAt { get; set; } = DateTime.Now;
+    public string WindowId { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string? AppId { get; set; }
+    public int? Pid { get; set; }
+    public string Backend { get; set; } = "";
+    public string Geometry { get; set; } = "";
+    public string Summary { get; set; } = "";
+    public string RawJson { get; set; } = "";
+    public string? ScreenshotBase64 { get; set; }
+    public Dictionary<string, string> Values { get; set; } = new(StringComparer.Ordinal);
+
+    public string DisplayText => $"{Name} · {CapturedAt:MM-dd HH:mm} · {Title}";
+    public string Subtitle => $"{Backend} · {Geometry} · PID {Pid?.ToString() ?? "—"}";
+}
+
+public sealed class SnapshotDiff
+{
+    public required string Key { get; init; }
+    public string? OldValue { get; init; }
+    public string? NewValue { get; init; }
+    public string State { get; init; } = "changed";
+    public bool IsChanged => State == "changed";
+    public string DisplayText => State switch
+    {
+        "added" => $"+ {Key}: {NewValue}",
+        "removed" => $"- {Key}: {OldValue}",
+        _ => $"~ {Key}: {OldValue} → {NewValue}",
+    };
+}
+
 public sealed class PickProgress
 {    public required string Message { get; init; }
     public WindowInfo? HoverWindow { get; init; }

@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using TuxViewer.Models;
 using TuxViewer.ViewModels;
 
@@ -203,6 +204,85 @@ public partial class MainWindow : Window
         if (ViewModel is null) return;
         var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
         if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildHotkeyText());
+    }
+
+    private async void ExportHtml_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var file = await PickSaveAsync("导出 HTML 报告", SafeName(ViewModel.SelectedTitle) + ".html", "html", "text/html");
+        if (file is null) return;
+        var html = await ViewModel.BuildReportHtmlAsync();
+        if (string.IsNullOrWhiteSpace(html)) return;
+        await File.WriteAllTextAsync(file.Path.LocalPath, html);
+        ViewModel.SetReportStatus($"已导出 HTML：{file.Name}");
+    }
+
+    private async void ExportMarkdown_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var file = await PickSaveAsync("导出 Markdown 报告", SafeName(ViewModel.SelectedTitle) + ".md", "md", "text/markdown");
+        if (file is null) return;
+        var baseName = Path.GetFileNameWithoutExtension(file.Name);
+        var imageName = baseName + ".png";
+        var markdown = await ViewModel.BuildReportMarkdownAsync(imageName);
+        if (string.IsNullOrWhiteSpace(markdown)) return;
+        await File.WriteAllTextAsync(file.Path.LocalPath, markdown);
+
+        if (ViewModel.ScreenshotPng is { Length: > 0 } png)
+        {
+            var directory = Path.GetDirectoryName(file.Path.LocalPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                await File.WriteAllBytesAsync(Path.Combine(directory, imageName), png);
+        }
+        ViewModel.SetReportStatus($"已导出 Markdown：{file.Name}");
+    }
+
+    private async void ExportJson_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null || string.IsNullOrWhiteSpace(ViewModel.RawJson)) return;
+        var file = await PickSaveAsync("导出检视 JSON", SafeName(ViewModel.SelectedTitle) + ".json", "json", "application/json");
+        if (file is null) return;
+        await File.WriteAllTextAsync(file.Path.LocalPath, ViewModel.RawJson);
+        ViewModel.SetReportStatus($"已导出 JSON：{file.Name}");
+    }
+
+    private async void SaveSnapshot_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.SaveSnapshotAsync();
+    }
+
+    private void CompareSnapshot_Click(object? sender, RoutedEventArgs e) => ViewModel?.CompareSelectedSnapshot();
+
+    private void DeleteSnapshot_Click(object? sender, RoutedEventArgs e) => ViewModel?.DeleteSelectedSnapshot();
+
+    private void RefreshSnapshots_Click(object? sender, RoutedEventArgs e) => ViewModel?.LoadSnapshots();
+
+    private async Task<IStorageFile?> PickSaveAsync(string title, string suggested, string extension, string mime)
+    {
+        var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
+        if (storage is null) return null;
+        return await storage.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = title,
+            SuggestedFileName = suggested,
+            DefaultExtension = extension,
+            FileTypeChoices =
+            [
+                new FilePickerFileType(extension.ToUpperInvariant())
+                {
+                    Patterns = [$"*.{extension}"],
+                    MimeTypes = [mime],
+                },
+            ],
+        });
+    }
+
+    private static string SafeName(string? title)
+    {
+        var name = string.Concat((title ?? "window")
+            .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+        return name.Length > 60 ? name[..60] : name;
     }
 
     private async void ControlAction_Click(object? sender, RoutedEventArgs e)

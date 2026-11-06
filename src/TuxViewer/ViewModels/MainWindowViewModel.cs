@@ -109,6 +109,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _forceKillArmed;
     private CancellationTokenSource? _forceKillResetCts;
 
+    private List<X11Property> _x11PropertiesAll = [];
+    private string _propertyFilterText = "";
+    private string _snapshotName = "";
+    private WindowSnapshot? _selectedSnapshot;
+    private string _snapshotStatus = "";
+    private string _snapshotDiffText = "";
+    private string _reportStatus = "";
+
     public MainWindowViewModel(InspectorService service)
     {
         _service = service;
@@ -136,6 +144,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
     public ObservableCollection<AtspiNode> AtspiTree { get; } = [];
+    public ObservableCollection<WindowSnapshot> Snapshots { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public IReadOnlyList<string> TreeGroupModes { get; }
@@ -456,6 +465,49 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string ProcessCmdlineText => Process?.Cmdline ?? "—";
     public string ProcessPidText => SelectedWindow?.Pid?.ToString() ?? "—";
 
+    public string PropertyFilterText
+    {
+        get => _propertyFilterText;
+        set { if (Set(ref _propertyFilterText, value)) ApplyPropertyFilter(); }
+    }
+
+    public string SnapshotName
+    {
+        get => _snapshotName;
+        set => Set(ref _snapshotName, value);
+    }
+
+    public WindowSnapshot? SelectedSnapshot
+    {
+        get => _selectedSnapshot;
+        set => Set(ref _selectedSnapshot, value);
+    }
+
+    public string SnapshotStatus
+    {
+        get => _snapshotStatus;
+        private set => Set(ref _snapshotStatus, value);
+    }
+
+    public string SnapshotDiffText
+    {
+        get => _snapshotDiffText;
+        private set
+        {
+            if (Set(ref _snapshotDiffText, value))
+                OnPropertyChanged(nameof(HasSnapshotDiff));
+        }
+    }
+
+    public string ReportStatus
+    {
+        get => _reportStatus;
+        private set => Set(ref _reportStatus, value);
+    }
+
+    public bool HasSnapshots => Snapshots.Count > 0;
+    public bool HasSnapshotDiff => !string.IsNullOrWhiteSpace(SnapshotDiffText);
+
     public bool X11RecordEnabled
     {
         get => _x11RecordEnabled;
@@ -703,6 +755,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 }
             }
             await LoadDiagnosticsAsync();
+            LoadSnapshots();
             StartMonitoring();
             StartAutoRefresh();
             if (AutoCapture) await CaptureScreenshotAsync();
@@ -872,7 +925,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         await HighlightPickedAsync(SelectedWindow, reportStatus: true);
     }
 
-    public async Task CaptureScreenshotAsync()
+    public async Task CaptureScreenshotAsync(bool activateTab = true)
     {
         if (SelectedWindow is null) return;
         var window = SelectedWindow;
@@ -896,7 +949,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ScreenshotSource = result.Source;
             ScreenshotStatus = $"{result.Message} · {result.Width}×{result.Height}";
             StatusText = $"已截图：{window.Title} · {ScreenshotStatus}";
-            SelectedTabIndex = 7;
+            if (activateTab) SelectedTabIndex = 7;
         }
         catch (Exception ex)
         {
@@ -1399,6 +1452,155 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             $"Cwd: {process.Cwd}");
     }
 
+    private void ApplyPropertyFilter()
+    {
+        var query = _propertyFilterText.Trim();
+        X11Properties.Clear();
+        foreach (var property in _x11PropertiesAll)
+        {
+            if (query.Length == 0 ||
+                property.Name.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                property.Type.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+                property.Value.Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                X11Properties.Add(property);
+            }
+        }
+    }
+
+    public void LoadSnapshots()
+    {
+        Snapshots.Clear();
+        foreach (var snapshot in SnapshotService.LoadAll()) Snapshots.Add(snapshot);
+        OnPropertyChanged(nameof(HasSnapshots));
+    }
+
+    private WindowSnapshot? BuildCurrentSnapshot(string name, bool includeScreenshot)
+    {
+        if (SelectedWindow is not { } window) return null;
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in _lastOverviewSnapshot) values[$"概览/{key}"] = value;
+        foreach (var (key, value) in _lastX11RowSnapshot) values[$"X11/{key}"] = value;
+        foreach (var property in _x11PropertiesAll) values[$"属性/{property.Name}"] = property.Value;
+        foreach (var row in ProcessRows) values[$"进程/{row.Label}"] = row.Value;
+
+        return new WindowSnapshot
+        {
+            Name = name,
+            WindowId = window.Id,
+            Title = window.Title,
+            AppId = window.AppId,
+            Pid = window.Pid,
+            Backend = window.BackendLabel,
+            Geometry = window.GeometryText,
+            Summary = Summary,
+            RawJson = RawJson,
+            Values = values,
+            ScreenshotBase64 = includeScreenshot && ScreenshotPng is { Length: > 0 } png
+                ? Convert.ToBase64String(png)
+                : null,
+        };
+    }
+
+    public async Task SaveSnapshotAsync()
+    {
+        if (SelectedWindow is null)
+        {
+            SnapshotStatus = "先选择一个窗口";
+            return;
+        }
+
+        var name = string.IsNullOrWhiteSpace(SnapshotName)
+            ? $"{SelectedWindow.Title} {DateTime.Now:MM-dd HH:mm}"
+            : SnapshotName.Trim();
+        var snapshot = BuildCurrentSnapshot(name, includeScreenshot: true);
+        if (snapshot is null) return;
+        try
+        {
+            await SnapshotService.SaveAsync(snapshot, CancellationToken.None);
+            SnapshotStatus = $"已保存快照：{name}";
+            SnapshotName = "";
+            LoadSnapshots();
+            SelectedSnapshot = Snapshots.FirstOrDefault(s => s.Id == snapshot.Id);
+        }
+        catch (Exception ex)
+        {
+            SnapshotStatus = $"保存快照失败：{ex.Message}";
+        }
+    }
+
+    public void CompareSelectedSnapshot()
+    {
+        if (SelectedSnapshot is null)
+        {
+            SnapshotStatus = "先选择一个快照";
+            return;
+        }
+        if (SelectedWindow is null)
+        {
+            SnapshotStatus = "先选择一个窗口";
+            return;
+        }
+
+        var current = BuildCurrentSnapshot("当前", includeScreenshot: false);
+        if (current is null) return;
+        var diffs = SnapshotService.Compare(SelectedSnapshot, current);
+        if (diffs.Count == 0)
+        {
+            SnapshotDiffText = "没有差异：当前窗口与快照一致。";
+            SnapshotStatus = "对比完成：无差异";
+            return;
+        }
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine($"与快照“{SelectedSnapshot.Name}”对比 · {diffs.Count} 处差异");
+        sb.AppendLine(new string('─', 50));
+        foreach (var diff in diffs) sb.AppendLine(diff.DisplayText);
+        SnapshotDiffText = sb.ToString();
+        SnapshotStatus = $"对比完成：{diffs.Count} 处差异";
+        OnPropertyChanged(nameof(HasSnapshotDiff));
+    }
+
+    public void DeleteSelectedSnapshot()
+    {
+        if (SelectedSnapshot is not { } snapshot) return;
+        SnapshotService.Delete(snapshot);
+        SnapshotStatus = $"已删除快照：{snapshot.Name}";
+        SelectedSnapshot = null;
+        LoadSnapshots();
+    }
+
+    public void SetReportStatus(string message) => ReportStatus = message;
+
+    public async Task<string> BuildReportHtmlAsync()
+    {
+        if (SelectedWindow is not { } window) return "";
+        await EnsureScreenshotAsync();
+        var dataUri = ScreenshotPng is { Length: > 0 } png
+            ? "data:image/png;base64," + Convert.ToBase64String(png)
+            : null;
+        var html = ReportService.BuildHtml(window, Process, X11Details, dataUri, RawJson);
+        ReportStatus = "HTML 报告已生成";
+        return html;
+    }
+
+    public async Task<string> BuildReportMarkdownAsync(string imageFileName)
+    {
+        if (SelectedWindow is not { } window) return "";
+        await EnsureScreenshotAsync();
+        var image = ScreenshotPng is { Length: > 0 } ? imageFileName : null;
+        var markdown = ReportService.BuildMarkdown(window, Process, X11Details, image, RawJson);
+        ReportStatus = "Markdown 报告已生成";
+        return markdown;
+    }
+
+    public async Task EnsureScreenshotAsync()
+    {
+        if (ScreenshotPng is { Length: > 0 }) return;
+        if (SelectedWindow is null) return;
+        await CaptureScreenshotAsync(activateTab: false);
+    }
+
     public void ClearEvents()
     {
         Events.Clear();
@@ -1601,6 +1803,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         X11Rows.Clear();
         X11Properties.Clear();
         X11Children.Clear();
+        _x11PropertiesAll = [];
         if (x11 is null) return false;
 
         var rows = new List<InfoRow>();
@@ -1638,6 +1841,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         var anyChanged = rows.Any(r => r.IsChanged);
         var current = new Dictionary<string, string>(StringComparer.Ordinal);
+        var properties = new List<X11Property>();
         foreach (var property in x11.Properties)
         {
             var changed = false;
@@ -1645,11 +1849,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (diff && _lastX11PropertySnapshot.TryGetValue(property.Name, out oldValue))
                 changed = !string.Equals(oldValue, property.Value, StringComparison.Ordinal);
             anyChanged |= changed;
-            X11Properties.Add(changed ? property.WithChange(true, oldValue) : property);
+            properties.Add(changed ? property.WithChange(true, oldValue) : property);
             current[property.Name] = property.Value;
         }
         _lastX11PropertySnapshot.Clear();
         foreach (var (key, value) in current) _lastX11PropertySnapshot[key] = value;
+        _x11PropertiesAll = properties;
+        ApplyPropertyFilter();
 
         foreach (var child in x11.Children) X11Children.Add(child);
         return anyChanged;
