@@ -195,6 +195,26 @@ public partial class MainWindow : Window
 
     private void ClearX11Protocol_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearX11Protocol();
 
+    private async void ApplyX11Property_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.ApplyX11PropertyAsync();
+    }
+
+    private async void DeleteX11Property_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.DeleteX11PropertyAsync();
+    }
+
+    private void ClearX11Property_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearX11PropertyEditor();
+
+    private async void SendClientMessage_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.SendClientMessageAsync();
+    }
+
     private async void CopyX11Protocol_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;

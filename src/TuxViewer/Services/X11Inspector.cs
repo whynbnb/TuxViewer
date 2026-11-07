@@ -790,6 +790,217 @@ public sealed class X11Inspector : IDisposable
         }
     }
 
+    public ulong RootWindowId => (ulong)(nuint)_root;
+
+    public (bool Ok, string Message) SetProperty(
+        ulong id, string name, string typeName, int format, string value, int mode)
+    {
+        if (!IsAvailable)
+            return (false, LocalizationService.L("X11 不可用", "X11 unavailable"));
+        if (string.IsNullOrWhiteSpace(name))
+            return (false, LocalizationService.L("属性名不能为空", "Property name is required"));
+        if (format is not (8 or 16 or 32))
+            return (false, LocalizationService.L("格式必须是 8、16 或 32", "Format must be 8, 16 or 32"));
+
+        lock (_lock)
+        {
+            try
+            {
+                var propertyAtom = Atom(name.Trim());
+                var typeAtom = Atom(string.IsNullOrWhiteSpace(typeName) ? "STRING" : typeName.Trim());
+                if (propertyAtom == IntPtr.Zero)
+                    return (false, LocalizationService.F("无法创建属性 atom：{0}", "Cannot create property atom: {0}", name));
+                if (typeAtom == IntPtr.Zero)
+                    return (false, LocalizationService.F("无法创建类型 atom：{0}", "Cannot create type atom: {0}", typeName));
+
+                var encoded = EncodeValue(typeName, format, value);
+                if (encoded.Error is not null)
+                    return (false, encoded.Error);
+
+                var status = X11Native.XChangeProperty(
+                    _display, (IntPtr)(nuint)id, propertyAtom, typeAtom, format,
+                    Math.Clamp(mode, 0, 2), encoded.Bytes, encoded.Elements);
+                X11Native.XFlush(_display);
+                return status != 0
+                    ? (true, LocalizationService.F("已写入 {0}（{1} 字节）", "Wrote {0} ({1} bytes)", name, encoded.Bytes.Length))
+                    : (false, LocalizationService.L("XChangeProperty 失败", "XChangeProperty failed"));
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+    }
+
+    public (bool Ok, string Message) DeleteProperty(ulong id, string name)
+    {
+        if (!IsAvailable)
+            return (false, LocalizationService.L("X11 不可用", "X11 unavailable"));
+        if (string.IsNullOrWhiteSpace(name))
+            return (false, LocalizationService.L("属性名不能为空", "Property name is required"));
+
+        lock (_lock)
+        {
+            try
+            {
+                var atom = Atom(name.Trim(), onlyIfExists: true);
+                if (atom == IntPtr.Zero)
+                    return (false, LocalizationService.F("属性不存在：{0}", "Property does not exist: {0}", name));
+                X11Native.XDeleteProperty(_display, (IntPtr)(nuint)id, atom);
+                X11Native.XFlush(_display);
+                return (true, LocalizationService.F("已删除 {0}", "Deleted {0}", name));
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+    }
+
+    public (bool Ok, string Message) SendClientMessage(
+        ulong windowId, string messageType, int format, IReadOnlyList<long> data)
+    {
+        if (!IsAvailable)
+            return (false, LocalizationService.L("X11 不可用", "X11 unavailable"));
+        if (string.IsNullOrWhiteSpace(messageType))
+            return (false, LocalizationService.L("消息类型不能为空", "Message type is required"));
+        if (format is not (8 or 16 or 32))
+            return (false, LocalizationService.L("格式必须是 8、16 或 32", "Format must be 8, 16 or 32"));
+
+        lock (_lock)
+        {
+            try
+            {
+                var atom = Atom(messageType.Trim());
+                if (atom == IntPtr.Zero)
+                    return (false, LocalizationService.F("无法创建消息类型 atom：{0}", "Cannot create message type atom: {0}", messageType));
+
+                long[] values = [0, 0, 0, 0, 0];
+                for (var i = 0; i < Math.Min(5, data.Count); i++) values[i] = data[i];
+
+                var message = new X11Native.XClientMessageEvent
+                {
+                    Type = X11Native.ClientMessage,
+                    SendEvent = 1,
+                    Display = _display,
+                    Window = (nuint)windowId,
+                    MessageType = (nuint)(ulong)atom,
+                    Format = format,
+                    Data1 = (nint)values[0],
+                    Data2 = (nint)values[1],
+                    Data3 = (nint)values[2],
+                    Data4 = (nint)values[3],
+                    Data5 = (nint)values[4],
+                };
+
+                var mask = windowId == RootWindowId
+                    ? (long)(X11Native.SubstructureRedirectMask | X11Native.SubstructureNotifyMask)
+                    : 0L;
+                var status = X11Native.XSendEvent(
+                    _display, (IntPtr)(nuint)windowId, false, mask, ref message);
+                X11Native.XFlush(_display);
+                return status != 0
+                    ? (true, LocalizationService.F("已发送 {0}", "Sent {0}", messageType))
+                    : (false, LocalizationService.L("XSendEvent 失败", "XSendEvent failed"));
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
+            }
+        }
+    }
+
+    private (byte[] Bytes, int Elements, string? Error) EncodeValue(
+        string typeName, int format, string value)
+    {
+        var type = (typeName ?? "").Trim();
+        value ??= "";
+
+        if (format == 8)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            if (type == "STRING" && (bytes.Length == 0 || bytes[^1] != 0))
+            {
+                var terminated = new byte[bytes.Length + 1];
+                bytes.CopyTo(terminated, 0);
+                bytes = terminated;
+            }
+            return (bytes, bytes.Length, null);
+        }
+
+        var tokens = value
+            .Split([',', ';', '，', '；', ' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.Trim())
+            .Where(token => token.Length > 0)
+            .ToArray();
+
+        if (format == 16)
+        {
+            var values = new ushort[tokens.Length];
+            for (var i = 0; i < tokens.Length; i++)
+            {
+                if (!ushort.TryParse(tokens[i], out values[i]))
+                    return ([], 0, LocalizationService.F("无效的 16 位数值：{0}", "Invalid 16-bit value: {0}", tokens[i]));
+            }
+            var bytes = new byte[values.Length * 2];
+            for (var i = 0; i < values.Length; i++)
+                BitConverter.TryWriteBytes(bytes.AsSpan(i * 2, 2), values[i]);
+            return (bytes, values.Length, null);
+        }
+
+        var raw = new uint[tokens.Length];
+        for (var i = 0; i < tokens.Length; i++)
+        {
+            var token = tokens[i];
+            if (type == "ATOM")
+            {
+                var atom = Atom(token);
+                if (atom == IntPtr.Zero)
+                    return ([], 0, LocalizationService.F("无法创建 atom：{0}", "Cannot create atom: {0}", token));
+                raw[i] = (uint)(ulong)atom;
+                continue;
+            }
+
+            if (type == "WINDOW")
+            {
+                var text = token.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? token[2..] : token;
+                if (!ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber,
+                        System.Globalization.CultureInfo.InvariantCulture, out var hex) &&
+                    !ulong.TryParse(token, out hex))
+                    return ([], 0, LocalizationService.F("无效的窗口 ID：{0}", "Invalid window ID: {0}", token));
+                raw[i] = (uint)hex;
+                continue;
+            }
+
+            if (token.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                uint.TryParse(token[2..], System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hexValue))
+            {
+                raw[i] = hexValue;
+                continue;
+            }
+
+            if (uint.TryParse(token, out var unsigned))
+            {
+                raw[i] = unsigned;
+                continue;
+            }
+
+            if (int.TryParse(token, out var signed))
+            {
+                raw[i] = unchecked((uint)signed);
+                continue;
+            }
+
+            return ([], 0, LocalizationService.F("无效的 32 位数值：{0}", "Invalid 32-bit value: {0}", token));
+        }
+
+        var buffer = new byte[raw.Length * 4];
+        for (var i = 0; i < raw.Length; i++)
+            BitConverter.TryWriteBytes(buffer.AsSpan(i * 4, 4), raw[i]);
+        return (buffer, raw.Length, null);
+    }
+
     private void SendWmState(ulong id, string property, int action)
     {
         var message = new X11Native.XClientMessageEvent

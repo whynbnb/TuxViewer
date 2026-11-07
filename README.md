@@ -102,6 +102,7 @@ TuxViewer 用于回答这些问题：
 - **单实例 / IPC**：默认只允许一个 GUI 实例；再次启动会把 `--select`、`--tab`、`--record`、`--gui-pick-x11` 等参数转发给已运行实例。`--new-instance` 可强制打开新窗口
 - **托盘 / 快速拾取**：托盘菜单提供显示窗口、X11 点击拾取、拾取当前焦点、刷新和退出；合成器快捷键可调用 `tuxviewer --gui-pick-x11 click`
 - X11 属性支持按名称 / 类型 / 值过滤
+- **X11 属性编辑 / ClientMessage**：选择属性自动填充编辑器，可新增、替换 / 前置 / 追加、删除属性；支持向指定窗口或 root 发送 32 位 ClientMessage（`_NET_ACTIVE_WINDOW`、`_NET_CURRENT_DESKTOP` 等），操作会立即影响目标客户端
 - **多显示器 / 输出**：显示各输出逻辑坐标、缩放、刷新率、模式和当前工作区；niri 额外显示工作区 / 列布局；提示 XWayland 与合成器坐标差异
 - **设置持久化**：窗口尺寸 / 位置、窗口筛选、筛选预设、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤、界面语言保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
 - **中英文切换**：顶部 `EN` / `中文` 按钮即时切换，静态 UI、窗口详情、诊断、规则注释与导出报告同步切换；首次启动按 `LC_ALL` / `LANG` 自动选择，语言偏好随设置持久化

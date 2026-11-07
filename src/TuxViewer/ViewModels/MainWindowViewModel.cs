@@ -130,6 +130,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private List<X11Property> _x11PropertiesAll = [];
     private string _propertyFilterText = "";
+    private X11Property? _selectedX11Property;
+    private string _x11PropertyName = "";
+    private string _x11PropertyType = "STRING";
+    private string _x11PropertyValue = "";
+    private string _x11PropertyStatus = "";
+    private int _x11PropertyFormatIndex;
+    private int _x11PropertyModeIndex;
+    private string _clientMessageTarget = "";
+    private string _clientMessageType = "_NET_ACTIVE_WINDOW";
+    private string _clientMessageData0 = "0";
+    private string _clientMessageData1 = "0";
+    private string _clientMessageData2 = "0";
+    private string _clientMessageData3 = "0";
+    private string _clientMessageData4 = "0";
+    private string _clientMessageStatus = "";
+    private int _clientMessageFormatIndex = 2;
     private string _snapshotName = "";
     private WindowSnapshot? _selectedSnapshot;
     private string _snapshotStatus = "";
@@ -186,6 +202,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public ObservableCollection<string> TreeGroupModes { get; }
+    public IReadOnlyList<string> X11PropertyFormats { get; } = ["8", "16", "32"];
+    public ObservableCollection<string> X11PropertyModes { get; } = [];
+    public IReadOnlyList<string> ClientMessageFormats { get; } = ["8", "16", "32"];
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
     public bool AutoRecord { get; set; }
@@ -596,6 +615,116 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _propertyFilterText;
         set { if (Set(ref _propertyFilterText, value)) ApplyPropertyFilter(); }
+    }
+
+    public X11Property? SelectedX11Property
+    {
+        get => _selectedX11Property;
+        set
+        {
+            if (ReferenceEquals(_selectedX11Property, value)) return;
+            _selectedX11Property = value;
+            OnPropertyChanged();
+            if (value is null) return;
+
+            X11PropertyName = value.Name;
+            X11PropertyType = value.Type;
+            X11PropertyFormatIndex = value.Format switch { 16 => 1, 32 => 2, _ => 0 };
+            X11PropertyValue = value.Name == "_NET_WM_ICON" ? "" : value.Value;
+            X11PropertyStatus = value.Name == "_NET_WM_ICON"
+                ? L("图标属性建议只读", "Icon properties are best left read-only")
+                : "";
+        }
+    }
+
+    public string X11PropertyName
+    {
+        get => _x11PropertyName;
+        set => Set(ref _x11PropertyName, value);
+    }
+
+    public string X11PropertyType
+    {
+        get => _x11PropertyType;
+        set => Set(ref _x11PropertyType, value);
+    }
+
+    public string X11PropertyValue
+    {
+        get => _x11PropertyValue;
+        set => Set(ref _x11PropertyValue, value);
+    }
+
+    public int X11PropertyFormatIndex
+    {
+        get => _x11PropertyFormatIndex;
+        set => Set(ref _x11PropertyFormatIndex, Math.Clamp(value, 0, 2));
+    }
+
+    public int X11PropertyModeIndex
+    {
+        get => _x11PropertyModeIndex;
+        set => Set(ref _x11PropertyModeIndex, Math.Clamp(value, 0, 2));
+    }
+
+    public string X11PropertyStatus
+    {
+        get => _x11PropertyStatus;
+        private set => Set(ref _x11PropertyStatus, value);
+    }
+
+    public string ClientMessageTarget
+    {
+        get => _clientMessageTarget;
+        set => Set(ref _clientMessageTarget, value);
+    }
+
+    public string ClientMessageType
+    {
+        get => _clientMessageType;
+        set => Set(ref _clientMessageType, value);
+    }
+
+    public string ClientMessageData0
+    {
+        get => _clientMessageData0;
+        set => Set(ref _clientMessageData0, value);
+    }
+
+    public string ClientMessageData1
+    {
+        get => _clientMessageData1;
+        set => Set(ref _clientMessageData1, value);
+    }
+
+    public string ClientMessageData2
+    {
+        get => _clientMessageData2;
+        set => Set(ref _clientMessageData2, value);
+    }
+
+    public string ClientMessageData3
+    {
+        get => _clientMessageData3;
+        set => Set(ref _clientMessageData3, value);
+    }
+
+    public string ClientMessageData4
+    {
+        get => _clientMessageData4;
+        set => Set(ref _clientMessageData4, value);
+    }
+
+    public int ClientMessageFormatIndex
+    {
+        get => _clientMessageFormatIndex;
+        set => Set(ref _clientMessageFormatIndex, Math.Clamp(value, 0, 2));
+    }
+
+    public string ClientMessageStatus
+    {
+        get => _clientMessageStatus;
+        private set => Set(ref _clientMessageStatus, value);
     }
 
     public string SnapshotName
@@ -1771,6 +1900,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         GeoY = window?.Y?.ToString() ?? "";
         GeoW = window?.Width?.ToString() ?? "";
         GeoH = window?.Height?.ToString() ?? "";
+        ClientMessageTarget = (window?.X11WindowId ?? window?.LinkedX11WindowId) is ulong x11Id
+            ? $"0x{x11Id:x}"
+            : "";
         ControlStatus = "";
         OnPropertyChanged(nameof(ForceKillButtonText));
     }
@@ -1920,6 +2052,129 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 X11Properties.Add(property);
             }
         }
+
+        if (_selectedX11Property is not null && !X11Properties.Contains(_selectedX11Property))
+            SelectedX11Property = null;
+    }
+
+    public void ClearX11PropertyEditor()
+    {
+        _selectedX11Property = null;
+        OnPropertyChanged(nameof(SelectedX11Property));
+        X11PropertyName = "";
+        X11PropertyType = "STRING";
+        X11PropertyValue = "";
+        X11PropertyFormatIndex = 0;
+        X11PropertyModeIndex = 0;
+        X11PropertyStatus = "";
+    }
+
+    public async Task ApplyX11PropertyAsync()
+    {
+        var inspector = _service.Registry.X11?.Inspector;
+        if (_selectedX11Id is not ulong x11Id || inspector is null)
+        {
+            X11PropertyStatus = L("请先选择一个 X11 / XWayland 窗口", "Select an X11 / XWayland window first");
+            return;
+        }
+
+        var format = _x11PropertyFormatIndex switch { 1 => 16, 2 => 32, _ => 8 };
+        var mode = _x11PropertyModeIndex switch { 1 => 1, 2 => 2, _ => 0 };
+        var result = inspector.SetProperty(
+            x11Id, _x11PropertyName, _x11PropertyType, format, _x11PropertyValue, mode);
+        X11PropertyStatus = result.Message;
+        StatusText = result.Message;
+        AppLog.Info($"X11 property write {_x11PropertyName}: {result.Message}");
+
+        if (result.Ok && SelectedWindow is { } window)
+            await InspectSelectedAsync(window);
+    }
+
+    public async Task DeleteX11PropertyAsync()
+    {
+        var inspector = _service.Registry.X11?.Inspector;
+        if (_selectedX11Id is not ulong x11Id || inspector is null)
+        {
+            X11PropertyStatus = L("请先选择一个 X11 / XWayland 窗口", "Select an X11 / XWayland window first");
+            return;
+        }
+
+        var name = !string.IsNullOrWhiteSpace(_x11PropertyName)
+            ? _x11PropertyName
+            : _selectedX11Property?.Name ?? "";
+        var result = inspector.DeleteProperty(x11Id, name);
+        X11PropertyStatus = result.Message;
+        StatusText = result.Message;
+        AppLog.Info($"X11 property delete {name}: {result.Message}");
+
+        if (result.Ok && SelectedWindow is { } window)
+            await InspectSelectedAsync(window);
+    }
+
+    public async Task SendClientMessageAsync()
+    {
+        var inspector = _service.Registry.X11?.Inspector;
+        if (inspector is null)
+        {
+            ClientMessageStatus = L("X11 不可用", "X11 unavailable");
+            return;
+        }
+
+        ulong? target = null;
+        if (string.Equals(_clientMessageTarget.Trim(), "root", StringComparison.OrdinalIgnoreCase))
+            target = inspector.RootWindowId;
+        else
+            target = TryParseWindowId(_clientMessageTarget);
+        target ??= _selectedX11Id;
+
+        if (target is not ulong windowId)
+        {
+            ClientMessageStatus = L("请填写目标窗口 ID", "Enter a target window ID");
+            return;
+        }
+
+        var fields = new[]
+        {
+            _clientMessageData0, _clientMessageData1, _clientMessageData2,
+            _clientMessageData3, _clientMessageData4,
+        };
+        var values = new long[5];
+        for (var i = 0; i < fields.Length; i++)
+        {
+            if (!TryParseLong(fields[i], out values[i]))
+            {
+                ClientMessageStatus = LF("data.l[{0}] 不是有效数值：{1}", "data.l[{0}] is not a valid number: {1}", i, fields[i]);
+                return;
+            }
+        }
+
+        var format = _clientMessageFormatIndex switch { 0 => 8, 1 => 16, _ => 32 };
+        var result = inspector.SendClientMessage(windowId, _clientMessageType, format, values);
+        ClientMessageStatus = result.Message;
+        StatusText = result.Message;
+        AppLog.Info($"X11 ClientMessage {_clientMessageType} -> 0x{windowId:x}: {result.Message}");
+    }
+
+    private static ulong? TryParseWindowId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        var text = value.Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return ulong.TryParse(text[2..], System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out var hex) ? hex : null;
+        if (ulong.TryParse(text, out var dec)) return dec;
+        return ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber,
+            System.Globalization.CultureInfo.InvariantCulture, out var fallbackHex) ? fallbackHex : null;
+    }
+
+    private static bool TryParseLong(string? value, out long result)
+    {
+        var text = (value ?? "").Trim();
+        if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return long.TryParse(text[2..], System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out result);
+        return long.TryParse(text, System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out result);
     }
 
     public void LoadSnapshots()
@@ -2596,6 +2851,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         TreeGroupModes.Add(LocalizationService.L("按进程", "By process"));
         TreeGroupModes.Add(LocalizationService.L("按工作区", "By workspace"));
         TreeGroupModes.Add(LocalizationService.L("平铺", "Flat"));
+
+        var mode = Math.Clamp(_x11PropertyModeIndex, 0, 2);
+        X11PropertyModes.Clear();
+        X11PropertyModes.Add(LocalizationService.L("替换", "Replace"));
+        X11PropertyModes.Add(LocalizationService.L("前置", "Prepend"));
+        X11PropertyModes.Add(LocalizationService.L("追加", "Append"));
+        _x11PropertyModeIndex = mode;
+        OnPropertyChanged(nameof(X11PropertyModeIndex));
 
         _backendFilterIndex = backend;
         _treeGroupModeIndex = group;

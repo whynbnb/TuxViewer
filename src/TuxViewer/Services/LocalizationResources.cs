@@ -168,6 +168,17 @@ internal static class LocalizationResources
         ["Ui_Reply"] = "回复",
         ["Ui_Filter_opcode_window_client"] = "过滤 opcode / 窗口 / 客户端…",
         ["Ui_Protocol_hint"] = "使用 RECORD 扩展的 core requests / replies 范围记录 X11 协议请求与回复；可看到 opcode、客户端、sequence、窗口和属性数据。请求/回复会显著增加事件量，建议配合过滤使用。",
+        ["Ui_Edit_X11_property"] = "编辑 / 新增 X11 属性",
+        ["Ui_Property_name"] = "属性名",
+        ["Ui_Property_type"] = "类型（STRING / UTF8_STRING / ATOM / CARDINAL / WINDOW）",
+        ["Ui_Property_value"] = "值：文本，或逗号分隔的 atom / 数字 / 窗口 ID",
+        ["Ui_Property_mode"] = "写入模式",
+        ["Ui_Edit_property_hint"] = "修改会立即影响目标客户端；_NET_WM_ICON 等复杂属性建议只读。",
+        ["Ui_ClientMessage"] = "ClientMessage",
+        ["Ui_Target_window"] = "目标窗口（ID 或 root）",
+        ["Ui_Message_type"] = "消息类型 atom",
+        ["Ui_Send_client_message"] = "发送 ClientMessage",
+        ["Ui_ClientMessage_hint"] = "直接向 X11 窗口或 root 发送 32 位 ClientMessage，例如 _NET_ACTIVE_WINDOW、_NET_CURRENT_DESKTOP。",
     };
 
     internal static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -335,5 +346,16 @@ internal static class LocalizationResources
         ["Ui_Reply"] = "Replies",
         ["Ui_Filter_opcode_window_client"] = "Filter opcode / window / client…",
         ["Ui_Protocol_hint"] = "Records X11 protocol requests and replies via the RECORD extension's core requests / replies ranges, including opcode, client, sequence, window and property data. Request/reply traffic is high; use the filters.",
+        ["Ui_Edit_X11_property"] = "Edit / add X11 property",
+        ["Ui_Property_name"] = "Property name",
+        ["Ui_Property_type"] = "Type (STRING / UTF8_STRING / ATOM / CARDINAL / WINDOW)",
+        ["Ui_Property_value"] = "Value: text, or comma-separated atoms / numbers / window IDs",
+        ["Ui_Property_mode"] = "Write mode",
+        ["Ui_Edit_property_hint"] = "Changes affect the target client immediately; complex properties such as _NET_WM_ICON are best left read-only.",
+        ["Ui_ClientMessage"] = "ClientMessage",
+        ["Ui_Target_window"] = "Target window (ID or root)",
+        ["Ui_Message_type"] = "Message type atom",
+        ["Ui_Send_client_message"] = "Send ClientMessage",
+        ["Ui_ClientMessage_hint"] = "Send a 32-bit ClientMessage directly to an X11 window or root, for example _NET_ACTIVE_WINDOW or _NET_CURRENT_DESKTOP.",
     };
 }

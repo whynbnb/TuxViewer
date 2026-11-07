@@ -477,9 +477,9 @@
               </TabItem>
 
               <TabItem Header="{DynamicResource Ui_X11_properties}">
-                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="6,8,10,8">
+                <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*" Margin="6,8,10,8">
                   <TextBlock Grid.Row="0" Text="{DynamicResource Ui_X11_window_properties}" Classes="section" Margin="0,0,0,6" />
-                  <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
+                  <ScrollViewer Grid.Row="1" MaxHeight="150" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Rows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                   </ScrollViewer>
                   <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,12,0,6">
@@ -488,14 +488,96 @@
                     <TextBox Grid.Column="1" Width="300" PlaceholderText="{DynamicResource Ui_Filter_property_name_type_value}"
                              Text="{Binding PropertyFilterText, Mode=TwoWay}" />
                   </Grid>
-                  <ScrollViewer Grid.Row="3" MaxHeight="250" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding X11Properties}" ItemTemplate="{StaticResource X11PropertyTemplate}" />
-                  </ScrollViewer>
-                  <TextBlock Grid.Row="4" Text="{Binding X11ChildCountText}"
-                             Classes="section" Margin="0,12,0,6" IsVisible="{Binding HasX11Details}" />
-                  <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding X11Children}" ItemTemplate="{StaticResource X11ChildTemplate}" />
-                  </ScrollViewer>
+                  <ListBox Grid.Row="3" ItemsSource="{Binding X11Properties}"
+                           SelectedItem="{Binding SelectedX11Property, Mode=TwoWay}"
+                           ItemTemplate="{StaticResource X11PropertyTemplate}"
+                           MaxHeight="180" Margin="0,0,0,6">
+                    <ListBox.Styles>
+                      <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="2,0" />
+                        <Setter Property="Margin" Value="0" />
+                      </Style>
+                    </ListBox.Styles>
+                  </ListBox>
+
+                  <Border Grid.Row="4" Classes="card" Padding="10,8" Margin="0,4,0,0">
+                    <StackPanel Spacing="5">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{DynamicResource Ui_Edit_X11_property}" Classes="section"
+                                   VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="{DynamicResource Ui_Clear}"
+                                Click="ClearX11Property_Click" Classes="ghost"
+                                FontSize="11" Padding="8,3" />
+                      </Grid>
+                      <TextBlock Classes="hint" Text="{DynamicResource Ui_Edit_property_hint}" />
+                      <Grid ColumnDefinitions="*,220,74" ColumnSpacing="6">
+                        <TextBox PlaceholderText="{DynamicResource Ui_Property_name}"
+                                 Text="{Binding X11PropertyName, Mode=TwoWay}" />
+                        <TextBox Grid.Column="1" PlaceholderText="{DynamicResource Ui_Property_type}"
+                                 Text="{Binding X11PropertyType, Mode=TwoWay}" />
+                        <ComboBox Grid.Column="2" ItemsSource="{Binding X11PropertyFormats}"
+                                  SelectedIndex="{Binding X11PropertyFormatIndex, Mode=TwoWay}" />
+                      </Grid>
+                      <TextBox AcceptsReturn="True" MinHeight="48" MaxHeight="80"
+                               PlaceholderText="{DynamicResource Ui_Property_value}"
+                               Text="{Binding X11PropertyValue, Mode=TwoWay}" />
+                      <Grid ColumnDefinitions="Auto,140,*,Auto,Auto" ColumnSpacing="8">
+                        <TextBlock Text="{DynamicResource Ui_Property_mode}" Classes="muted"
+                                   FontSize="11" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding X11PropertyModes}"
+                                  SelectedIndex="{Binding X11PropertyModeIndex, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="2" Text="{Binding X11PropertyStatus}" Classes="hint"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                        <Button Grid.Column="3" Content="{DynamicResource Ui_Apply}"
+                                Click="ApplyX11Property_Click" Classes="ghost"
+                                FontSize="11" Padding="10,4" />
+                        <Button Grid.Column="4" Content="{DynamicResource Ui_Delete}"
+                                Click="DeleteX11Property_Click" Classes="danger"
+                                FontSize="11" Padding="10,4" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+
+                  <Border Grid.Row="5" Classes="card" Padding="10,8" Margin="0,6,0,0">
+                    <StackPanel Spacing="5">
+                      <TextBlock Text="{DynamicResource Ui_ClientMessage}" Classes="section" />
+                      <TextBlock Classes="hint" Text="{DynamicResource Ui_ClientMessage_hint}" />
+                      <Grid ColumnDefinitions="Auto,*,Auto,220,Auto,74" ColumnSpacing="6">
+                        <TextBlock Text="{DynamicResource Ui_Target_window}" Classes="muted"
+                                   FontSize="11" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="1" Text="{Binding ClientMessageTarget, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="2" Text="{DynamicResource Ui_Message_type}" Classes="muted"
+                                   FontSize="11" VerticalAlignment="Center" />
+                        <TextBox Grid.Column="3" Text="{Binding ClientMessageType, Mode=TwoWay}" />
+                        <TextBlock Grid.Column="4" Text="format" Classes="muted"
+                                   FontSize="11" VerticalAlignment="Center" />
+                        <ComboBox Grid.Column="5" ItemsSource="{Binding ClientMessageFormats}"
+                                  SelectedIndex="{Binding ClientMessageFormatIndex, Mode=TwoWay}" />
+                      </Grid>
+                      <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="6">
+                        <TextBox PlaceholderText="data.l[0]" Text="{Binding ClientMessageData0, Mode=TwoWay}" />
+                        <TextBox Grid.Column="1" PlaceholderText="data.l[1]" Text="{Binding ClientMessageData1, Mode=TwoWay}" />
+                        <TextBox Grid.Column="2" PlaceholderText="data.l[2]" Text="{Binding ClientMessageData2, Mode=TwoWay}" />
+                        <TextBox Grid.Column="3" PlaceholderText="data.l[3]" Text="{Binding ClientMessageData3, Mode=TwoWay}" />
+                        <TextBox Grid.Column="4" PlaceholderText="data.l[4]" Text="{Binding ClientMessageData4, Mode=TwoWay}" />
+                      </Grid>
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                        <Button Content="{DynamicResource Ui_Send_client_message}"
+                                Click="SendClientMessage_Click" Classes="ghost"
+                                FontSize="11" Padding="10,4" />
+                        <TextBlock Grid.Column="1" Text="{Binding ClientMessageStatus}" Classes="hint"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </Grid>
+                    </StackPanel>
+                  </Border>
+
+                  <StackPanel Grid.Row="6" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding X11ChildCountText}"
+                               Classes="section" Margin="0,0,0,6" IsVisible="{Binding HasX11Details}" />
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                      <ItemsControl ItemsSource="{Binding X11Children}" ItemTemplate="{StaticResource X11ChildTemplate}" />
+                    </ScrollViewer>
+                  </StackPanel>
                 </Grid>
               </TabItem>
 
