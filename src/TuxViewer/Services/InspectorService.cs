@@ -212,30 +212,30 @@ public sealed class InspectorService : IDisposable
     private static string BuildSummary(WindowInfo window, ProcessSnapshot? process, X11WindowDetails? x11)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("TuxViewer · Linux 窗口检视");
+        sb.AppendLine(LocalizationService.L("TuxViewer · Linux 窗口检视", "TuxViewer · Linux window inspection"));
         sb.AppendLine(new string('─', 34));
-        sb.AppendLine($"标题       : {window.Title}");
-        sb.AppendLine($"应用 ID    : {window.AppId ?? window.WmClass ?? "—"}");
-        sb.AppendLine($"后端       : {window.BackendLabel}{(window.IsXWayland ? "（XWayland 客户端）" : "")}");
-        sb.AppendLine($"来源       : {window.SourceName} · {window.Id}");
-        sb.AppendLine($"窗口 ID    : {window.NativeId ?? "—"}{(window.X11WindowId is not null ? $" / X11 0x{window.X11WindowId:x}" : "")}");
+        sb.AppendLine(LocalizationService.F("标题       : {0}", "Title      : {0}", window.Title));
+        sb.AppendLine(LocalizationService.F("应用 ID    : {0}", "App ID     : {0}", window.AppId ?? window.WmClass ?? "—"));
+        sb.AppendLine(LocalizationService.F("后端       : {0}{1}", "Backend    : {0}{1}", window.BackendLabel, window.IsXWayland ? LocalizationService.L("（XWayland 客户端）", " (XWayland client)") : ""));
+        sb.AppendLine(LocalizationService.F("来源       : {0} · {1}", "Source     : {0} · {1}", window.SourceName, window.Id));
+        sb.AppendLine(LocalizationService.F("窗口 ID    : {0}{1}", "Window ID  : {0}{1}", window.NativeId ?? "—", window.X11WindowId is not null ? $" / X11 0x{window.X11WindowId:x}" : ""));
         sb.AppendLine($"PID        : {window.Pid?.ToString() ?? "—"}{(process?.Name is not null ? $" ({process.Name})" : "")}");
-        sb.AppendLine($"几何       : {window.GeometryText}");
-        sb.AppendLine($"工作区     : {window.WorkspaceName ?? window.WorkspaceId?.ToString() ?? "—"}");
-        sb.AppendLine($"输出       : {window.OutputName ?? "—"}");
-        sb.AppendLine($"焦点       : {(window.IsFocused ? "是" : "否")}");
+        sb.AppendLine(LocalizationService.F("几何       : {0}", "Geometry   : {0}", window.GeometryText));
+        sb.AppendLine(LocalizationService.F("工作区     : {0}", "Workspace  : {0}", window.WorkspaceName ?? window.WorkspaceId?.ToString() ?? "—"));
+        sb.AppendLine(LocalizationService.F("输出       : {0}", "Output     : {0}", window.OutputName ?? "—"));
+        sb.AppendLine(LocalizationService.F("焦点       : {0}", "Focused    : {0}", window.IsFocused ? LocalizationService.L("是", "Yes") : LocalizationService.L("否", "No")));
         if (process is not null)
         {
-            sb.AppendLine($"工具包     : {process.Toolkit.DisplayName}");
-            sb.AppendLine($"客户端连接 : {process.Backend.Display}");
-            sb.AppendLine($"可执行文件 : {process.Exe ?? "—"}");
-            sb.AppendLine($"启动命令   : {process.Cmdline ?? "—"}");
-            if (process.Sandbox is not null) sb.AppendLine($"沙箱       : {process.Sandbox}");
+            sb.AppendLine(LocalizationService.F("工具包     : {0}", "Toolkit    : {0}", process.Toolkit.DisplayName));
+            sb.AppendLine(LocalizationService.F("客户端连接 : {0}", "Client     : {0}", process.Backend.Display));
+            sb.AppendLine(LocalizationService.F("可执行文件 : {0}", "Executable : {0}", process.Exe ?? "—"));
+            sb.AppendLine(LocalizationService.F("启动命令   : {0}", "Command    : {0}", process.Cmdline ?? "—"));
+            if (process.Sandbox is not null) sb.AppendLine(LocalizationService.F("沙箱       : {0}", "Sandbox    : {0}", process.Sandbox));
         }
         if (x11 is not null)
         {
-            sb.AppendLine($"X11 属性   : {x11.Properties.Count} 项 · 子窗口 {x11.Children.Count} 个");
-            sb.AppendLine($"窗口类型   : {x11.WindowType ?? "—"}");
+            sb.AppendLine(LocalizationService.F("X11 属性   : {0} 项 · 子窗口 {1} 个", "X11 props  : {0} · children {1}", x11.Properties.Count, x11.Children.Count));
+            sb.AppendLine(LocalizationService.F("窗口类型   : {0}", "Window type: {0}", x11.WindowType ?? "—"));
             sb.AppendLine($"WM State   : {x11.WmState ?? "—"}");
         }
         return sb.ToString();
@@ -263,7 +263,7 @@ public static class GnomeExtensionInstaller
                              n.EndsWith("metadata.json", StringComparison.Ordinal)))
                 .ToList();
             if (resources.Count == 0)
-                return "安装包中缺少 GNOME 扩展资源。";
+                return LocalizationService.L("安装包中缺少 GNOME 扩展资源。", "The GNOME extension resources are missing from the package.");
 
             foreach (var resource in resources)
             {
@@ -283,12 +283,12 @@ public static class GnomeExtensionInstaller
             var result = await CommandRunner.TryRunAsync(
                 "gnome-extensions", ["enable", ExtensionUuid], 4000, cancellationToken);
             return result?.Success == true
-                ? $"已安装并启用 GNOME 扩展：{target}\nWayland 会话可能需要注销并重新登录后生效。"
-                : $"扩展已复制到 {target}\n启用失败：{result?.StdErr ?? "请运行 gnome-extensions enable " + ExtensionUuid}";
+                ? LocalizationService.F("已安装并启用 GNOME 扩展：{0}\nWayland 会话可能需要注销并重新登录后生效。", "GNOME extension installed and enabled: {0}\nA Wayland session may require logging out and back in.", target)
+                : LocalizationService.F("扩展已复制到 {0}\n启用失败：{1}", "Extension copied to {0}\nEnable failed: {1}", target, result?.StdErr ?? "gnome-extensions enable " + ExtensionUuid);
         }
         catch (Exception ex)
         {
-            return $"安装失败：{ex.Message}";
+            return LocalizationService.F("安装失败：{0}", "Installation failed: {0}", ex.Message);
         }
     }
 }

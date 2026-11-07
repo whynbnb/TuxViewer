@@ -28,8 +28,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _selectedFilterPresetIndex = -1;
     private string _filterError = "";
     private string _filterSummaryText = "";
-    private string _statusText = "正在初始化…";
-    private string _sessionSummary = "检测会话…";
+    private string _statusText = L("正在初始化…", "Initializing…");
+    private string _sessionSummary = L("检测会话…", "Detecting session…");
     private string _countsText = "";
     private string _lastUpdatedText = "";
     private bool _isBusy;
@@ -60,9 +60,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private CancellationTokenSource? _eventDebounceCts;
     private string _lastDiffWindowId = "";
     private bool _realtimeEnabled = true;
-    private string _realtimeSummary = "未启动";
+    private string _realtimeSummary = L("未启动", "Not started");
     private int _eventCount;
-    private string _eventCountText = "0 条事件";
+    private string _eventCountText = L("0 条事件", "0 events");
     private int _changeGeneration;
     private Bitmap? _screenshotImage;
     private byte[]? _screenshotPng;
@@ -98,17 +98,17 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private bool _x11RecordMap = true;
     private bool _x11RecordClientMessage = true;
     private bool _x11RecordOther;
-    private string _x11RecordStatus = "未启动";
+    private string _x11RecordStatus = L("未启动", "Not started");
     private int _x11EventCount;
-    private string _x11EventCountText = "0 条事件";
+    private string _x11EventCountText = L("0 条事件", "0 events");
     private ulong? _selectedX11Id;
     private (int X, int Y, int W, int H)? _selectedX11Rect;
-    private string _atspiStatus = "尚未加载";
+    private string _atspiStatus = L("尚未加载", "Not loaded");
     private string _atspiCountText = "";
 
     private readonly GlobalHotkeyService _globalHotkey = new();
     private bool _globalHotkeyEnabled;
-    private string _globalHotkeyStatus = "未启用";
+    private string _globalHotkeyStatus = L("未启用", "Disabled");
 
     private string _controlStatus = "";
     private double _opacityValue = 100;
@@ -126,7 +126,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _snapshotStatus = "";
     private string _snapshotDiffText = "";
     private string _reportStatus = "";
-    private string _outputStatus = "尚未读取";
+    private string _outputStatus = L("尚未读取", "Not loaded");
     private string _outputNote = "";
     private string _outputSource = "";
 
@@ -137,12 +137,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         _service = service;
         _settingsService = settingsService;
-        BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
+        BackendFilters = [];
         RuleCompositors = ["niri", "Sway", "Hyprland"];
-        TreeGroupModes = ["按应用", "按进程", "按工作区", "平铺"];
+        TreeGroupModes = [];
+        RebuildLocalizedOptions();
         LoadFilterPresets(settingsService.Settings.FilterPresets);
         ApplySettings(settingsService.Settings);
         PropertyChanged += OnPersistedPropertyChanged;
+        LocalizationService.LanguageChanged += OnLanguageChanged;
     }
 
     public ObservableCollection<WindowInfo> Windows { get; } = [];
@@ -169,9 +171,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<WorkspaceInfo> OutputWorkspaces { get; } = [];
     public ObservableCollection<string> OutputLayoutLines { get; } = [];
     public ObservableCollection<FilterPreset> FilterPresets { get; } = [];
-    public IReadOnlyList<string> BackendFilters { get; }
+    public ObservableCollection<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
-    public IReadOnlyList<string> TreeGroupModes { get; }
+    public ObservableCollection<string> TreeGroupModes { get; }
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
     public bool AutoRecord { get; set; }
@@ -223,8 +225,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string SelectedTitle => SelectedWindow?.Title ?? "选择一个窗口";
-    public string SelectedSubtitle => SelectedWindow?.Subtitle ?? "从左侧列表或十字准星开始检视";
+    public string SelectedTitle => SelectedWindow?.Title ?? L("选择一个窗口", "Select a window");
+    public string SelectedSubtitle => SelectedWindow?.Subtitle ?? L("从左侧列表或十字准星开始检视", "Pick a window from the list or with the crosshair");
     public string SelectedBackend => SelectedWindow?.BackendLabel ?? "—";
     public string SelectedId => SelectedWindow?.NativeId ?? "—";
     public string SelectedPid => SelectedWindow?.PidText ?? "—";
@@ -320,8 +322,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (!Set(ref _autoRefresh, value)) return;
             StatusText = value
-                ? _monitor.IsRunning ? "自动刷新已开启（实时事件 + 15 秒兜底）" : "自动刷新已开启（每 3 秒）"
-                : "自动刷新已关闭";
+                ? _monitor.IsRunning
+                    ? L("自动刷新已开启（实时事件 + 15 秒兜底）", "Auto refresh on (live events + 15 s fallback)")
+                    : L("自动刷新已开启（每 3 秒）", "Auto refresh on (every 3 s)")
+                : L("自动刷新已关闭", "Auto refresh off");
         }
     }
 
@@ -382,8 +386,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string LastUpdatedText
     {
         get => _lastUpdatedText;
-        private set => Set(ref _lastUpdatedText, value);
+        private set
+        {
+            if (!Set(ref _lastUpdatedText, value)) return;
+            OnPropertyChanged(nameof(UpdatedText));
+        }
     }
+
+    public string UpdatedText => LocalizationService.F("更新 {0}", "Updated {0}", LastUpdatedText);
 
     public bool HasSelection
     {
@@ -416,8 +426,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             if (!Set(ref _x11Details, value)) return;
             OnPropertyChanged(nameof(HasX11Details));
+            OnPropertyChanged(nameof(X11PropertyCountText));
+            OnPropertyChanged(nameof(X11ChildCountText));
         }
     }
+
+    public string X11PropertyCountText => X11Details is null
+        ? ""
+        : LocalizationService.F("{0} 个 X11 属性（点击复制）", "{0} X11 properties (click to copy)",
+            X11Details.Properties.Count);
+
+    public string X11ChildCountText => X11Details is null
+        ? ""
+        : LocalizationService.F("{0} 个子窗口", "{0} child windows", X11Details.Children.Count);
 
     public ProcessSnapshot? Process
     {
@@ -433,7 +454,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool HasX11Details => X11Details is not null;
     public bool HasProcess => Process is not null;
     public string ProcessHeader => Process is null
-        ? "无进程信息（可能是 KWin 拾取窗口或权限不足）"
+        ? L("无进程信息（可能是 KWin 拾取窗口或权限不足）", "No process information (KWin-picked window or insufficient permissions)")
         : $"{Process.Name} · PID {Process.Pid} · {Process.Toolkit.DisplayName}";
 
     public string GnomeInstallStatus
@@ -448,7 +469,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         set
         {
             if (!Set(ref _realtimeEnabled, value)) return;
-            StatusText = value ? "实时监控已开启" : "实时监控已暂停（仅保留自动刷新）";
+            StatusText = value
+                ? L("实时监控已开启", "Live monitoring enabled")
+                : L("实时监控已暂停（仅保留自动刷新）", "Live monitoring paused (auto refresh only)");
         }
     }
 
@@ -491,7 +514,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string GlobalHotkeyButtonText => _globalHotkeyEnabled ? "停用全局热键" : "启用全局热键";
+    public string GlobalHotkeyButtonText => _globalHotkeyEnabled
+        ? L("停用全局热键", "Disable global hotkey")
+        : L("启用全局热键", "Enable global hotkey");
 
     public string GlobalHotkeyStatus
     {
@@ -537,7 +562,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         set => Set(ref _geoH, value);
     }
 
-    public string ForceKillButtonText => _forceKillArmed ? "再次点击确认强制结束" : "强制结束客户端";
+    public string ForceKillButtonText => _forceKillArmed
+        ? L("再次点击确认强制结束", "Click again to force kill")
+        : L("强制结束客户端", "Force kill client");
 
     public string ProcessExeText => Process?.Exe ?? "—";
     public string ProcessCmdlineText => Process?.Cmdline ?? "—";
@@ -616,7 +643,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
     }
 
-    public string X11RecordButtonText => _x11RecordEnabled ? "停止录制" : "开始录制";
+    public string X11RecordButtonText => _x11RecordEnabled
+        ? L("停止录制", "Stop recording")
+        : L("开始录制", "Start recording");
 
     public string X11RecordStatus
     {
@@ -815,8 +844,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string ScreenshotSource
     {
         get => _screenshotSource;
-        private set => Set(ref _screenshotSource, value);
+        private set
+        {
+            if (!Set(ref _screenshotSource, value)) return;
+            OnPropertyChanged(nameof(ScreenshotSourceText));
+        }
     }
+
+    public string ScreenshotSourceText =>
+        LocalizationService.F("来源：{0}", "Source: {0}", ScreenshotSource);
 
     public byte[]? ScreenshotPng => _screenshotPng;
 
@@ -827,6 +863,61 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public SessionInfo Session => _service.Registry.Session;
 
     public string SettingsFilePath => _settingsService.FilePath;
+
+    public string LanguageButtonText => LocalizationService.IsEnglish ? "中文" : "EN";
+
+    public string LanguageToolTip => LocalizationService.L("切换到 English", "Switch to 中文");
+
+    public void ToggleLanguage()
+    {
+        LocalizationService.SetLanguage(LocalizationService.IsEnglish ? "zh" : "en");
+        _settingsService.Update(settings => settings.Language = LocalizationService.LanguageCode);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e)
+    {
+        RebuildLocalizedOptions();
+        OnPropertyChanged(nameof(LanguageButtonText));
+        OnPropertyChanged(nameof(LanguageToolTip));
+        OnPropertyChanged(nameof(SelectedTitle));
+        OnPropertyChanged(nameof(SelectedSubtitle));
+        OnPropertyChanged(nameof(ProcessHeader));
+        OnPropertyChanged(nameof(AutoRefreshBadge));
+        OnPropertyChanged(nameof(GlobalHotkeyButtonText));
+        OnPropertyChanged(nameof(HotkeyConfig));
+        OnPropertyChanged(nameof(ForceKillButtonText));
+        OnPropertyChanged(nameof(X11RecordButtonText));
+        OnPropertyChanged(nameof(X11RecordStatus));
+        OnPropertyChanged(nameof(X11EventCountText));
+        OnPropertyChanged(nameof(EventCountText));
+        OnPropertyChanged(nameof(RealtimeSummary));
+        OnPropertyChanged(nameof(AtspiStatus));
+        OnPropertyChanged(nameof(AtspiCountText));
+        OnPropertyChanged(nameof(UpdatedText));
+        OnPropertyChanged(nameof(ScreenshotStatus));
+        OnPropertyChanged(nameof(ScreenshotSourceText));
+        OnPropertyChanged(nameof(X11PropertyCountText));
+        OnPropertyChanged(nameof(X11ChildCountText));
+        OnPropertyChanged(nameof(SnapshotStatus));
+        OnPropertyChanged(nameof(SnapshotDiffText));
+        OnPropertyChanged(nameof(ReportStatus));
+        OnPropertyChanged(nameof(OutputStatus));
+        OnPropertyChanged(nameof(OutputNote));
+        OnPropertyChanged(nameof(OutputSource));
+        OnPropertyChanged(nameof(FilterError));
+        OnPropertyChanged(nameof(FilterSummaryText));
+
+        foreach (var window in _allWindows) window.NotifyLanguageChanged();
+        _lastOverviewSnapshot.Clear();
+        _lastX11RowSnapshot.Clear();
+        if (TreeMode) BuildTree();
+        UpdateCounts();
+        UpdateSessionUi();
+        RefreshDiagnostics();
+        _ = LoadOutputsAsync();
+        if (SelectedWindow is { } selected) _ = InspectSelectedAsync(selected);
+        StatusText = LocalizationService.L("界面语言已切换为中文", "Interface language switched to English");
+    }
 
     public async Task InitializeAsync()
     {
@@ -864,11 +955,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (AutoRecord) await ToggleX11RecordAsync();
             if (AutoLoadAtspi) await LoadAtspiAsync();
             if (AutoHotkey) ToggleGlobalHotkey();
-            StatusText = "就绪 · 点击“十字准星拾取”或从列表选择窗口";
+            StatusText = L("就绪 · 点击“十字准星拾取”或从列表选择窗口", "Ready · use the crosshair or pick a window from the list");
         }
         catch (Exception ex)
         {
-            StatusText = $"初始化失败：{ex.Message}";
+            StatusText = LF("初始化失败：{0}", "Initialization failed: {0}", ex.Message);
         }
         finally
         {
@@ -901,7 +992,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            StatusText = $"刷新失败：{ex.Message}";
+            StatusText = LF("刷新失败：{0}", "Refresh failed: {0}", ex.Message);
         }
         finally
         {
@@ -919,10 +1010,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var cts = _pickCts;
         IsPicking = true;
         PickBanner = x11Only
-            ? $"X11 {(pickMode == PickMode.Drag ? "拖动" : "点击")}拾取：右键 / Esc 取消"
+            ? LF("X11 {0}拾取：右键 / Esc 取消", "X11 {0} pick: right-click / Esc to cancel",
+                pickMode == PickMode.Drag ? L("拖动", "drag") : L("点击", "click"))
             : pickMode == PickMode.Drag
-                ? "拖动准星到目标窗口并松开…"
-                : "正在启动点击拾取器…";
+                ? L("拖动准星到目标窗口并松开…", "Drag the crosshair onto a target window and release…")
+                : L("正在启动点击拾取器…", "Starting the click picker…");
         PickCountdown = null;
 
         var progress = new Progress<PickProgress>(p =>
@@ -937,8 +1029,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             PickCountdown = null;
             if (result.Window is null)
             {
-                PickBanner = result.Message ?? "未选择窗口";
-                StatusText = result.Cancelled ? "已取消拾取" : result.Message ?? "拾取失败";
+                PickBanner = result.Message ?? L("未选择窗口", "No window selected");
+                StatusText = result.Cancelled
+            ? L("已取消拾取", "Pick cancelled")
+            : result.Message ?? L("拾取失败", "Pick failed");
                 await Task.Delay(1200);
                 return;
             }
@@ -951,20 +1045,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _suppressInspect = false;
             var selected = Windows.FirstOrDefault(w => w.Id == picked.Id) ?? picked;
             SelectedWindow = selected;
-            PickBanner = $"已选择：{selected.Title}";
+            PickBanner = LF("已选择：{0}", "Selected: {0}", selected.Title);
             StatusText = $"{result.Message} · {selected.BackendLabel} · {selected.GeometryText}";
             UpdateCounts();
             _ = HighlightPickedAsync(selected, reportStatus: false);
         }
         catch (OperationCanceledException)
         {
-            PickBanner = "已取消拾取";
-            StatusText = "已取消拾取";
+            PickBanner = L("已取消拾取", "Pick cancelled");
+            StatusText = L("已取消拾取", "Pick cancelled");
         }
         catch (Exception ex)
         {
-            PickBanner = $"拾取失败：{ex.Message}";
-            StatusText = $"拾取失败：{ex.Message}";
+            PickBanner = LF("拾取失败：{0}", "Pick failed: {0}", ex.Message);
+            StatusText = LF("拾取失败：{0}", "Pick failed: {0}", ex.Message);
         }
         finally
         {
@@ -978,13 +1072,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _pickCts?.Cancel();
         _pickCts = new CancellationTokenSource();
         IsPicking = true;
-        PickBanner = "读取当前焦点窗口…";
+        PickBanner = L("读取当前焦点窗口…", "Reading the focused window…");
         try
         {
             var result = await _service.PickFocusedAsync(null, _pickCts.Token);
             if (result.Window is null)
             {
-                StatusText = result.Message ?? "无法读取焦点窗口";
+                StatusText = result.Message ?? L("无法读取焦点窗口", "Unable to read the focused window");
                 return;
             }
             await RefreshAsync();
@@ -993,8 +1087,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ApplyFilter();
             var selected = Windows.FirstOrDefault(w => w.Id == picked.Id) ?? picked;
             SelectedWindow = selected;
-            StatusText = $"当前焦点：{selected.Title}";
-            PickBanner = $"当前焦点：{selected.Title}";
+            StatusText = LF("当前焦点：{0}", "Current focus: {0}", selected.Title);
+            PickBanner = LF("当前焦点：{0}", "Current focus: {0}", selected.Title);
             _ = HighlightPickedAsync(selected, reportStatus: false);
         }
         finally
@@ -1006,21 +1100,25 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void CancelPick()
     {
         _pickCts?.Cancel();
-        PickBanner = "已请求取消…";
+        PickBanner = L("已请求取消…", "Cancelling…");
     }
 
     public async Task FocusSelectedAsync()
     {
         if (SelectedWindow is null) return;
         var ok = await _service.FocusAsync(SelectedWindow, CancellationToken.None);
-        StatusText = ok ? $"已聚焦：{SelectedWindow.Title}" : "该后端不支持聚焦操作";
+        StatusText = ok
+            ? LF("已聚焦：{0}", "Focused: {0}", SelectedWindow.Title)
+            : L("该后端不支持聚焦操作", "This backend does not support focusing");
     }
 
     public async Task CloseSelectedAsync()
     {
         if (SelectedWindow is null) return;
         var ok = await _service.CloseAsync(SelectedWindow, CancellationToken.None);
-        StatusText = ok ? $"已发送关闭请求：{SelectedWindow.Title}" : "该后端不支持关闭操作";
+        StatusText = ok
+            ? LF("已发送关闭请求：{0}", "Close request sent: {0}", SelectedWindow.Title)
+            : L("该后端不支持关闭操作", "This backend does not support closing");
         if (ok) await Task.Delay(300);
         if (ok) await RefreshAsync();
     }
@@ -1035,7 +1133,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is null) return;
         var window = SelectedWindow;
-        ScreenshotStatus = "正在截图…";
+        ScreenshotStatus = L("正在截图…", "Capturing…");
         ScreenshotSource = "";
         try
         {
@@ -1054,12 +1152,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             HasScreenshot = true;
             ScreenshotSource = result.Source;
             ScreenshotStatus = $"{result.Message} · {result.Width}×{result.Height}";
-            StatusText = $"已截图：{window.Title} · {ScreenshotStatus}";
+            StatusText = LF("已截图：{0} · {1}", "Screenshot captured: {0} · {1}", window.Title, ScreenshotStatus);
             if (activateTab) SelectedTabIndex = 7;
         }
         catch (Exception ex)
         {
-            ScreenshotStatus = $"截图失败：{ex.Message}";
+            ScreenshotStatus = LF("截图失败：{0}", "Screenshot failed: {0}", ex.Message);
             StatusText = ScreenshotStatus;
         }
     }
@@ -1078,7 +1176,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var window = SelectedWindow;
         if (window is null)
         {
-            GeneratedRule = "# 先选择一个窗口";
+            GeneratedRule = L("# 先选择一个窗口", "# Select a window first");
             return;
         }
 
@@ -1107,12 +1205,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             var ok = await _service.HighlightAsync(window, 2600, CancellationToken.None);
             if (!reportStatus) return;
             StatusText = ok
-                ? $"已请求高亮 {window.Title}（约 2.6 秒）"
-                : "当前后端不支持全局高亮，可用“聚焦”替代";
+                ? LF("已请求高亮 {0}（约 2.6 秒）", "Highlight requested for {0} (about 2.6 s)", window.Title)
+                : L("当前后端不支持全局高亮，可用“聚焦”替代", "This backend does not support global highlighting; use “Focus” instead");
         }
         catch
         {
-            if (reportStatus) StatusText = "高亮请求失败";
+            if (reportStatus) StatusText = L("高亮请求失败", "Highlight request failed");
         }
     }
 
@@ -1127,26 +1225,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 foreach (var status in _service.Registry.GetStatuses()) Diagnostics.Add(status);
                 SessionRows.Clear();
                 var s = _service.Registry.Session;
-                SessionRows.Add(new InfoRow("会话类型", s.SessionType));
-                SessionRows.Add(new InfoRow("桌面环境", s.Desktop));
-                SessionRows.Add(new InfoRow("Wayland 显示", s.WaylandDisplay));
-                SessionRows.Add(new InfoRow("X11 显示", s.X11Display));
-                SessionRows.Add(new InfoRow("合成器", s.Compositor, true));
-                SessionRows.Add(new InfoRow("合成器版本", s.CompositorVersion));
+                SessionRows.Add(new InfoRow(L("会话类型", "Session type"), s.SessionType));
+                SessionRows.Add(new InfoRow(L("桌面环境", "Desktop"), s.Desktop));
+                SessionRows.Add(new InfoRow(L("Wayland 显示", "Wayland display"), s.WaylandDisplay));
+                SessionRows.Add(new InfoRow(L("X11 显示", "X11 display"), s.X11Display));
+                SessionRows.Add(new InfoRow(L("合成器", "Compositor"), s.Compositor, true));
+                SessionRows.Add(new InfoRow(L("合成器版本", "Compositor version"), s.CompositorVersion));
                 SessionRows.Add(new InfoRow("X11 WM", s.X11WmName));
-                SessionRows.Add(new InfoRow("X11 屏幕", _service.Registry.X11?.Inspector.DisplayName, true));
+                SessionRows.Add(new InfoRow(L("X11 屏幕", "X11 screen"), _service.Registry.X11?.Inspector.DisplayName, true));
                 SessionRows.Add(new InfoRow("XDG_CURRENT_DESKTOP", Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP")));
                 SessionRows.Add(new InfoRow("XDG_SESSION_TYPE", Environment.GetEnvironmentVariable("XDG_SESSION_TYPE")));
                 SessionRows.Add(new InfoRow("DBUS_SESSION_BUS_ADDRESS", Environment.GetEnvironmentVariable("DBUS_SESSION_BUS_ADDRESS"), true));
-                SessionRows.Add(new InfoRow("进程 socket 检测", "通过 /proc/<pid>/fd + /proc/net/unix 判断 X11/Wayland 连接", wrap: true));
-                SessionRows.Add(new InfoRow("设置文件", _settingsService.FilePath, mono: true, wrap: true));
-                SessionRows.Add(new InfoRow("设置持久化", "窗口尺寸 / 筛选 / 开关 / 规则 / XRecord 过滤自动保存；不恢复最后选中的窗口或 Tab", wrap: true));
+                SessionRows.Add(new InfoRow(L("进程 socket 检测", "Process socket detection"), L("通过 /proc/<pid>/fd + /proc/net/unix 判断 X11/Wayland 连接", "Detect X11/Wayland connections via /proc/<pid>/fd + /proc/net/unix"), wrap: true));
+                SessionRows.Add(new InfoRow(L("设置文件", "Settings file"), _settingsService.FilePath, mono: true, wrap: true));
+                SessionRows.Add(new InfoRow(L("设置持久化", "Settings persistence"), L("窗口尺寸 / 筛选 / 开关 / 规则 / XRecord 过滤自动保存；不恢复最后选中的窗口或 Tab", "Window size / filters / toggles / rules / XRecord filters are saved automatically; the last selected window and tab are not restored"), wrap: true));
                 RealtimeRows.Clear();
-                RealtimeRows.Add(new InfoRow("状态", _monitor.IsRunning ? "运行中" : "未运行"));
-                RealtimeRows.Add(new InfoRow("后端", _monitor.StatusText, wrap: true));
-                RealtimeRows.Add(new InfoRow("事件数量", EventCountText));
-                RealtimeRows.Add(new InfoRow("兜底刷新", _monitor.IsRunning ? "15 秒（实时事件优先）" : "3 秒轮询"));
-                RealtimeRows.Add(new InfoRow("说明", "X11 使用独立 Display 连接选择 PropertyChange / StructureNotify / FocusChange；Wayland 使用合成器事件流。", wrap: true));
+                RealtimeRows.Add(new InfoRow(L("状态", "Status"), _monitor.IsRunning ? L("运行中", "Running") : L("未运行", "Stopped")));
+                RealtimeRows.Add(new InfoRow(L("后端", "Backend"), _monitor.StatusText, wrap: true));
+                RealtimeRows.Add(new InfoRow(L("事件数量", "Event count"), EventCountText));
+                RealtimeRows.Add(new InfoRow(L("兜底刷新", "Fallback refresh"), _monitor.IsRunning ? L("15 秒（实时事件优先）", "15 s (live events preferred)") : L("3 秒轮询", "3 s polling")));
+                RealtimeRows.Add(new InfoRow(L("说明", "Notes"), L("X11 使用独立 Display 连接选择 PropertyChange / StructureNotify / FocusChange；Wayland 使用合成器事件流。", "X11 uses a separate Display connection selecting PropertyChange / StructureNotify / FocusChange; Wayland uses compositor event streams."), wrap: true));
                 WaylandProtocols.Clear();
                 foreach (var protocol in protocols) WaylandProtocols.Add(protocol);
                 UpdateSessionUi();
@@ -1157,7 +1255,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public async Task InstallGnomeExtensionAsync()
     {
-        GnomeInstallStatus = "正在安装…";
+        GnomeInstallStatus = L("正在安装…", "Installing…");
         GnomeInstallStatus = await GnomeExtensionInstaller.InstallAsync(CancellationToken.None);
         await LoadDiagnosticsAsync();
     }
@@ -1169,13 +1267,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             _monitor.Start(OnRealtimeEvent);
-            RealtimeSummary = _monitor.IsRunning ? _monitor.StatusText : "不可用";
+            RealtimeSummary = _monitor.IsRunning ? _monitor.StatusText : L("不可用", "Unavailable");
             OnPropertyChanged(nameof(AutoRefreshBadge));
             OnPropertyChanged(nameof(IsRealtimeActive));
         }
         catch (Exception ex)
         {
-            RealtimeSummary = $"启动失败：{ex.Message}";
+            RealtimeSummary = LF("启动失败：{0}", "Start failed: {0}", ex.Message);
         }
     }
 
@@ -1189,7 +1287,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         Events.Insert(0, record);
         while (Events.Count > 800) Events.RemoveAt(Events.Count - 1);
         _eventCount++;
-        EventCountText = $"{_eventCount} 条事件";
+        EventCountText = LF("{0} 条事件", "{0} events", _eventCount);
         OnPropertyChanged(nameof(HasEvents));
 
         var selected = SelectedWindow;
@@ -1263,8 +1361,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             _x11EventMonitor.Stop();
             X11RecordEnabled = false;
-            X11RecordStatus = "已停止";
-            StatusText = "X11 RECORD 事件监视已停止";
+            X11RecordStatus = L("已停止", "Stopped");
+            StatusText = L("X11 RECORD 事件监视已停止", "X11 RECORD event monitoring stopped");
             return;
         }
 
@@ -1273,10 +1371,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         X11RecordEnabled = ok;
         X11RecordStatus = ok
             ? _x11RecordOnlySelected
-                ? "录制中 · 仅选中窗口（RECORD 扩展）"
-                : "录制中 · 全局（RECORD 扩展）"
-            : $"启动失败：{_x11EventMonitor.Error}";
-        StatusText = ok ? "X11 RECORD 事件监视已启动" : X11RecordStatus;
+                ? L("录制中 · 仅选中窗口（RECORD 扩展）", "Recording · selected window only (RECORD)")
+                : L("录制中 · 全局（RECORD 扩展）", "Recording · global (RECORD)")
+            : LF("启动失败：{0}", "Start failed: {0}", _x11EventMonitor.Error);
+        StatusText = ok ? L("X11 RECORD 事件监视已启动", "X11 RECORD event monitoring started") : X11RecordStatus;
     }
 
     private void OnX11Recorded(X11RecordedEvent recorded)
@@ -1287,7 +1385,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         X11Events.Insert(0, recorded);
         while (X11Events.Count > 2000) X11Events.RemoveAt(X11Events.Count - 1);
         _x11EventCount++;
-        X11EventCountText = $"{_x11EventCount} 条事件";
+        X11EventCountText = LF("{0} 条事件", "{0} events", _x11EventCount);
         OnPropertyChanged(nameof(HasX11Events));
     }
 
@@ -1323,12 +1421,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is null)
         {
-            AtspiStatus = "先选择一个窗口";
+            AtspiStatus = L("先选择一个窗口", "Select a window first");
             return;
         }
 
         var window = SelectedWindow;
-        AtspiStatus = "正在读取 AT-SPI 控件树…";
+        AtspiStatus = L("正在读取 AT-SPI 控件树…", "Reading the AT-SPI control tree…");
         try
         {
             var result = await AtspiService.LoadAsync(window, CancellationToken.None);
@@ -1336,19 +1434,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             AtspiTree.Clear();
             foreach (var root in result.Roots) AtspiTree.Add(root);
             AtspiStatus = result.Message;
-            AtspiCountText = result.Success ? $"{result.NodeCount} 个控件" : "";
+            AtspiCountText = result.Success ? LF("{0} 个控件", "{0} controls", result.NodeCount) : "";
             OnPropertyChanged(nameof(HasAtspiTree));
         }
         catch (Exception ex)
         {
-            AtspiStatus = $"读取失败：{ex.Message}";
+            AtspiStatus = LF("读取失败：{0}", "Read failed: {0}", ex.Message);
         }
     }
 
     public void ResetAtspi()
     {
         AtspiTree.Clear();
-        AtspiStatus = "尚未加载";
+        AtspiStatus = L("尚未加载", "Not loaded");
         AtspiCountText = "";
         OnPropertyChanged(nameof(HasAtspiTree));
     }
@@ -1356,7 +1454,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string BuildAtspiText()
     {
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine("TuxViewer · AT-SPI 控件树");
+        sb.AppendLine(L("TuxViewer · AT-SPI 控件树", "TuxViewer · AT-SPI control tree"));
         sb.AppendLine(new string('─', 50));
         foreach (var root in AtspiTree) AppendAtspi(sb, root, 0);
         return sb.ToString();
@@ -1374,15 +1472,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         X11Events.Clear();
         _x11EventCount = 0;
-        X11EventCountText = "0 条事件";
+        X11EventCountText = L("0 条事件", "0 events");
         OnPropertyChanged(nameof(HasX11Events));
     }
 
     public string BuildX11EventsText()
     {
-        if (X11Events.Count == 0) return "TuxViewer X11 RECORD 事件（空）";
+        if (X11Events.Count == 0) return L("TuxViewer X11 RECORD 事件（空）", "TuxViewer X11 RECORD events (empty)");
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"TuxViewer X11 RECORD 事件 · {X11Events.Count} 条 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(LF("TuxViewer X11 RECORD 事件 · {0} 条 · {1}", "TuxViewer X11 RECORD events · {0} · {1}", X11Events.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
         sb.AppendLine(new string('─', 60));
         foreach (var record in X11Events.Reverse())
             sb.AppendLine(record.DisplayText);
@@ -1395,24 +1493,26 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             _globalHotkey.Stop();
             GlobalHotkeyEnabled = false;
-            GlobalHotkeyStatus = "已停用";
-            StatusText = "全局拾取热键已停用";
+            GlobalHotkeyStatus = L("已停用", "Disabled");
+            StatusText = L("全局拾取热键已停用", "Global pick hotkey disabled");
             return;
         }
 
         var ok = _globalHotkey.Start(OnGlobalHotkeyPressed);
         GlobalHotkeyEnabled = ok;
         GlobalHotkeyStatus = ok
-            ? "已注册 Ctrl+Alt+X（XGrabKey，仅 X11 / 可收到 X11 按键的会话）"
-            : $"注册失败：{_globalHotkey.Error}";
-        StatusText = ok ? "全局拾取热键已注册：Ctrl+Alt+X" : GlobalHotkeyStatus;
+            ? L("已注册 Ctrl+Alt+X（XGrabKey，仅 X11 / 可收到 X11 按键的会话）", "Registered Ctrl+Alt+X (XGrabKey; X11 sessions or sessions that deliver X11 keys)")
+            : LF("注册失败：{0}", "Registration failed: {0}", _globalHotkey.Error);
+        StatusText = ok
+            ? L("全局拾取热键已注册：Ctrl+Alt+X", "Global pick hotkey registered: Ctrl+Alt+X")
+            : GlobalHotkeyStatus;
     }
 
     private void OnGlobalHotkeyPressed()
         => Dispatcher.UIThread.Post(() =>
         {
             if (IsPicking) return;
-            StatusText = "全局拾取热键：启动点击拾取";
+            StatusText = L("全局拾取热键：启动点击拾取", "Global hotkey: starting click pick");
             _ = PickAsync(mode: PickMode.Click);
         });
 
@@ -1443,7 +1543,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            ControlStatus = $"操作失败：{ex.Message}";
+            ControlStatus = LF("操作失败：{0}", "Action failed: {0}", ex.Message);
             StatusText = ControlStatus;
         }
     }
@@ -1502,7 +1602,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         {
             _forceKillArmed = true;
             OnPropertyChanged(nameof(ForceKillButtonText));
-            ControlStatus = "危险操作：再次点击“再次点击确认强制结束”将直接终止 X11 客户端";
+            ControlStatus = L("危险操作：再次点击“再次点击确认强制结束”将直接终止 X11 客户端", "Dangerous: clicking “Click again to force kill” again will terminate the X11 client immediately");
             _forceKillResetCts?.Cancel();
             _forceKillResetCts = new CancellationTokenSource();
             var token = _forceKillResetCts.Token;
@@ -1514,7 +1614,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                     if (!_forceKillArmed) return;
                     _forceKillArmed = false;
                     OnPropertyChanged(nameof(ForceKillButtonText));
-                    ControlStatus = "已取消强制结束";
+                    ControlStatus = L("已取消强制结束", "Force kill cancelled");
                 });
             });
             return;
@@ -1534,17 +1634,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
         if (string.IsNullOrWhiteSpace(exe))
         {
-            ControlStatus = "没有可执行文件路径";
+            ControlStatus = L("没有可执行文件路径", "No executable path available");
             return;
         }
         var directory = Path.GetDirectoryName(exe);
         if (string.IsNullOrWhiteSpace(directory))
         {
-            ControlStatus = $"无法解析目录：{exe}";
+            ControlStatus = LF("无法解析目录：{0}", "Cannot resolve directory: {0}", exe);
             return;
         }
         var result = await CommandRunner.TryRunAsync("xdg-open", [directory], 4000, CancellationToken.None);
-        ControlStatus = result?.Success == true ? $"已打开 {directory}" : $"打开目录失败：{result?.StdErr}";
+        ControlStatus = result?.Success == true
+            ? LF("已打开 {0}", "Opened {0}", directory)
+            : LF("打开目录失败：{0}", "Failed to open directory: {0}", result?.StdErr);
     }
 
     public string BuildProcessText()
@@ -1587,10 +1689,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is not { } window) return null;
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var (key, value) in _lastOverviewSnapshot) values[$"概览/{key}"] = value;
-        foreach (var (key, value) in _lastX11RowSnapshot) values[$"X11/{key}"] = value;
-        foreach (var property in _x11PropertiesAll) values[$"属性/{property.Name}"] = property.Value;
-        foreach (var row in ProcessRows) values[$"进程/{row.Label}"] = row.Value;
+        foreach (var (key, value) in _lastOverviewSnapshot) values[$"overview/{key}"] = value;
+        foreach (var (key, value) in _lastX11RowSnapshot) values[$"x11/{key}"] = value;
+        foreach (var property in _x11PropertiesAll) values[$"property/{property.Name}"] = property.Value;
+        foreach (var row in ProcessRows) values[$"process/{row.Label}"] = row.Value;
 
         return new WindowSnapshot
         {
@@ -1614,7 +1716,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedWindow is null)
         {
-            SnapshotStatus = "先选择一个窗口";
+            SnapshotStatus = L("先选择一个窗口", "Select a window first");
             return;
         }
 
@@ -1628,14 +1730,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         try
         {
             await SnapshotService.SaveAsync(snapshot, CancellationToken.None);
-            SnapshotStatus = $"已保存快照：{name}";
+            SnapshotStatus = LF("已保存快照：{0}", "Snapshot saved: {0}", name);
             SnapshotName = "";
             LoadSnapshots();
             SelectedSnapshot = Snapshots.FirstOrDefault(s => s.Id == snapshot.Id);
         }
         catch (Exception ex)
         {
-            SnapshotStatus = $"保存快照失败：{ex.Message}";
+            SnapshotStatus = LF("保存快照失败：{0}", "Failed to save snapshot: {0}", ex.Message);
         }
     }
 
@@ -1643,31 +1745,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedSnapshot is null)
         {
-            SnapshotStatus = "先选择一个快照";
+            SnapshotStatus = L("先选择一个快照", "Select a snapshot first");
             return;
         }
         if (SelectedWindow is null)
         {
-            SnapshotStatus = "先选择一个窗口";
+            SnapshotStatus = L("先选择一个窗口", "Select a window first");
             return;
         }
 
-        var current = BuildCurrentSnapshot("当前", includeScreenshot: false);
+        var current = BuildCurrentSnapshot(L("当前", "Current"), includeScreenshot: false);
         if (current is null) return;
         var diffs = SnapshotService.Compare(SelectedSnapshot, current);
         if (diffs.Count == 0)
         {
-            SnapshotDiffText = "没有差异：当前窗口与快照一致。";
-            SnapshotStatus = "对比完成：无差异";
+            SnapshotDiffText = L("没有差异：当前窗口与快照一致。", "No differences: the current window matches the snapshot.");
+            SnapshotStatus = L("对比完成：无差异", "Comparison complete: no differences");
             return;
         }
 
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"与快照“{SelectedSnapshot.Name}”对比 · {diffs.Count} 处差异");
+        sb.AppendLine(LF("与快照“{0}”对比 · {1} 处差异", "Compared with snapshot “{0}” · {1} differences", SelectedSnapshot.Name, diffs.Count));
         sb.AppendLine(new string('─', 50));
         foreach (var diff in diffs) sb.AppendLine(diff.DisplayText);
         SnapshotDiffText = sb.ToString();
-        SnapshotStatus = $"对比完成：{diffs.Count} 处差异";
+        SnapshotStatus = LF("对比完成：{0} 处差异", "Comparison complete: {0} differences", diffs.Count);
         OnPropertyChanged(nameof(HasSnapshotDiff));
     }
 
@@ -1675,7 +1777,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         if (SelectedSnapshot is not { } snapshot) return;
         SnapshotService.Delete(snapshot);
-        SnapshotStatus = $"已删除快照：{snapshot.Name}";
+        SnapshotStatus = LF("已删除快照：{0}", "Snapshot deleted: {0}", snapshot.Name);
         SelectedSnapshot = null;
         LoadSnapshots();
     }
@@ -1690,7 +1792,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ? "data:image/png;base64," + Convert.ToBase64String(png)
             : null;
         var html = ReportService.BuildHtml(window, Process, X11Details, dataUri, RawJson);
-        ReportStatus = "HTML 报告已生成";
+        ReportStatus = L("HTML 报告已生成", "HTML report generated");
         return html;
     }
 
@@ -1700,7 +1802,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         await EnsureScreenshotAsync();
         var image = ScreenshotPng is { Length: > 0 } ? imageFileName : null;
         var markdown = ReportService.BuildMarkdown(window, Process, X11Details, image, RawJson);
-        ReportStatus = "Markdown 报告已生成";
+        ReportStatus = L("Markdown 报告已生成", "Markdown report generated");
         return markdown;
     }
 
@@ -1726,15 +1828,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 foreach (var line in result.LayoutLines) OutputLayoutLines.Add(line);
                 OutputSource = result.Source;
                 OutputStatus = result.Outputs.Count == 0
-                    ? $"{result.Source} · 未检测到输出"
-                    : $"{result.Source} · {result.Outputs.Count} 个输出 · {result.Workspaces.Count} 个工作区";
+                    ? LF("{0} · 未检测到输出", "{0} · no outputs detected", result.Source)
+                    : LF("{0} · {1} 个输出 · {2} 个工作区", "{0} · {1} outputs · {2} workspaces",
+                        result.Source, result.Outputs.Count, result.Workspaces.Count);
                 OutputNote = result.Note;
                 OnPropertyChanged(nameof(HasOutputs));
             });
         }
         catch (Exception ex)
         {
-            OutputStatus = $"读取输出失败：{ex.Message}";
+            OutputStatus = LF("读取输出失败：{0}", "Failed to read outputs: {0}", ex.Message);
         }
     }
 
@@ -1742,15 +1845,15 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         Events.Clear();
         _eventCount = 0;
-        EventCountText = "0 条事件";
+        EventCountText = L("0 条事件", "0 events");
         OnPropertyChanged(nameof(HasEvents));
     }
 
     public string BuildEventsText()
     {
-        if (Events.Count == 0) return "TuxViewer 实时事件（空）";
+        if (Events.Count == 0) return L("TuxViewer 实时事件（空）", "TuxViewer live events (empty)");
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine($"TuxViewer 实时事件 · {Events.Count} 条 · {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine(LF("TuxViewer 实时事件 · {0} 条 · {1}", "TuxViewer live events · {0} · {1}", Events.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
         sb.AppendLine(new string('─', 60));
         foreach (var record in Events.Reverse())
             sb.AppendLine(record.DisplayText);
@@ -1814,7 +1917,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            await Dispatcher.UIThread.InvokeAsync(() => StatusText = $"读取详情失败：{ex.Message}");
+            await Dispatcher.UIThread.InvokeAsync(() => StatusText = LF("读取详情失败：{0}", "Failed to read details: {0}", ex.Message));
         }
         finally
         {
@@ -1856,31 +1959,36 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             rows.Add(new InfoRow(label, value, mono, wrap, changed, changed ? old : null));
         }
 
-        Add("标题", w.Title, wrap: true);
-        Add("应用 ID", w.AppId);
+        Add(L("标题", "Title"), w.Title, wrap: true);
+        Add(L("应用 ID", "App ID"), w.AppId);
         Add("WM_CLASS", w.WmClass);
-        Add("后端", w.BackendLabel);
-        Add("是否 X11 应用", w.Backend == WindowBackend.X11
-            ? (w.IsXWayland ? "是 · XWayland 客户端" : "是 · 原生 X11 客户端")
-            : "否 · Wayland 原生客户端");
-        Add("来源", w.SourceName);
+        Add(L("后端", "Backend"), w.BackendLabel);
+        Add(L("是否 X11 应用", "Is X11 app"), w.Backend == WindowBackend.X11
+            ? (w.IsXWayland
+                ? L("是 · XWayland 客户端", "Yes · XWayland client")
+                : L("是 · 原生 X11 客户端", "Yes · native X11 client"))
+            : L("否 · Wayland 原生客户端", "No · Wayland-native client"));
+        Add(L("来源", "Source"), w.SourceName);
         Add("TuxViewer ID", w.Id, mono: true);
-        Add("原生 ID", w.NativeId, mono: true);
+        Add(L("原生 ID", "Native ID"), w.NativeId, mono: true);
         var effectiveX11Id = w.X11WindowId ?? w.LinkedX11WindowId;
-        Add("X11 窗口", effectiveX11Id is not null ? $"0x{effectiveX11Id:x}" : null, mono: true);
+        Add(L("X11 窗口", "X11 window"), effectiveX11Id is not null ? $"0x{effectiveX11Id:x}" : null, mono: true);
         if (w.X11WindowId is not null && w.LinkedX11WindowId is not null)
-            Add("关联 X11 窗口", $"0x{w.LinkedX11WindowId:x}", mono: true);
+            Add(L("关联 X11 窗口", "Linked X11 window"), $"0x{w.LinkedX11WindowId:x}", mono: true);
         Add("PID", w.Pid?.ToString());
-        Add(w.Backend == WindowBackend.X11 && Session.IsWaylandSession ? "几何（合成器）" : "几何", w.GeometryText, mono: true);
-        Add("工作区", w.WorkspaceName ?? w.WorkspaceId?.ToString());
-        Add("输出", w.OutputName);
-        Add("焦点", w.IsFocused ? "是" : "否");
-        Add("映射状态", w.IsMapped ? "已映射" : "未映射 / 最小化");
-        Add("Override Redirect", w.IsOverrideRedirect ? "是" : "否");
+        Add(w.Backend == WindowBackend.X11 && Session.IsWaylandSession
+            ? L("几何（合成器）", "Geometry (compositor)")
+            : L("几何", "Geometry"), w.GeometryText, mono: true);
+        Add(L("工作区", "Workspace"), w.WorkspaceName ?? w.WorkspaceId?.ToString());
+        Add(L("输出", "Output"), w.OutputName);
+        Add(L("焦点", "Focused"), w.IsFocused ? L("是", "Yes") : L("否", "No"));
+        Add(L("映射状态", "Mapping"), w.IsMapped ? L("已映射", "Mapped") : L("未映射 / 最小化", "Unmapped / minimized"));
+        Add("Override Redirect", w.IsOverrideRedirect ? L("是", "Yes") : L("否", "No"));
         foreach (var (key, value) in w.Extra)
         {
-            if (rows.Any(r => r.Label == key)) continue;
-            Add(key, value, wrap: value.Length > 60);
+            var label = LocalizeExtraKey(key);
+            if (rows.Any(r => r.Label == label)) continue;
+            Add(label, LocalizeExtraValue(value), wrap: value.Length > 60);
         }
 
         OverviewRows.Clear();
@@ -1894,7 +2002,36 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         WaylandRows.Clear();
         foreach (var (key, value) in window.Extra)
-            WaylandRows.Add(new InfoRow(key, value, wrap: value.Length > 60));
+            WaylandRows.Add(new InfoRow(LocalizeExtraKey(key), LocalizeExtraValue(value), wrap: value.Length > 60));
+    }
+
+    private static string LocalizeExtraKey(string key) => key switch
+    {
+        "窗口 ID" => L("窗口 ID", "Window ID"),
+        "节点 ID" => L("节点 ID", "Node ID"),
+        "实例名" => L("实例名", "Instance name"),
+        "X11 窗口 ID" => L("X11 窗口 ID", "X11 window ID"),
+        "浮动" => L("浮动", "Floating"),
+        "紧急" => L("紧急", "Urgent"),
+        "全屏" => L("全屏", "Fullscreen"),
+        "瓦片尺寸" => L("瓦片尺寸", "Tile size"),
+        "布局位置" => L("布局位置", "Layout position"),
+        "最近聚焦" => L("最近聚焦", "Last focused"),
+        "工作区" => L("工作区", "Workspace"),
+        "输出" => L("输出", "Output"),
+        "地址" => L("地址", "Address"),
+        "XWayland" => "XWayland",
+        _ => key,
+    };
+
+    private static string LocalizeExtraValue(string value)
+    {
+        if (value == "是") return L("是", "Yes");
+        if (value == "否") return L("否", "No");
+        const string recentPrefix = "合成器启动后 ";
+        return value.StartsWith(recentPrefix, StringComparison.Ordinal)
+            ? L("合成器启动后 ", "Since compositor start ") + value[recentPrefix.Length..]
+            : value;
     }
 
     private void BuildProcess(InspectionResult result)
@@ -1906,22 +2043,22 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var p = result.Process;
         if (p is null)
         {
-            ProcessRows.Add(new InfoRow("状态", "没有可用的 /proc 信息（PID 为空或权限不足）", wrap: true));
+            ProcessRows.Add(new InfoRow(L("状态", "Status"), L("没有可用的 /proc 信息（PID 为空或权限不足）", "No /proc information available (empty PID or insufficient permissions)"), wrap: true));
             return;
         }
 
-        ProcessRows.Add(new InfoRow("进程名", p.Name));
+        ProcessRows.Add(new InfoRow(L("进程名", "Process name"), p.Name));
         ProcessRows.Add(new InfoRow("PID / PPID", $"{p.Pid} / {p.ParentPid}"));
-        ProcessRows.Add(new InfoRow("用户", p.User));
-        ProcessRows.Add(new InfoRow("状态", p.State));
-        ProcessRows.Add(new InfoRow("可执行文件", p.Exe, mono: true, wrap: true));
-        ProcessRows.Add(new InfoRow("启动命令", p.Cmdline, mono: true, wrap: true));
-        ProcessRows.Add(new InfoRow("工作目录", p.Cwd, mono: true, wrap: true));
-        ProcessRows.Add(new InfoRow("启动时间", p.StartedAt));
-        ProcessRows.Add(new InfoRow("内存 / 线程", $"{p.RssKb / 1024.0:0.#} MiB / {p.Threads}"));
-        ProcessRows.Add(new InfoRow("工具包", p.Toolkit.DisplayName));
-        ProcessRows.Add(new InfoRow("客户端连接", p.Backend.Display));
-        ProcessRows.Add(new InfoRow("沙箱", p.Sandbox));
+        ProcessRows.Add(new InfoRow(L("用户", "User"), p.User));
+        ProcessRows.Add(new InfoRow(L("状态", "Status"), p.State));
+        ProcessRows.Add(new InfoRow(L("可执行文件", "Executable"), p.Exe, mono: true, wrap: true));
+        ProcessRows.Add(new InfoRow(L("启动命令", "Command line"), p.Cmdline, mono: true, wrap: true));
+        ProcessRows.Add(new InfoRow(L("工作目录", "Working directory"), p.Cwd, mono: true, wrap: true));
+        ProcessRows.Add(new InfoRow(L("启动时间", "Started at"), p.StartedAt));
+        ProcessRows.Add(new InfoRow(L("内存 / 线程", "Memory / threads"), $"{p.RssKb / 1024.0:0.#} MiB / {p.Threads}"));
+        ProcessRows.Add(new InfoRow(L("工具包", "Toolkit"), p.Toolkit.DisplayName));
+        ProcessRows.Add(new InfoRow(L("客户端连接", "Client connections"), p.Backend.Display));
+        ProcessRows.Add(new InfoRow(L("沙箱", "Sandbox"), p.Sandbox));
         foreach (var evidence in p.Toolkit.Evidence) ToolkitEvidence.Add(evidence);
         foreach (var lib in p.KeyLibraries) KeyLibraries.Add(lib);
 
@@ -1954,24 +2091,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             rows.Add(new InfoRow(label, value, mono, wrap, changed, changed ? old : null));
         }
 
-        Add("窗口 ID", x11.IdHex, mono: true);
-        Add("标题", x11.Title, wrap: true);
-        Add("实例 / 类", $"{x11.InstanceName} / {x11.ClassName}", mono: true);
-        Add("几何 (X11 坐标)", $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}", mono: true);
+        Add(L("窗口 ID", "Window ID"), x11.IdHex, mono: true);
+        Add(L("标题", "Title"), x11.Title, wrap: true);
+        Add(L("实例 / 类", "Instance / class"), $"{x11.InstanceName} / {x11.ClassName}", mono: true);
+        Add(L("几何 (X11 坐标)", "Geometry (X11 coords)"), $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}", mono: true);
         if (Session.IsWaylandSession)
-            Add("坐标提示", "XWayland 的 X11 坐标可能经过缩放或偏移，和合成器布局不一致", wrap: true);
-        Add("边框 / 深度", $"{x11.BorderWidth} / {x11.Depth}");
-        Add("映射", x11.Mapped ? "viewable" : "unmapped");
-        Add("Override Redirect", x11.OverrideRedirect ? "是" : "否");
-        Add("Input Only", x11.InputOnly ? "是" : "否");
-        Add("窗口类型", x11.WindowType);
+            Add(L("坐标提示", "Coordinate note"), L("XWayland 的 X11 坐标可能经过缩放或偏移，和合成器布局不一致", "XWayland X11 coordinates may be scaled or offset and differ from the compositor layout"), wrap: true);
+        Add(L("边框 / 深度", "Border / depth"), $"{x11.BorderWidth} / {x11.Depth}");
+        Add(L("映射", "Mapping"), x11.Mapped ? "viewable" : "unmapped");
+        Add("Override Redirect", x11.OverrideRedirect ? L("是", "Yes") : L("否", "No"));
+        Add("Input Only", x11.InputOnly ? L("是", "Yes") : L("否", "No"));
+        Add(L("窗口类型", "Window type"), x11.WindowType);
         Add("WM State", x11.WmState);
         Add("Transient For", x11.TransientFor, mono: true);
-        Add("协议", x11.Protocols, wrap: true);
+        Add(L("协议", "Protocols"), x11.Protocols, wrap: true);
         Add("WM Normal Hints", x11.WmNormalHints, mono: true, wrap: true);
         Add("Root / Parent", $"{x11.RootWindow} / {x11.ParentWindow}", mono: true);
-        Add("直接子窗口", x11.ChildCount.ToString());
-        Add("事件掩码", x11.EventMask, mono: true, wrap: true);
+        Add(L("直接子窗口", "Direct children"), x11.ChildCount.ToString());
+        Add(L("事件掩码", "Event mask"), x11.EventMask, mono: true, wrap: true);
 
         foreach (var row in rows) X11Rows.Add(row);
         _lastX11RowSnapshot.Clear();
@@ -2003,10 +2140,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         SocketRows.Clear();
         if (process is null) return;
-        SocketRows.Add(new InfoRow("X11 socket", process.Backend.HasX11Socket ? "已连接" : "未连接"));
-        SocketRows.Add(new InfoRow("Wayland socket", process.Backend.HasWaylandSocket ? "已连接" : "未连接"));
-        SocketRows.Add(new InfoRow("D-Bus socket", process.Backend.HasDbusSocket ? "已连接" : "未连接"));
-        SocketRows.Add(new InfoRow("PipeWire socket", process.Backend.HasPipeWireSocket ? "已连接" : "未连接"));
+        SocketRows.Add(new InfoRow("X11 socket", process.Backend.HasX11Socket ? L("已连接", "Connected") : L("未连接", "Not connected")));
+        SocketRows.Add(new InfoRow("Wayland socket", process.Backend.HasWaylandSocket ? L("已连接", "Connected") : L("未连接", "Not connected")));
+        SocketRows.Add(new InfoRow("D-Bus socket", process.Backend.HasDbusSocket ? L("已连接", "Connected") : L("未连接", "Not connected")));
+        SocketRows.Add(new InfoRow("PipeWire socket", process.Backend.HasPipeWireSocket ? L("已连接", "Connected") : L("未连接", "Not connected")));
         foreach (var socket in process.Sockets)
             SocketRows.Add(new InfoRow(socket.Kind, $"{socket.Path}  (inode {socket.Inode})", mono: true, wrap: true));
     }
@@ -2040,7 +2177,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid) && pid > 0)
                     pids.Add(pid);
                 else
-                    errors.Add($"PID “{token}” 不是有效整数");
+                    errors.Add(LF("PID “{0}” 不是有效整数", "PID “{0}” is not a valid integer", token));
             }
             if (pids.Count > 0)
                 filtered = filtered.Where(w => w.Pid is int pid && pids.Contains(pid));
@@ -2068,7 +2205,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 }
                 catch (ArgumentException ex)
                 {
-                    errors.Add($"正则表达式无效：{ex.Message}");
+                    errors.Add(LF("正则表达式无效：{0}", "Invalid regular expression: {0}", ex.Message));
                 }
 
                 if (regex is not null)
@@ -2080,7 +2217,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                     }
                     catch (RegexMatchTimeoutException)
                     {
-                        errors.Add("正则匹配超时（250 ms），请简化表达式");
+                        errors.Add(L("正则匹配超时（250 ms），请简化表达式", "Regex match timed out (250 ms); simplify the expression"));
                     }
                 }
             }
@@ -2187,10 +2324,34 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (Contains(window.WorkspaceName, token)) return true;
             if (window.WorkspaceId is int id &&
                 (id.ToString(CultureInfo.InvariantCulture) == token ||
-                 $"工作区 {id}".Contains(token, StringComparison.OrdinalIgnoreCase)))
+                 L($"工作区 {id}", $"Workspace {id}").Contains(token, StringComparison.OrdinalIgnoreCase)))
                 return true;
         }
         return false;
+    }
+
+    private void RebuildLocalizedOptions()
+    {
+        var backend = Math.Clamp(_backendFilterIndex, 0, 4);
+        var group = Math.Clamp(_treeGroupModeIndex, 0, 3);
+
+        BackendFilters.Clear();
+        BackendFilters.Add(LocalizationService.L("全部后端", "All backends"));
+        BackendFilters.Add(LocalizationService.L("X11（含 XWayland）", "X11 (incl. XWayland)"));
+        BackendFilters.Add(LocalizationService.L("Wayland 原生", "Wayland native"));
+        BackendFilters.Add(LocalizationService.L("仅 XWayland", "XWayland only"));
+        BackendFilters.Add(LocalizationService.L("仅 X11 原生", "X11 native only"));
+
+        TreeGroupModes.Clear();
+        TreeGroupModes.Add(LocalizationService.L("按应用", "By app"));
+        TreeGroupModes.Add(LocalizationService.L("按进程", "By process"));
+        TreeGroupModes.Add(LocalizationService.L("按工作区", "By workspace"));
+        TreeGroupModes.Add(LocalizationService.L("平铺", "Flat"));
+
+        _backendFilterIndex = backend;
+        _treeGroupModeIndex = group;
+        OnPropertyChanged(nameof(BackendFilterIndex));
+        OnPropertyChanged(nameof(TreeGroupModeIndex));
     }
 
     private void LoadFilterPresets(IEnumerable<FilterPreset> presets)
@@ -2206,7 +2367,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void SaveFilterPreset()
     {
         var name = FilterPresetName.Trim();
-        if (name.Length == 0) name = $"筛选 {FilterPresets.Count + 1}";
+        if (name.Length == 0) name = LF("筛选 {0}", "Filter {0}", FilterPresets.Count + 1);
 
         var preset = new FilterPreset
         {
@@ -2240,7 +2401,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         SelectedFilterPresetIndex = index;
         FilterPresetName = "";
         SaveFilterPresets();
-        StatusText = $"已保存筛选预设“{name}”";
+        StatusText = LF("已保存筛选预设“{0}”", "Filter preset saved: “{0}”", name);
     }
 
     public void ApplySelectedFilterPreset()
@@ -2258,7 +2419,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             ? -1
             : Math.Min(_selectedFilterPresetIndex, FilterPresets.Count - 1);
         SaveFilterPresets();
-        StatusText = $"已删除筛选预设“{name}”";
+        StatusText = LF("已删除筛选预设“{0}”", "Filter preset deleted: “{0}”", name);
     }
 
     public void ResetFilters()
@@ -2288,7 +2449,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(OnlySelectedPid));
         OnPropertyChanged(nameof(SelectedFilterPresetIndex));
         ApplyFilter();
-        StatusText = "已清除窗口筛选";
+        StatusText = L("已清除窗口筛选", "Window filters cleared");
     }
 
     private void ApplyFilterPreset(FilterPreset preset)
@@ -2315,7 +2476,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(IncludeUnmapped));
         OnPropertyChanged(nameof(SelectedFilterPresetIndex));
         ApplyFilter();
-        StatusText = $"已应用筛选预设“{preset.Name}”";
+        StatusText = LF("已应用筛选预设“{0}”", "Applied filter preset: “{0}”", preset.Name);
     }
 
     private void SaveFilterPresets()
@@ -2389,7 +2550,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 {
                     Id = $"group:{group.Key}",
                     GroupTitle = group.Key,
-                    GroupSubtitle = $"{group.Count()} 个窗口",
+                    GroupSubtitle = LF("{0} 个窗口", "{0} windows", group.Count()),
                     IsExpanded = true,
                 };
                 foreach (var window in group) groupNode.Children.Add(BuildWindowNode(window));
@@ -2428,10 +2589,10 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             {
                 Id = $"x11:0x{child.Id:x}",
                 SourceId = "x11",
-                SourceName = "X11 · 子窗口",
+                SourceName = L("X11 · 子窗口", "X11 · child window"),
                 NativeId = $"0x{child.Id:x}",
                 Title = string.IsNullOrWhiteSpace(child.Title)
-                    ? $"{child.ClassName ?? "子窗口"} 0x{child.Id:x}"
+                    ? $"{child.ClassName ?? L("子窗口", "child")} 0x{child.Id:x}"
                     : child.Title,
                 AppId = child.ClassName,
                 WmClass = child.ClassName,
@@ -2461,9 +2622,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private string GroupKey(WindowInfo window) => TreeGroupModeIndex switch
     {
-        1 => window.Pid is int pid ? $"PID {pid}" : "未知 PID",
+        1 => window.Pid is int pid ? $"PID {pid}" : L("未知 PID", "Unknown PID"),
         2 => window.WorkspaceName
-             ?? (window.WorkspaceId is int id ? $"工作区 {id}" : "未知工作区"),
+             ?? (window.WorkspaceId is int id ? L($"工作区 {id}", $"Workspace {id}") : L("未知工作区", "Unknown workspace")),
         _ => !string.IsNullOrWhiteSpace(window.AppId)
             ? window.AppId!
             : !string.IsNullOrWhiteSpace(window.WmClass) ? window.WmClass! : window.SourceName,
@@ -2485,7 +2646,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         var wayland = visible.Count(w => w.Backend == WindowBackend.Wayland);
         var xwayland = visible.Count(w => w.IsXWayland);
         var own = visible.Count(w => w.IsOwnWindow);
-        CountsText = $"{visible.Count} 个窗口 · X11 {x11} · Wayland {wayland} · XWayland {xwayland} · 本应用 {own}";
+        CountsText = LF("{0} 个窗口 · X11 {1} · Wayland {2} · XWayland {3} · 本应用 {4}",
+            "{0} windows · X11 {1} · Wayland {2} · XWayland {3} · this app {4}",
+            visible.Count, x11, wayland, xwayland, own);
         OnPropertyChanged(nameof(Session));
     }
 
@@ -2636,6 +2799,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
+
+    private static string L(string chinese, string english) => LocalizationService.L(chinese, english);
+
+    private static string LF(string chineseFormat, string englishFormat, params object?[] args)
+        => LocalizationService.F(chineseFormat, englishFormat, args);
 
     private bool Set<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {

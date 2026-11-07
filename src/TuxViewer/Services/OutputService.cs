@@ -26,11 +26,11 @@ public static partial class OutputService
         var root = registry.X11?.Inspector.GetRootGeometry();
         if (root is null) return result;
         var logical = result.Outputs.FirstOrDefault(o => o.Width is > 0 && o.Height is > 0);
-        var text = $"X11/XWayland 根窗口：{root.Value.Width}×{root.Value.Height}";
+        var text = LocalizationService.F("X11/XWayland 根窗口：{0}×{1}", "X11/XWayland root window: {0}×{1}", root.Value.Width, root.Value.Height);
         if (logical is not null)
-            text += $" · 合成器逻辑输出：{logical.Width}×{logical.Height} @ {logical.ScaleText}";
+            text += LocalizationService.F(" · 合成器逻辑输出：{0}×{1} @ {2}", " · compositor logical output: {0}×{1} @ {2}", logical.Width, logical.Height, logical.ScaleText);
         if (logical?.Scale is > 0 && root.Value.Width != logical.Width)
-            text += " · X11 坐标可能经过缩放，拾取 / 截图时以 X11 根窗口为准";
+            text += LocalizationService.L(" · X11 坐标可能经过缩放，拾取 / 截图时以 X11 根窗口为准", " · X11 coordinates may be scaled; picking / screenshots use the X11 root window");
         return new OutputResult
         {
             Outputs = result.Outputs,
@@ -163,7 +163,7 @@ public static partial class OutputService
                                 size = $"{ws[0]:0}×{ws[1]:0}";
                         }
                         var floating = window.TryGetProperty("is_floating", out var fl) && fl.ValueKind == JsonValueKind.True;
-                        var title = GetString(window, "title") ?? "(无标题)";
+                        var title = GetString(window, "title") ?? LocalizationService.L("(无标题)", "(untitled)");
                         var app = GetString(window, "app_id");
                         if (!grouped.TryGetValue(workspaceId, out var list))
                             grouped[workspaceId] = list = [];
@@ -200,7 +200,7 @@ public static partial class OutputService
             Workspaces = workspaces,
             LayoutLines = layoutLines,
             Source = "niri IPC",
-            Note = outputs.Count == 0 ? "niri 没有返回输出信息" : "",
+            Note = outputs.Count == 0 ? LocalizationService.L("niri 没有返回输出信息", "niri returned no output information") : "",
         };
     }
 
@@ -352,7 +352,7 @@ public static partial class OutputService
                         var windows = GetInt(ws, "windows") ?? 0;
                         var focused = ws.TryGetProperty("hasfullscreen", out _) && false; // filled from monitor focus below
                         workspaces.Add(new WorkspaceInfo { Name = name, Output = output, WindowCount = windows });
-                        lines.Add($"{name} ({output ?? "?"}) · {windows} 个窗口");
+                        lines.Add(LocalizationService.F("{0} ({1}) · {2} 个窗口", "{0} ({1}) · {2} windows", name, output ?? "?", windows));
                     }
                 }
             }
@@ -371,7 +371,7 @@ public static partial class OutputService
     private static async Task<OutputResult> TryXrandrAsync(CancellationToken cancellationToken)
     {
         if (!CommandRunner.Exists("xrandr"))
-            return new OutputResult { Source = "X11", Note = "没有可用的输出后端（缺少 xrandr / niri / swaymsg / hyprctl）" };
+            return new OutputResult { Source = "X11", Note = LocalizationService.L("没有可用的输出后端（缺少 xrandr / niri / swaymsg / hyprctl）", "No output backend available (missing xrandr / niri / swaymsg / hyprctl)") };
 
         var listTask = CommandRunner.TryRunAsync("xrandr", ["--listmonitors"], 4000, cancellationToken);
         var queryTask = CommandRunner.TryRunAsync("xrandr", ["--query"], 4000, cancellationToken);
@@ -431,7 +431,7 @@ public static partial class OutputService
         {
             Outputs = outputs,
             Source = "xrandr",
-            Note = outputs.Count == 0 ? "xrandr 没有返回显示器信息" : "",
+            Note = outputs.Count == 0 ? LocalizationService.L("xrandr 没有返回显示器信息", "xrandr returned no monitor information") : "",
         };
     }
 

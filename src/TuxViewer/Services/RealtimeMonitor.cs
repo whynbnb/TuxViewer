@@ -22,7 +22,7 @@ public sealed class RealtimeMonitor : IDisposable
     public bool IsRunning { get; private set; }
     public IReadOnlyList<string> BackendNames => _backends.Select(b => b.Name).ToList();
     public string StatusText => _backends.Count == 0
-        ? "没有可用的实时事件后端（将继续使用轮询）"
+        ? LocalizationService.L("没有可用的实时事件后端（将继续使用轮询）", "No live event backend available (polling will continue)")
         : string.Join(" · ", _backends.Select(b => b.Name));
 
     public void Start(Action<WindowEventRecord> sink)
@@ -196,15 +196,15 @@ public sealed class RealtimeMonitor : IDisposable
                     if (ev.Window == (nuint)_root)
                     {
                         if (atom == "_NET_ACTIVE_WINDOW")
-                            Emit(MonitorEventKind.Focus, "root", null, "活动窗口切换");
+                            Emit(MonitorEventKind.Focus, "root", null, LocalizationService.L("活动窗口切换", "Active window changed"));
                         else if (atom is "_NET_CLIENT_LIST" or "_NET_CLIENT_LIST_STACKING")
-                            Emit(MonitorEventKind.Generic, "root", null, $"{atom} 更新");
+                            Emit(MonitorEventKind.Generic, "root", null, LocalizationService.F("{0} 更新", "{0} updated", atom));
                         return;
                     }
 
                     if (IsHighlightWindow((ulong)ev.Window)) return;
                     var kind = atom is "_NET_WM_NAME" or "WM_NAME" ? MonitorEventKind.Title : MonitorEventKind.Property;
-                    Emit(kind, $"0x{(ulong)ev.Window:x}", atom, $"{atom} 属性更新");
+                    Emit(kind, $"0x{(ulong)ev.Window:x}", atom, LocalizationService.F("{0} 属性更新", "{0} property updated", atom));
                     return;
                 }
                 case X11Native.ConfigureNotify:
@@ -219,21 +219,21 @@ public sealed class RealtimeMonitor : IDisposable
                 {
                     var id = (ulong)ev.EventWindow;
                     if (IsHighlightWindow(id)) return;
-                    Emit(MonitorEventKind.Map, $"0x{id:x}", null, "窗口已映射");
+                    Emit(MonitorEventKind.Map, $"0x{id:x}", null, LocalizationService.L("窗口已映射", "Window mapped"));
                     return;
                 }
                 case X11Native.UnmapNotify:
                 {
                     var id = (ulong)ev.EventWindow;
                     if (IsHighlightWindow(id)) return;
-                    Emit(MonitorEventKind.Unmap, $"0x{id:x}", null, "窗口已取消映射");
+                    Emit(MonitorEventKind.Unmap, $"0x{id:x}", null, LocalizationService.L("窗口已取消映射", "Window unmapped"));
                     return;
                 }
                 case X11Native.DestroyNotify:
                 {
                     var id = (ulong)ev.EventWindow;
                     _watched.Remove(id);
-                    Emit(MonitorEventKind.Closed, $"0x{id:x}", null, "窗口已销毁");
+                    Emit(MonitorEventKind.Closed, $"0x{id:x}", null, LocalizationService.L("窗口已销毁", "Window destroyed"));
                     return;
                 }
                 case X11Native.CreateNotify:
@@ -241,7 +241,7 @@ public sealed class RealtimeMonitor : IDisposable
                     var id = (ulong)ev.EventWindow;
                     Select(id);
                     if (!IsHighlightWindow(id))
-                        Emit(MonitorEventKind.Opened, $"0x{id:x}", null, "新窗口");
+                        Emit(MonitorEventKind.Opened, $"0x{id:x}", null, LocalizationService.L("新窗口", "New window"));
                     return;
                 }
                 case X11Native.ReparentNotify:
@@ -255,7 +255,7 @@ public sealed class RealtimeMonitor : IDisposable
                     var id = (ulong)ev.Window;
                     if (IsHighlightWindow(id)) return;
                     Emit(MonitorEventKind.Focus, $"0x{id:x}", null,
-                        ev.Type == X11Native.FocusIn ? "获得焦点" : "失去焦点");
+                        ev.Type == X11Native.FocusIn ? LocalizationService.L("获得焦点", "focused") : LocalizationService.L("失去焦点", "unfocused"));
                     return;
                 }
             }
@@ -357,11 +357,11 @@ public sealed class RealtimeMonitor : IDisposable
 
                 var (kind, summary) = change switch
                 {
-                    "closed" => (MonitorEventKind.Closed, "窗口已关闭"),
-                    "focus-changed" => (MonitorEventKind.Focus, "焦点变化"),
-                    "layout-changed" => (MonitorEventKind.Configure, "布局 / 几何变化"),
-                    "urgent-changed" => (MonitorEventKind.Generic, "紧急状态变化"),
-                    "opened-or-changed" => (MonitorEventKind.Opened, "窗口打开或更新"),
+                    "closed" => (MonitorEventKind.Closed, LocalizationService.L("窗口已关闭", "Window closed")),
+                    "focus-changed" => (MonitorEventKind.Focus, LocalizationService.L("焦点变化", "Focus changed")),
+                    "layout-changed" => (MonitorEventKind.Configure, LocalizationService.L("布局 / 几何变化", "Layout / geometry changed")),
+                    "urgent-changed" => (MonitorEventKind.Generic, LocalizationService.L("紧急状态变化", "Urgent state changed")),
+                    "opened-or-changed" => (MonitorEventKind.Opened, LocalizationService.L("窗口打开或更新", "Window opened or updated")),
                     _ => (MonitorEventKind.Generic, change),
                 };
                 if (!string.IsNullOrWhiteSpace(title) && kind is MonitorEventKind.Opened or MonitorEventKind.Generic)
@@ -473,7 +473,7 @@ public sealed class RealtimeMonitor : IDisposable
                     Kind = kind,
                     NativeId = id,
                     AppId = appId,
-                    Summary = $"{change} · {title ?? appId ?? id ?? "窗口"}",
+                    Summary = LocalizationService.F("{0} · {1}", "{0} · {1}", change, title ?? appId ?? id ?? LocalizationService.L("窗口", "window")),
                 });
             }
             catch { /* partial or unknown line */ }
@@ -539,17 +539,17 @@ public sealed class RealtimeMonitor : IDisposable
             var (kind, summary) = name switch
             {
                 "openwindow" => (MonitorEventKind.Opened,
-                    parts.Length >= 4 ? $"{parts[2]} · {string.Join(',', parts.Skip(3))}" : "窗口打开"),
-                "closewindow" => (MonitorEventKind.Closed, "窗口关闭"),
+                    parts.Length >= 4 ? $"{parts[2]} · {string.Join(',', parts.Skip(3))}" : LocalizationService.L("窗口打开", "Window opened")),
+                "closewindow" => (MonitorEventKind.Closed, LocalizationService.L("窗口关闭", "Window closed")),
                 "activewindow" => (MonitorEventKind.Focus,
-                    parts.Length >= 2 ? $"{parts[0]} · {string.Join(',', parts.Skip(1))}" : "焦点变化"),
+                    parts.Length >= 2 ? $"{parts[0]} · {string.Join(',', parts.Skip(1))}" : LocalizationService.L("焦点变化", "Focus changed")),
                 "windowtitle" or "windowtitlev2" => (MonitorEventKind.Title,
-                    parts.Length >= 2 ? string.Join(',', parts.Skip(1)) : "标题变化"),
-                "movewindow" or "movewindowv2" => (MonitorEventKind.Workspace, "窗口移动到工作区"),
-                "changefloatingmode" => (MonitorEventKind.Configure, "浮动状态变化"),
-                "fullscreen" => (MonitorEventKind.Configure, "全屏状态变化"),
-                "minimize" => (MonitorEventKind.Configure, "最小化状态变化"),
-                "urgent" => (MonitorEventKind.Generic, "紧急状态变化"),
+                    parts.Length >= 2 ? string.Join(',', parts.Skip(1)) : LocalizationService.L("标题变化", "Title changed")),
+                "movewindow" or "movewindowv2" => (MonitorEventKind.Workspace, LocalizationService.L("窗口移动到工作区", "Window moved to workspace")),
+                "changefloatingmode" => (MonitorEventKind.Configure, LocalizationService.L("浮动状态变化", "Floating state changed")),
+                "fullscreen" => (MonitorEventKind.Configure, LocalizationService.L("全屏状态变化", "Fullscreen state changed")),
+                "minimize" => (MonitorEventKind.Configure, LocalizationService.L("最小化状态变化", "Minimized state changed")),
+                "urgent" => (MonitorEventKind.Generic, LocalizationService.L("紧急状态变化", "Urgent state changed")),
                 _ => (MonitorEventKind.Generic, name),
             };
 

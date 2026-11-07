@@ -127,7 +127,7 @@ print(json.dumps({
     public static async Task<AtspiResult> LoadAsync(WindowInfo window, CancellationToken cancellationToken)
     {
         if (!CommandRunner.Exists("python3"))
-            return new AtspiResult { Message = "缺少 python3，无法读取 AT-SPI" };
+            return new AtspiResult { Message = LocalizationService.L("缺少 python3，无法读取 AT-SPI", "python3 is missing; cannot read AT-SPI") };
 
         var probe = await CommandRunner.TryRunAsync(
             "python3",
@@ -136,7 +136,7 @@ print(json.dumps({
         if (probe?.Success != true || !probe.StdOut.Contains("ok", StringComparison.Ordinal))
             return new AtspiResult
             {
-                Message = "缺少 python3-gi / Atspi 绑定（Arch: pacman -S python-gobject at-spi2-core）",
+                Message = LocalizationService.L("缺少 python3-gi / Atspi 绑定（Arch: pacman -S python-gobject at-spi2-core）", "python3-gi / Atspi bindings are missing (Arch: pacman -S python-gobject at-spi2-core)"),
             };
 
         var args = new[]
@@ -149,7 +149,7 @@ print(json.dumps({
         };
         var result = await CommandRunner.TryRunAsync("python3", args, 20_000, cancellationToken);
         if (result is null || string.IsNullOrWhiteSpace(result.StdOut))
-            return new AtspiResult { Message = result?.StdErr ?? "AT-SPI 没有返回数据" };
+            return new AtspiResult { Message = result?.StdErr ?? LocalizationService.L("AT-SPI 没有返回数据", "AT-SPI returned no data") };
 
         var json = result.StdOut.Trim();
         var start = json.IndexOf('{');
@@ -183,15 +183,15 @@ print(json.dumps({
                 NodeCount = nodes,
                 Roots = roots,
                 Message = matched
-                    ? $"已匹配选中窗口 · {nodes} 个控件 · {apps} 个应用"
+                    ? LocalizationService.F("已匹配选中窗口 · {0} 个控件 · {1} 个应用", "Matched the selected window · {0} controls · {1} apps", nodes, apps)
                     : apps == 0
-                        ? "AT-SPI 桌面没有注册任何应用（请开启工具包无障碍桥）"
-                        : $"未精确匹配窗口，已显示全部 {apps} 个应用 · {nodes} 个控件",
+                        ? LocalizationService.L("AT-SPI 桌面没有注册任何应用（请开启工具包无障碍桥）", "No apps are registered with the AT-SPI desktop (enable the toolkit accessibility bridge)")
+                        : LocalizationService.F("未精确匹配窗口，已显示全部 {0} 个应用 · {1} 个控件", "No exact window match; showing all {0} apps · {1} controls", apps, nodes),
             };
         }
         catch (Exception ex)
         {
-            return new AtspiResult { Message = $"AT-SPI 输出解析失败：{ex.Message}" };
+            return new AtspiResult { Message = LocalizationService.F("AT-SPI 输出解析失败：{0}", "Failed to parse AT-SPI output: {0}", ex.Message) };
         }
     }
 

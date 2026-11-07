@@ -40,7 +40,7 @@ public sealed class GlobalHotkeyService : IDisposable
             _display = X11Native.XOpenDisplay(null);
             if (_display == IntPtr.Zero)
             {
-                Error = "无法连接 X 服务器";
+                Error = LocalizationService.L("无法连接 X 服务器", "Cannot connect to the X server");
                 return false;
             }
 
@@ -49,7 +49,7 @@ public sealed class GlobalHotkeyService : IDisposable
             _keycode = keysym == 0 ? 0 : (int)X11Native.XKeysymToKeycode(_display, keysym);
             if (_keycode == 0)
             {
-                Error = "无法解析快捷键 X";
+                Error = LocalizationService.L("无法解析快捷键 X", "Cannot parse hotkey X");
                 Cleanup();
                 return false;
             }
@@ -145,7 +145,25 @@ public sealed class GlobalHotkeyService : IDisposable
 
     public static string BuildCompositorConfig()
     {
-        return """
+        return LocalizationService.IsEnglish
+            ? """
+# TuxViewer · global pick hotkey (copy the matching compositor line)
+
+# niri (~/.config/niri/config.kdl)
+binds {
+    Mod+Shift+X { spawn "tuxviewer" "--pick-x11" "click"; }
+}
+
+# Sway (~/.config/sway/config)
+bindsym $mod+Shift+x exec tuxviewer --pick-x11 click
+
+# Hyprland (~/.config/hypr/hyprland.conf)
+bind = SUPER SHIFT, X, exec, tuxviewer --pick-x11 click
+
+# Note: tuxviewer is the command installed by scripts/install.sh; you can also use the TuxViewer executable path.
+# In an X11 session you can also enable the XGrabKey global hotkey below directly in TuxViewer.
+"""
+            : """
 # TuxViewer · 全局拾取热键（复制对应合成器的一行）
 
 # niri (~/.config/niri/config.kdl)

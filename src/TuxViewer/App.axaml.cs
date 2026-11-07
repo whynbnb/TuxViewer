@@ -18,6 +18,7 @@ public partial class App : Application
         {
             var settingsService = new SettingsService();
             settingsService.Load();
+            LocalizationService.Initialize(settingsService.Settings.Language);
             var service = new InspectorService();
             var viewModel = new MainWindowViewModel(service, settingsService);
             viewModel.InitialSelection = ReadSelectArgument(desktop.Args);

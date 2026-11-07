@@ -18,8 +18,8 @@ public sealed class NiriProvider : WindowProviderBase
     public override string Name => "niri IPC";
     public override bool IsAvailable => CommandRunner.Exists("niri") && !string.IsNullOrWhiteSpace(_socket);
     public override string Detail => IsAvailable
-        ? $"niri {_version ?? ""}".Trim() + " · 原生 Wayland + XWayland"
-        : "未检测到 NIRI_SOCKET";
+        ? $"niri {_version ?? ""}".Trim() + LocalizationService.L(" · 原生 Wayland + XWayland", " · native Wayland + XWayland")
+        : LocalizationService.L("未检测到 NIRI_SOCKET", "NIRI_SOCKET not detected");
     public override PickCapability Pick => PickCapability.Interactive;
     public override bool CanFocus => true;
     public override bool CanClose => true;
@@ -56,8 +56,8 @@ public sealed class NiriProvider : WindowProviderBase
         progress?.Report(new PickProgress
         {
             Message = mode == PickMode.Drag
-                ? "niri 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）"
-                : "niri：移动十字准星并单击目标窗口（Esc 取消）",
+                ? LocalizationService.L("niri 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）", "The niri native picker is click-only: move the crosshair and click a target window (Esc to cancel)")
+                : LocalizationService.L("niri：移动十字准星并单击目标窗口（Esc 取消）", "niri: move the crosshair and click a target window (Esc to cancel)"),
         });
         var result = await CommandRunner.TryRunAsync(
             "niri", ["msg", "--json", "pick-window"], 180_000, cancellationToken);
@@ -70,7 +70,7 @@ public sealed class NiriProvider : WindowProviderBase
             if (element.ValueKind != JsonValueKind.Object) return null;
             var window = ParseWindow(element, []);
             if (window is not null)
-                progress?.Report(new PickProgress { Message = $"niri：已选择 {window.Title}", HoverWindow = window });
+                progress?.Report(new PickProgress { Message = LocalizationService.F("niri：已选择 {0}", "niri: selected {0}", window.Title), HoverWindow = window });
             return window;
         }
         catch
@@ -220,7 +220,7 @@ public sealed class NiriProvider : WindowProviderBase
             SourceId = "niri",
             SourceName = "niri",
             NativeId = id.ToString(CultureInfo.InvariantCulture),
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = appId,
             WmClass = appId,
             Pid = pid,
@@ -245,7 +245,7 @@ public sealed class NiriProvider : WindowProviderBase
             && ft.TryGetProperty("secs", out var secs) && secs.ValueKind == JsonValueKind.Number)
         {
             var age = TimeSpan.FromSeconds(secs.GetInt64());
-            info.Extra["最近聚焦"] = $"合成器启动后 {age.TotalHours:00}:{age.Minutes:00}:{age.Seconds:00}";
+            info.Extra["最近聚焦"] = LocalizationService.F("合成器启动后 {0:00}:{1:00}:{2:00}", "Since compositor start {0:00}:{1:00}:{2:00}", age.TotalHours, age.Minutes, age.Seconds);
         }
         return info;
     }

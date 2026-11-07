@@ -34,8 +34,8 @@ public sealed partial class KWinProvider : WindowProviderBase
     }
 
     public override string Detail => IsAvailable
-        ? "KWin · 仅交互式十字准星（KWin 不提供窗口列表 DBus API）"
-        : "未检测到 KDE Plasma 会话";
+        ? LocalizationService.L("KWin · 仅交互式十字准星（KWin 不提供窗口列表 DBus API）", "KWin · interactive crosshair only (KWin has no window-list DBus API)")
+        : LocalizationService.L("未检测到 KDE Plasma 会话", "KDE Plasma session not detected");
     public override PickCapability Pick => PickCapability.Interactive;
     public override bool CanList => false;
 
@@ -48,8 +48,8 @@ public sealed partial class KWinProvider : WindowProviderBase
         progress?.Report(new PickProgress
         {
             Message = mode == PickMode.Drag
-                ? "KWin 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）"
-                : "KWin：移动十字准星并单击目标窗口（Esc 取消）",
+                ? LocalizationService.L("KWin 原生拾取器只支持点击：移动准星并单击目标窗口（Esc 取消）", "The KWin native picker is click-only: move the crosshair and click a target window (Esc to cancel)")
+                : LocalizationService.L("KWin：移动十字准星并单击目标窗口（Esc 取消）", "KWin: move the crosshair and click a target window (Esc to cancel)"),
         });
 
         var result = await CommandRunner.TryRunAsync(
@@ -98,7 +98,7 @@ public sealed partial class KWinProvider : WindowProviderBase
             SourceId = "kwin",
             SourceName = "KWin",
             NativeId = uuid,
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = cls,
             WmClass = cls,
             Pid = pid,
@@ -116,7 +116,7 @@ public sealed partial class KWinProvider : WindowProviderBase
         foreach (var (key, value) in map.OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
             info.Extra[key] = value;
 
-        progress?.Report(new PickProgress { Message = $"KWin：已选择 {info.Title}", HoverWindow = info });
+        progress?.Report(new PickProgress { Message = LocalizationService.F("KWin：已选择 {0}", "KWin: selected {0}", info.Title), HoverWindow = info });
         return info;
     }
 

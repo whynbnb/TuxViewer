@@ -499,14 +499,14 @@ public static class ToolkitDetector
         if (result is null && (backend.HasWaylandSocket || backend.HasWaylandLibrary) &&
             !(backend.HasX11Socket || backend.HasX11Library))
         {
-            Pick("Wayland 客户端（工具包未知）");
-            evidence.Add("加载 libwayland-client，未发现常见工具包");
+            Pick(LocalizationService.L("Wayland 客户端（工具包未知）", "Wayland client (unknown toolkit)"));
+            evidence.Add(LocalizationService.L("加载 libwayland-client，未发现常见工具包", "Loaded libwayland-client; no known toolkit detected"));
         }
         if (result is null && (backend.HasX11Socket || backend.HasX11Library) &&
             !(backend.HasWaylandSocket || backend.HasWaylandLibrary))
         {
-            Pick("X11 客户端（工具包未知）");
-            evidence.Add("加载 libX11 / libxcb，未发现常见工具包");
+            Pick(LocalizationService.L("X11 客户端（工具包未知）", "X11 client (unknown toolkit)"));
+            evidence.Add(LocalizationService.L("加载 libX11 / libxcb，未发现常见工具包", "Loaded libX11 / libxcb; no known toolkit detected"));
         }
 
         var hints = new List<string>();
@@ -518,21 +518,21 @@ public static class ToolkitDetector
         AddEnvHint(env, "CLUTTER_BACKEND", hints);
         evidence.AddRange(hints);
 
-        if (backend.HasX11Socket) evidence.Add("已连接 X11 / XWayland socket");
-        else if (backend.HasX11Library) evidence.Add("加载 libX11");
-        if (backend.HasWaylandSocket) evidence.Add("已连接 Wayland socket");
-        else if (backend.HasWaylandLibrary) evidence.Add("加载 libwayland-client");
-        if (backend.HasPipeWireSocket) evidence.Add("已连接 PipeWire (屏幕共享/捕获)");
+        if (backend.HasX11Socket) evidence.Add(LocalizationService.L("已连接 X11 / XWayland socket", "Connected to the X11 / XWayland socket"));
+        else if (backend.HasX11Library) evidence.Add(LocalizationService.L("加载 libX11", "Loaded libX11"));
+        if (backend.HasWaylandSocket) evidence.Add(LocalizationService.L("已连接 Wayland socket", "Connected to the Wayland socket"));
+        else if (backend.HasWaylandLibrary) evidence.Add(LocalizationService.L("加载 libwayland-client", "Loaded libwayland-client"));
+        if (backend.HasPipeWireSocket) evidence.Add(LocalizationService.L("已连接 PipeWire (屏幕共享/捕获)", "Connected to PipeWire (screen sharing/capture)"));
 
         if (result is null)
         {
             if (backend.HasX11Socket && !backend.HasWaylandSocket)
             {
-                Pick("X11 客户端 (工具包未知)");
+                Pick(LocalizationService.L("X11 客户端 (工具包未知)", "X11 client (unknown toolkit)"));
             }
             else if (backend.HasWaylandSocket)
             {
-                Pick("Wayland 客户端 (工具包未知)");
+                Pick(LocalizationService.L("Wayland 客户端 (工具包未知)", "Wayland client (unknown toolkit)"));
             }
             else
             {
@@ -542,7 +542,7 @@ public static class ToolkitDetector
 
         return new ToolkitInfo
         {
-            Name = result ?? "未知",
+            Name = result ?? LocalizationService.L("未知", "Unknown"),
             Version = version,
             Evidence = evidence.Distinct(StringComparer.OrdinalIgnoreCase).Take(20).ToList(),
         };

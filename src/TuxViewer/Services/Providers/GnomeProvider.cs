@@ -15,10 +15,10 @@ public sealed class GnomeProvider : WindowProviderBase
     private const string Interface = "org.gnome.Shell.Extensions.TuxViewer";
 
     private bool _ready;
-    private string _probeDetail = "GNOME Shell 扩展尚未初始化";
+    private string _probeDetail = LocalizationService.L("GNOME Shell 扩展尚未初始化", "GNOME Shell extension not initialized");
 
     public override string Id => "gnome";
-    public override string Name => "GNOME Shell 扩展";
+    public override string Name => LocalizationService.L("GNOME Shell 扩展", "GNOME Shell extension");
     public override bool IsAvailable => _ready;
     public override string Detail => _probeDetail;
     public override PickCapability Pick => PickCapability.Cursor;
@@ -31,12 +31,12 @@ public sealed class GnomeProvider : WindowProviderBase
         if (!desktop.Contains("GNOME", StringComparison.OrdinalIgnoreCase) &&
             !desktop.Contains("ubuntu", StringComparison.OrdinalIgnoreCase))
         {
-            _probeDetail = "当前不是 GNOME 会话";
+            _probeDetail = LocalizationService.L("当前不是 GNOME 会话", "Not a GNOME session");
             return;
         }
         if (!CommandRunner.Exists("gdbus"))
         {
-            _probeDetail = "缺少 gdbus";
+            _probeDetail = LocalizationService.L("缺少 gdbus", "gdbus is missing");
             return;
         }
 
@@ -45,15 +45,15 @@ public sealed class GnomeProvider : WindowProviderBase
         {
             var enabled = await CommandRunner.TryRunAsync("gnome-extensions", ["list", "--enabled"], 2000, cancellationToken);
             _probeDetail = enabled?.StdOut.Contains("tuxviewer@local", StringComparison.Ordinal) == true
-                ? "扩展已启用但 DBus 无响应，请重新登录 GNOME 会话"
-                : "需要安装并启用 TuxViewer GNOME 扩展（见“诊断”页）";
+                ? LocalizationService.L("扩展已启用但 DBus 无响应，请重新登录 GNOME 会话", "The extension is enabled but DBus is not responding; log in to the GNOME session again")
+                : LocalizationService.L("需要安装并启用 TuxViewer GNOME 扩展（见“诊断”页）", "Install and enable the TuxViewer GNOME extension (see “Diagnostics”)");
             return;
         }
 
         var json = ParseGVariantString(result.StdOut);
         if (string.IsNullOrWhiteSpace(json))
         {
-            _probeDetail = "扩展返回了空数据";
+            _probeDetail = LocalizationService.L("扩展返回了空数据", "The extension returned empty data");
             return;
         }
 
@@ -62,11 +62,11 @@ public sealed class GnomeProvider : WindowProviderBase
             using var doc = JsonDocument.Parse(json);
             var count = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.GetArrayLength() : 0;
             _ready = true;
-            _probeDetail = $"GNOME Shell 扩展已连接 · {count} 个窗口";
+            _probeDetail = LocalizationService.F("GNOME Shell 扩展已连接 · {0} 个窗口", "GNOME Shell extension connected · {0} windows", count);
         }
         catch
         {
-            _probeDetail = "扩展输出无法解析";
+            _probeDetail = LocalizationService.L("扩展输出无法解析", "Unable to parse the extension output");
         }
     }
 
@@ -94,7 +94,7 @@ public sealed class GnomeProvider : WindowProviderBase
 
     public override async Task<WindowInfo?> PickAtCursorAsync(IProgress<PickProgress>? progress, CancellationToken cancellationToken)
     {
-        progress?.Report(new PickProgress { Message = "GNOME：正在读取指针下的窗口…" });
+        progress?.Report(new PickProgress { Message = LocalizationService.L("GNOME：正在读取指针下的窗口…", "GNOME: reading the window under the pointer…") });
         var result = await CallAsync("PickWindowAtCursor", [], 4000, cancellationToken);
         if (result?.Success != true) return null;
         var json = ParseGVariantString(result.StdOut);
@@ -157,7 +157,7 @@ public sealed class GnomeProvider : WindowProviderBase
             SourceId = "gnome",
             SourceName = "GNOME",
             NativeId = id.ToString(CultureInfo.InvariantCulture),
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = appId,
             WmClass = wmClass,
             Pid = pid,

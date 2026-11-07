@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Text.Json.Serialization;
 using Avalonia.Media.Imaging;
+using TuxViewer.Services;
 
 namespace TuxViewer.Models;
 
@@ -93,7 +94,7 @@ public sealed class WindowInfo : INotifyPropertyChanged
         WindowBackend.X11 when IsXWayland => "X11 · XWayland",
         WindowBackend.X11 => "X11",
         WindowBackend.Wayland => "Wayland",
-        _ => "未知",
+        _ => LocalizationService.L("未知", "Unknown"),
     };
 
     [JsonIgnore]
@@ -129,6 +130,19 @@ public sealed class WindowInfo : INotifyPropertyChanged
     }
 
     [JsonIgnore] public string FocusGlyph => IsFocused ? "●" : "";
+
+    /// <summary>Re-evaluate language-dependent computed properties after a UI language switch.</summary>
+    public void NotifyLanguageChanged()
+    {
+        foreach (var name in new[]
+                 {
+                     nameof(BackendLabel), nameof(BackendShort), nameof(PidText), nameof(Subtitle),
+                     nameof(IconInitial), nameof(FocusGlyph),
+                 })
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        }
+    }
 
     /// <summary>
     /// Update a window object in place during a refresh so the list selection and
@@ -232,7 +246,9 @@ public sealed class InfoRow(
     public bool IsChanged { get; } = changed;
     public string? OldValue { get; } = oldValue;
     public string ChangeText => IsChanged
-        ? OldValue is null || OldValue.Length == 0 ? "已变化" : $"旧值：{OldValue}"
+        ? OldValue is null || OldValue.Length == 0
+            ? LocalizationService.L("已变化", "changed")
+            : LocalizationService.F("旧值：{0}", "Previous: {0}", OldValue)
         : "";
     public string FontFamily => IsMono
         ? "Cascadia Mono,DejaVu Sans Mono,Noto Sans Mono,monospace"
@@ -250,8 +266,8 @@ public sealed class X11Property
     public string NameAndType => $"{Name}  [{Type}/{Format}]";
     public string ChangeText => IsChanged
         ? PreviousValue is null || PreviousValue.Length == 0
-            ? "已变化"
-            : $"旧值：{Truncate(PreviousValue)}"
+            ? LocalizationService.L("已变化", "changed")
+            : LocalizationService.F("旧值：{0}", "Previous: {0}", Truncate(PreviousValue))
         : "";
     public bool HasChange => IsChanged;
 
@@ -329,7 +345,7 @@ public sealed class X11ChildInfo
     public string IdHex => $"0x{Id:x}";
     public string Geometry => $"{Width}×{Height} @ {X},{Y}";
     public string State => !Mapped ? "unmapped" : OverrideRedirect ? "override-redirect" : "mapped";
-    public string DisplayText => $"{Indent}0x{Id:x} · {ClassName ?? "?"} · {(string.IsNullOrWhiteSpace(Title) ? "(无标题)" : Title)} · {Geometry} · {State}";
+    public string DisplayText => $"{Indent}0x{Id:x} · {ClassName ?? "?"} · {(string.IsNullOrWhiteSpace(Title) ? LocalizationService.L("(无标题)", "(untitled)") : Title)} · {Geometry} · {State}";
 }
 
 public sealed class X11WindowDetails
@@ -386,7 +402,7 @@ public sealed class ProcessSnapshot
 
 public sealed class ToolkitInfo
 {
-    public string Name { get; init; } = "未知";
+    public string Name { get; init; } = LocalizationService.L("未知", "Unknown");
     public string? Version { get; init; }
     public IReadOnlyList<string> Evidence { get; init; } = [];
     public string DisplayName => string.IsNullOrWhiteSpace(Version) ? Name : $"{Name} {Version}";
@@ -409,10 +425,10 @@ public sealed class BackendEvidence
             if (HasX11Socket && HasWaylandSocket) return "Wayland + X11";
             if (HasX11Socket) return "X11";
             if (HasWaylandSocket) return "Wayland";
-            if (HasX11Library && HasWaylandLibrary) return "Wayland + X11（动态库）";
-            if (HasX11Library) return "X11（动态库）";
-            if (HasWaylandLibrary) return "Wayland（动态库）";
-            return "未知";
+            if (HasX11Library && HasWaylandLibrary) return LocalizationService.L("Wayland + X11（动态库）", "Wayland + X11 (shared libraries)");
+            if (HasX11Library) return LocalizationService.L("X11（动态库）", "X11 (shared libraries)");
+            if (HasWaylandLibrary) return LocalizationService.L("Wayland（动态库）", "Wayland (shared libraries)");
+            return LocalizationService.L("未知", "Unknown");
         }
     }
 }
@@ -437,21 +453,26 @@ public sealed class ProviderStatus
 
     public string PickText => Pick switch
     {
-        PickCapability.Interactive => "十字准星",
-        PickCapability.Cursor => "指针停留",
-        PickCapability.Focused => "聚焦拾取",
-        _ => "不支持",
+        PickCapability.Interactive => LocalizationService.L("十字准星", "Crosshair"),
+        PickCapability.Cursor => LocalizationService.L("指针停留", "Pointer hover"),
+        PickCapability.Focused => LocalizationService.L("聚焦拾取", "Focused window"),
+        _ => LocalizationService.L("不支持", "Unsupported"),
     };
 
-    public string AvailabilityText => Available ? "可用" : "不可用";
-    public string CapabilityText => $"列表 {(CanList ? "✓" : "✗")} · 拾取 {PickText} · 聚焦 {(CanFocus ? "✓" : "✗")} · 关闭 {(CanClose ? "✓" : "✗")}";
+    public string AvailabilityText => Available
+        ? LocalizationService.L("可用", "Available")
+        : LocalizationService.L("不可用", "Unavailable");
+    public string CapabilityText => LocalizationService.F(
+        "列表 {0} · 拾取 {1} · 聚焦 {2} · 关闭 {3}",
+        "List {0} · Pick {1} · Focus {2} · Close {3}",
+        CanList ? "✓" : "✗", PickText, CanFocus ? "✓" : "✗", CanClose ? "✓" : "✗");
     public string Summary => Available ? $"{Name} — {Detail}" : $"{Name} — {Detail}";
 }
 
 public sealed class SessionInfo
 {
-    public string SessionType { get; set; } = "未知";
-    public string Desktop { get; set; } = "未知";
+    public string SessionType { get; set; } = LocalizationService.L("未知", "Unknown");
+    public string Desktop { get; set; } = LocalizationService.L("未知", "Unknown");
     public string? WaylandDisplay { get; set; }
     public string? X11Display { get; set; }
     public string? Compositor { get; set; }
@@ -465,7 +486,7 @@ public sealed class SessionInfo
 
     public string SessionSummary => IsWaylandSession
         ? $"Wayland · {Compositor ?? Desktop}"
-        : IsX11Session ? $"X11 · {X11WmName ?? Desktop}" : "未知会话";
+        : IsX11Session ? $"X11 · {X11WmName ?? Desktop}" : LocalizationService.L("未知会话", "Unknown session");
 }
 
 public sealed class ScreenshotResult
@@ -546,6 +567,11 @@ public sealed class OutputInfo
         : "—";
     public string ScaleText => Scale is > 0 ? $"{Scale:0.##}×" : "—";
     public string RefreshText => RefreshRate is > 0 ? $"{RefreshRate:0.##} Hz" : "—";
+    public string ScaleLabel => LocalizationService.F("缩放 {0}", "Scale {0}", ScaleText);
+    public string RefreshLabel => LocalizationService.F("刷新率 {0}", "Refresh {0}", RefreshText);
+    public string TransformLabel => LocalizationService.F("变换 {0}", "Transform {0}", Transform ?? "—");
+    public string ModeLabel => LocalizationService.F("模式 {0}", "Mode {0}", Mode ?? "—");
+    public string WorkspaceLabel => LocalizationService.F("工作区 {0}", "Workspace {0}", Workspace ?? "—");
     public string Detail => string.Join(" · ", new[] { Make, Model }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }
 
@@ -561,7 +587,7 @@ public sealed class WorkspaceInfo
     public string Subtitle => string.Join(" · ", new[]
     {
         Output,
-        WindowCount > 0 ? $"{WindowCount} 个窗口" : null,
+        WindowCount > 0 ? LocalizationService.F("{0} 个窗口", "{0} windows", WindowCount) : null,
         Layout,
     }.Where(s => !string.IsNullOrWhiteSpace(s)));
 }

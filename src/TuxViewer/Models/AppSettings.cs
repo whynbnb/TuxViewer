@@ -8,6 +8,9 @@ public sealed class AppSettings
 {
     public int Version { get; set; } = 1;
 
+    /// <summary>UI language: "auto", "zh" or "en".</summary>
+    public string Language { get; set; } = "auto";
+
     // Window geometry (app frame, not a restored session).
     public double WindowWidth { get; set; } = 1440;
     public double WindowHeight { get; set; } = 900;

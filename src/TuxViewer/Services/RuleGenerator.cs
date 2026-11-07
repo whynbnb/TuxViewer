@@ -29,7 +29,7 @@ public static class RuleGenerator
             "niri" => Niri(appId, title, options),
             "sway" => Sway(appId, title, options),
             "hyprland" => Hyprland(appId, title, options),
-            _ => $"# 未知合成器：{compositor}\n",
+            _ => LocalizationService.F("# 未知合成器：{0}\n", "# Unknown compositor: {0}\n", compositor),
         };
     }
 
@@ -37,7 +37,7 @@ public static class RuleGenerator
     {
         var sb = new StringBuilder();
         sb.AppendLine("# TuxViewer · niri window-rule");
-        sb.AppendLine("# 添加到 ~/.config/niri/config.kdl");
+        sb.AppendLine(LocalizationService.L("# 添加到 ~/.config/niri/config.kdl", "# Add to ~/.config/niri/config.kdl"));
         sb.AppendLine("window-rule {");
         sb.AppendLine($"    match app-id=\"^{Regex.Escape(appId)}$\"");
         if (options.MatchTitle && !string.IsNullOrWhiteSpace(title))
@@ -52,7 +52,7 @@ public static class RuleGenerator
         if (options.Opacity is > 0 and < 1)
             sb.AppendLine($"    opacity {options.Opacity:0.00}");
         if (options.Sticky)
-            sb.AppendLine("    // niri 没有 sticky 规则；可使用窗口菜单或工作区固定");
+            sb.AppendLine(LocalizationService.L("    // niri 没有 sticky 规则；可使用窗口菜单或工作区固定", "    // niri has no sticky rule; use the window menu or pin to a workspace"));
         sb.AppendLine("}");
         return sb.ToString();
     }
@@ -79,7 +79,7 @@ public static class RuleGenerator
 
         var sb = new StringBuilder();
         sb.AppendLine("# TuxViewer · Sway for_window");
-        sb.AppendLine("# 添加到 ~/.config/sway/config 并执行 swaymsg reload");
+        sb.AppendLine(LocalizationService.L("# 添加到 ~/.config/sway/config 并执行 swaymsg reload", "# Add to ~/.config/sway/config and run swaymsg reload"));
         sb.AppendLine($"for_window {criteria} {string.Join(", ", commands)}");
         return sb.ToString();
     }
@@ -92,7 +92,7 @@ public static class RuleGenerator
 
         var sb = new StringBuilder();
         sb.AppendLine("# TuxViewer · Hyprland windowrulev2");
-        sb.AppendLine("# 添加到 ~/.config/hypr/hyprland.conf 并执行 hyprctl reload");
+        sb.AppendLine(LocalizationService.L("# 添加到 ~/.config/hypr/hyprland.conf 并执行 hyprctl reload", "# Add to ~/.config/hypr/hyprland.conf and run hyprctl reload"));
         if (options.Floating) sb.AppendLine($"windowrulev2 = float,{criteria}");
         if (options.Fullscreen) sb.AppendLine($"windowrulev2 = fullscreen,{criteria}");
         if (options.NoBorder) sb.AppendLine($"windowrulev2 = noborder,{criteria}");
@@ -104,7 +104,7 @@ public static class RuleGenerator
         if (options.Opacity is > 0 and < 1)
             sb.AppendLine($"windowrulev2 = opacity {options.Opacity:0.00} {options.Opacity:0.00},{criteria}");
         if (sb.ToString().Split('\n').Length <= 2)
-            sb.AppendLine($"# 未选择任何规则选项；示例：windowrulev2 = float,{criteria}");
+            sb.AppendLine(LocalizationService.F("# 未选择任何规则选项；示例：windowrulev2 = float,{0}", "# No rule options selected; example: windowrulev2 = float,{0}", criteria));
         return sb.ToString();
     }
 

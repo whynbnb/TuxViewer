@@ -14,7 +14,7 @@ public static class ScreenshotService
         WindowInfo window, ProviderRegistry registry, CancellationToken cancellationToken)
     {
         if (OperatingSystem.IsWindows() || OperatingSystem.IsMacOS())
-            return Fail("仅支持 Linux");
+            return Fail(LocalizationService.L("仅支持 Linux", "Linux only"));
 
         // X11 / XWayland: precise capture of the selected X11 window.
         Debug($"start source={window.SourceId} native={window.NativeId} x11={window.X11WindowId} linked={window.LinkedX11WindowId} x11available={registry.X11?.IsAvailable}");
@@ -34,12 +34,12 @@ public static class ScreenshotService
                         Width = pixels.Width,
                         Height = pixels.Height,
                         Source = "X11 XGetImage",
-                        Message = $"已捕获 X11 窗口 0x{x11Id:x}",
+                        Message = LocalizationService.F("已捕获 X11 窗口 0x{0:x}", "Captured X11 window 0x{0:x}", x11Id),
                     };
             }
 
             if (!string.IsNullOrWhiteSpace(error))
-                return Fail($"X11 截图失败：{error}");
+                return Fail(LocalizationService.F("X11 截图失败：{0}", "X11 screenshot failed: {0}", error));
         }
 
         // niri: first-class IPC screenshot.
@@ -65,10 +65,10 @@ public static class ScreenshotService
                 if (result?.Success == true && File.Exists(path))
                     return FromFile(path, "niri screenshot-window");
                 if (!string.IsNullOrWhiteSpace(result?.StdErr))
-                    return Fail($"niri 截图失败：{result.StdErr}");
+                    return Fail(LocalizationService.F("niri 截图失败：{0}", "niri screenshot failed: {0}", result.StdErr));
             }
             catch (OperationCanceledException) { throw; }
-            catch (Exception ex) { return Fail($"niri 截图失败：{ex.Message}"); }
+            catch (Exception ex) { return Fail(LocalizationService.F("niri 截图失败：{0}", "niri screenshot failed: {0}", ex.Message)); }
             finally { TryDelete(path); }
         }
 
@@ -108,7 +108,7 @@ public static class ScreenshotService
             }
         }
 
-        return Fail("当前后端无法截图：Wayland 原生窗口需要合成器 screenshot API（niri / grim / gnome-screenshot）");
+        return Fail(LocalizationService.L("当前后端无法截图：Wayland 原生窗口需要合成器 screenshot API（niri / grim / gnome-screenshot）", "This backend cannot take screenshots: Wayland-native windows need a compositor screenshot API (niri / grim / gnome-screenshot)"));
     }
 
     /// <summary>Encode BGRA8888 pixels as PNG without requiring an Avalonia platform.</summary>
@@ -216,12 +216,12 @@ public static class ScreenshotService
                 Width = size.Width,
                 Height = size.Height,
                 Source = source,
-                Message = $"已通过 {source} 捕获",
+                Message = LocalizationService.F("已通过 {0} 捕获", "Captured via {0}", source),
             };
         }
         catch (Exception ex)
         {
-            return Fail($"读取截图失败：{ex.Message}");
+            return Fail(LocalizationService.F("读取截图失败：{0}", "Failed to read the screenshot: {0}", ex.Message));
         }
     }
 

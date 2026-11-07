@@ -11,7 +11,7 @@ public static class ReportService
     {
         var sb = new StringBuilder();
         sb.AppendLine("<!doctype html><html lang=\"zh-CN\"><head><meta charset=\"utf-8\">");
-        sb.AppendLine("<title>TuxViewer · 窗口检视报告</title>");
+        sb.AppendLine($"<title>{LocalizationService.L("TuxViewer · 窗口检视报告", "TuxViewer · Window inspection report")}</title>");
         sb.AppendLine("<style>");
         sb.AppendLine("body{font-family:system-ui,'Noto Sans CJK SC',sans-serif;background:#0b0e14;color:#dce5f4;margin:32px;line-height:1.55}");
         sb.AppendLine("h1{font-size:24px;margin:0 0 4px}h2{font-size:15px;margin:26px 0 8px;color:#8fa6c9;border-bottom:1px solid #232c3d;padding-bottom:6px}");
@@ -25,58 +25,58 @@ public static class ReportService
         sb.AppendLine($"<div style=\"color:#7e8ca3\">{Escape(window.BackendLabel)} · {Escape(window.GeometryText)} · {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}</div>");
 
         if (!string.IsNullOrWhiteSpace(screenshotDataUri))
-            sb.AppendLine($"<h2>窗口截图</h2><img class=\"shot\" src=\"{screenshotDataUri}\" alt=\"window screenshot\">");
+            sb.AppendLine($"<h2>{LocalizationService.L("窗口截图", "Window screenshot")}</h2><img class=\"shot\" src=\"{screenshotDataUri}\" alt=\"window screenshot\">");
 
-        sb.AppendLine("<h2>窗口</h2><table>");
-        Row(sb, "应用 ID", window.AppId);
+        sb.AppendLine($"<h2>{LocalizationService.L("窗口", "Window")}</h2><table>");
+        Row(sb, LocalizationService.L("应用 ID", "App ID"), window.AppId);
         Row(sb, "WM_CLASS", window.WmClass);
-        Row(sb, "后端", window.BackendLabel);
+        Row(sb, LocalizationService.L("后端", "Backend"), window.BackendLabel);
         Row(sb, "TuxViewer ID", window.Id);
-        Row(sb, "原生 ID", window.NativeId);
-        Row(sb, "X11 窗口", window.X11WindowId is not null ? $"0x{window.X11WindowId:x}" : null);
-        Row(sb, "关联 X11 窗口", window.LinkedX11WindowId is not null ? $"0x{window.LinkedX11WindowId:x}" : null);
+        Row(sb, LocalizationService.L("原生 ID", "Native ID"), window.NativeId);
+        Row(sb, LocalizationService.L("X11 窗口", "X11 window"), window.X11WindowId is not null ? $"0x{window.X11WindowId:x}" : null);
+        Row(sb, LocalizationService.L("关联 X11 窗口", "Linked X11 window"), window.LinkedX11WindowId is not null ? $"0x{window.LinkedX11WindowId:x}" : null);
         Row(sb, "PID", window.Pid?.ToString());
-        Row(sb, "几何", window.GeometryText);
-        Row(sb, "工作区 / 输出", $"{window.WorkspaceName ?? window.WorkspaceId?.ToString() ?? "—"} / {window.OutputName ?? "—"}");
-        Row(sb, "焦点 / 映射", $"{(window.IsFocused ? "是" : "否")} / {(window.IsMapped ? "已映射" : "未映射")}");
+        Row(sb, LocalizationService.L("几何", "Geometry"), window.GeometryText);
+        Row(sb, LocalizationService.L("工作区 / 输出", "Workspace / output"), $"{window.WorkspaceName ?? window.WorkspaceId?.ToString() ?? "—"} / {window.OutputName ?? "—"}");
+        Row(sb, LocalizationService.L("焦点 / 映射", "Focused / mapping"), $"{(window.IsFocused ? LocalizationService.L("是", "Yes") : LocalizationService.L("否", "No"))} / {(window.IsMapped ? LocalizationService.L("已映射", "Mapped") : LocalizationService.L("未映射", "Unmapped"))}");
         foreach (var (key, value) in window.Extra) Row(sb, key, value);
         sb.AppendLine("</table>");
 
         if (process is not null)
         {
-            sb.AppendLine("<h2>进程</h2><table>");
-            Row(sb, "进程名", process.Name);
+            sb.AppendLine($"<h2>{LocalizationService.L("进程", "Process")}</h2><table>");
+            Row(sb, LocalizationService.L("进程名", "Process name"), process.Name);
             Row(sb, "PID / PPID", $"{process.Pid} / {process.ParentPid}");
-            Row(sb, "用户 / 状态", $"{process.User} / {process.State}");
-            Row(sb, "可执行文件", process.Exe);
-            Row(sb, "启动命令", process.Cmdline);
-            Row(sb, "工作目录", process.Cwd);
-            Row(sb, "工具包", process.Toolkit.DisplayName);
-            Row(sb, "客户端连接", process.Backend.Display);
-            Row(sb, "沙箱", process.Sandbox);
+            Row(sb, LocalizationService.L("用户 / 状态", "User / state"), $"{process.User} / {process.State}");
+            Row(sb, LocalizationService.L("可执行文件", "Executable"), process.Exe);
+            Row(sb, LocalizationService.L("启动命令", "Command line"), process.Cmdline);
+            Row(sb, LocalizationService.L("工作目录", "Working directory"), process.Cwd);
+            Row(sb, LocalizationService.L("工具包", "Toolkit"), process.Toolkit.DisplayName);
+            Row(sb, LocalizationService.L("客户端连接", "Client connections"), process.Backend.Display);
+            Row(sb, LocalizationService.L("沙箱", "Sandbox"), process.Sandbox);
             sb.AppendLine("</table>");
         }
 
         if (x11 is not null)
         {
-            sb.AppendLine("<h2>X11 信息</h2><table>");
-            Row(sb, "窗口 ID", x11.IdHex);
-            Row(sb, "实例 / 类", $"{x11.InstanceName} / {x11.ClassName}");
+            sb.AppendLine($"<h2>{LocalizationService.L("X11 信息", "X11 information")}</h2><table>");
+            Row(sb, LocalizationService.L("窗口 ID", "Window ID"), x11.IdHex);
+            Row(sb, LocalizationService.L("实例 / 类", "Instance / class"), $"{x11.InstanceName} / {x11.ClassName}");
             Row(sb, "几何", $"{x11.Width}×{x11.Height} @ {x11.X},{x11.Y}");
-            Row(sb, "窗口类型", x11.WindowType);
+            Row(sb, LocalizationService.L("窗口类型", "Window type"), x11.WindowType);
             Row(sb, "WM State", x11.WmState);
-            Row(sb, "事件掩码", x11.EventMask);
-            Row(sb, "子窗口", $"{x11.Children.Count} 个");
+            Row(sb, LocalizationService.L("事件掩码", "Event mask"), x11.EventMask);
+            Row(sb, LocalizationService.L("子窗口", "Child windows"), LocalizationService.F("{0} 个", "{0}", x11.Children.Count));
             sb.AppendLine("</table>");
 
-            sb.AppendLine("<h2>X11 属性</h2><table>");
+            sb.AppendLine($"<h2>{LocalizationService.L("X11 属性", "X11 properties")}</h2><table>");
             foreach (var property in x11.Properties)
                 Row(sb, $"{property.Name} [{property.Type}/{property.Format}]", property.Value);
             sb.AppendLine("</table>");
 
             if (x11.Children.Count > 0)
             {
-                sb.AppendLine("<h2>X11 子窗口</h2><table>");
+                sb.AppendLine($"<h2>{LocalizationService.L("X11 子窗口", "X11 child windows")}</h2><table>");
                 foreach (var child in x11.Children)
                     Row(sb, child.IdHex, $"{child.ClassName ?? "?"} · {child.DisplayText}");
                 sb.AppendLine("</table>");
@@ -84,7 +84,7 @@ public static class ReportService
         }
 
         if (!string.IsNullOrWhiteSpace(rawJson))
-            sb.AppendLine($"<details><summary>完整检视 JSON</summary><pre>{Escape(rawJson)}</pre></details>");
+            sb.AppendLine($"<details><summary>{LocalizationService.L("完整检视 JSON", "Full inspection JSON")}</summary><pre>{Escape(rawJson)}</pre></details>");
 
         sb.AppendLine("</body></html>");
         return sb.ToString();
@@ -101,56 +101,56 @@ public static class ReportService
         sb.AppendLine();
         if (!string.IsNullOrWhiteSpace(screenshotFileName))
         {
-            sb.AppendLine("## 窗口截图");
+            sb.AppendLine($"## {LocalizationService.L("窗口截图", "Window screenshot")}");
             sb.AppendLine();
             sb.AppendLine($"![screenshot]({screenshotFileName})");
             sb.AppendLine();
         }
 
-        sb.AppendLine("## 窗口");
+        sb.AppendLine($"## {LocalizationService.L("窗口", "Window")}");
         sb.AppendLine();
-        sb.AppendLine("| 项目 | 值 |");
+        sb.AppendLine(LocalizationService.L("| 项目 | 值 |", "| Item | Value |"));
         sb.AppendLine("|---|---|");
-        RowMd(sb, "应用 ID", window.AppId);
+        RowMd(sb, LocalizationService.L("应用 ID", "App ID"), window.AppId);
         RowMd(sb, "WM_CLASS", window.WmClass);
-        RowMd(sb, "后端", window.BackendLabel);
+        RowMd(sb, LocalizationService.L("后端", "Backend"), window.BackendLabel);
         RowMd(sb, "TuxViewer ID", window.Id);
-        RowMd(sb, "原生 ID", window.NativeId);
-        RowMd(sb, "X11 窗口", window.X11WindowId is not null ? $"0x{window.X11WindowId:x}" : null);
+        RowMd(sb, LocalizationService.L("原生 ID", "Native ID"), window.NativeId);
+        RowMd(sb, LocalizationService.L("X11 窗口", "X11 window"), window.X11WindowId is not null ? $"0x{window.X11WindowId:x}" : null);
         RowMd(sb, "PID", window.Pid?.ToString());
-        RowMd(sb, "几何", window.GeometryText);
-        RowMd(sb, "工作区", window.WorkspaceName ?? window.WorkspaceId?.ToString());
-        RowMd(sb, "输出", window.OutputName);
+        RowMd(sb, LocalizationService.L("几何", "Geometry"), window.GeometryText);
+        RowMd(sb, LocalizationService.L("工作区", "Workspace"), window.WorkspaceName ?? window.WorkspaceId?.ToString());
+        RowMd(sb, LocalizationService.L("输出", "Output"), window.OutputName);
         foreach (var (key, value) in window.Extra) RowMd(sb, key, value);
         sb.AppendLine();
 
         if (process is not null)
         {
-            sb.AppendLine("## 进程");
+            sb.AppendLine($"## {LocalizationService.L("进程", "Process")}");
             sb.AppendLine();
-            sb.AppendLine("| 项目 | 值 |");
+            sb.AppendLine(LocalizationService.L("| 项目 | 值 |", "| Item | Value |"));
             sb.AppendLine("|---|---|");
-            RowMd(sb, "进程名", process.Name);
+            RowMd(sb, LocalizationService.L("进程名", "Process name"), process.Name);
             RowMd(sb, "PID / PPID", $"{process.Pid} / {process.ParentPid}");
-            RowMd(sb, "可执行文件", process.Exe);
-            RowMd(sb, "启动命令", process.Cmdline);
-            RowMd(sb, "工具包", process.Toolkit.DisplayName);
-            RowMd(sb, "客户端连接", process.Backend.Display);
+            RowMd(sb, LocalizationService.L("可执行文件", "Executable"), process.Exe);
+            RowMd(sb, LocalizationService.L("启动命令", "Command line"), process.Cmdline);
+            RowMd(sb, LocalizationService.L("工具包", "Toolkit"), process.Toolkit.DisplayName);
+            RowMd(sb, LocalizationService.L("客户端连接", "Client connections"), process.Backend.Display);
             sb.AppendLine();
         }
 
         if (x11 is not null)
         {
-            sb.AppendLine("## X11 属性");
+            sb.AppendLine($"## {LocalizationService.L("X11 属性", "X11 properties")}");
             sb.AppendLine();
-            sb.AppendLine("| 属性 | 值 |");
+            sb.AppendLine(LocalizationService.L("| 属性 | 值 |", "| Property | Value |"));
             sb.AppendLine("|---|---|");
             foreach (var property in x11.Properties)
                 RowMd(sb, property.Name, property.Value);
             sb.AppendLine();
         }
 
-        sb.AppendLine("<details><summary>完整检视 JSON</summary>");
+        sb.AppendLine($"<details><summary>{LocalizationService.L("完整检视 JSON", "Full inspection JSON")}</summary>");
         sb.AppendLine();
         sb.AppendLine("```json");
         sb.AppendLine(rawJson);

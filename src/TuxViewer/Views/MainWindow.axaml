@@ -4,7 +4,7 @@
         xmlns:vm="using:TuxViewer.ViewModels"
         x:Class="TuxViewer.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Title="TuxViewer — Linux 窗口检视器"
+        Title="{DynamicResource Ui_TuxViewer_Linux_Window_Inspector}"
         Icon="avares://TuxViewer/Assets/tuxviewer.png"
         Width="1440" Height="900" MinWidth="1080" MinHeight="680"
         WindowStartupLocation="CenterScreen"
@@ -124,7 +124,7 @@
           </Border>
           <StackPanel VerticalAlignment="Center" Spacing="1">
             <TextBlock Text="TuxViewer" FontSize="20" FontWeight="Bold" LetterSpacing="0.4" />
-            <TextBlock Text="Linux 桌面环境 / 窗口检视器" FontSize="11" Foreground="#7E8CA3" />
+            <TextBlock Text="{DynamicResource Ui_Linux_desktop_window_inspector}" FontSize="11" Foreground="#7E8CA3" />
           </StackPanel>
         </StackPanel>
 
@@ -142,16 +142,18 @@
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
-          <Button Content="刷新" Click="Refresh_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="刷新窗口列表 (F5)" />
-          <Button Content="当前焦点" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="读取当前聚焦的窗口" />
-          <Button Content="点击拾取" Click="Pick_Click" Classes="pick"
-                  IsEnabled="{Binding IsIdle}" ToolTip.Tip="点击模式：单击目标窗口 (F2)" />
-          <Button Content="拖动拾取" Click="PickDrag_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="拖动模式：按住左键拖动准星，松开确认 (F3)" />
-          <Button Content="X11 拾取" Click="PickX11_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
-                  ToolTip.Tip="只使用 X11 指针抓取（Shift+F2 / Shift+F3），仅 X11 / XWayland 窗口" />
+          <Button Content="{Binding LanguageButtonText}" Click="ToggleLanguage_Click" Classes="ghost"
+                  ToolTip.Tip="{Binding LanguageToolTip}" />
+          <Button Content="{DynamicResource Ui_Refresh}" Click="Refresh_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="{DynamicResource Ui_Refresh_window_list_F5}" />
+          <Button Content="{DynamicResource Ui_Current_focus}" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="{DynamicResource Ui_Read_the_currently_focused_window}" />
+          <Button Content="{DynamicResource Ui_Pick_click}" Click="Pick_Click" Classes="pick"
+                  IsEnabled="{Binding IsIdle}" ToolTip.Tip="{DynamicResource Ui_Click_mode_click_the_target_window_F2}" />
+          <Button Content="{DynamicResource Ui_Pick_drag}" Click="PickDrag_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="{DynamicResource Ui_Drag_mode_hold_the_left_button_drag_the_crosshai}" />
+          <Button Content="{DynamicResource Ui_Pick_X11}" Click="PickX11_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
+                  ToolTip.Tip="{DynamicResource Ui_Use_X11_pointer_grab_only_Shift_F2_Shift_F3_X11_}" />
         </StackPanel>
       </Grid>
     </Border>
@@ -165,47 +167,47 @@
           <DockPanel>
             <Grid DockPanel.Dock="Top" Margin="12,12,12,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
               <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                <TextBox PlaceholderText="搜索标题、应用 ID、PID、窗口 ID…（支持正则）"
+                <TextBox PlaceholderText="{DynamicResource Ui_Search_title_app_ID_PID_window_ID_regex_supporte}"
                          Text="{Binding FilterText, Mode=TwoWay}" />
                 <ToggleButton Grid.Column="1" Content=".*" Classes="chip" Width="38"
                               IsChecked="{Binding UseRegexSearch, Mode=TwoWay}"
-                              ToolTip.Tip="正则搜索：使用 .NET 正则语法匹配窗口所有可搜索字段" />
+                              ToolTip.Tip="{DynamicResource Ui_Regex_search_match_all_searchable_window_fields_}" />
               </Grid>
               <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
                 <ComboBox ItemsSource="{Binding BackendFilters}"
                           SelectedIndex="{Binding BackendFilterIndex, Mode=TwoWay}" />
-                <ToggleButton Grid.Column="1" Content="自动刷新" Classes="chip"
+                <ToggleButton Grid.Column="1" Content="{DynamicResource Ui_Auto_refresh}" Classes="chip"
                               IsChecked="{Binding AutoRefresh, Mode=TwoWay}" Margin="8,0,0,0" />
               </Grid>
               <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,8,0,0">
-                <TextBox PlaceholderText="PID（逗号分隔）"
+                <TextBox PlaceholderText="{DynamicResource Ui_PID_comma_separated}"
                          Text="{Binding PidFilterText, Mode=TwoWay}" />
-                <TextBox Grid.Column="1" PlaceholderText="窗口 ID / 0x…"
+                <TextBox Grid.Column="1" PlaceholderText="{DynamicResource Ui_Window_ID_0x}"
                          Text="{Binding WindowIdFilterText, Mode=TwoWay}" />
-                <TextBox Grid.Column="2" PlaceholderText="工作区名称 / 编号"
+                <TextBox Grid.Column="2" PlaceholderText="{DynamicResource Ui_Workspace_name_number}"
                          Text="{Binding WorkspaceFilterText, Mode=TwoWay}" />
               </Grid>
               <WrapPanel Grid.Row="3" Margin="0,8,0,0" ItemSpacing="5" LineSpacing="5">
-                <ToggleButton Content="隐藏本应用" Classes="chip"
+                <ToggleButton Content="{DynamicResource Ui_Hide_this_app}" Classes="chip"
                               IsChecked="{Binding HideOwnWindows, Mode=TwoWay}" />
-                <ToggleButton Content="含原始 X11" Classes="chip"
+                <ToggleButton Content="{DynamicResource Ui_Include_raw_X11}" Classes="chip"
                               IsChecked="{Binding IncludeRawX11, Mode=TwoWay}"
-                              ToolTip.Tip="显示已合并到 Wayland 条目中的原始 X11 窗口" />
-                <ToggleButton Content="含未映射" Classes="chip"
+                              ToolTip.Tip="{DynamicResource Ui_Show_raw_X11_windows_merged_into_Wayland_entries}" />
+                <ToggleButton Content="{DynamicResource Ui_Include_unmapped}" Classes="chip"
                               IsChecked="{Binding IncludeUnmapped, Mode=TwoWay}" />
-                <ToggleButton Content="实时事件" Classes="chip"
+                <ToggleButton Content="{DynamicResource Ui_Live_events}" Classes="chip"
                               IsChecked="{Binding RealtimeEnabled, Mode=TwoWay}"
-                              ToolTip.Tip="监听 X11 PropertyNotify / niri / Sway / Hyprland 事件" />
-                <ToggleButton Content="树形视图" Classes="chip"
+                              ToolTip.Tip="{DynamicResource Ui_Listen_to_X11_PropertyNotify_niri_Sway_Hyprland_}" />
+                <ToggleButton Content="{DynamicResource Ui_Tree_view}" Classes="chip"
                               IsChecked="{Binding TreeMode, Mode=TwoWay}"
-                              ToolTip.Tip="按应用 / 进程 / 工作区分组，并展开 X11 子窗口" />
-                <ToggleButton Content="仅此 PID" Classes="chip"
+                              ToolTip.Tip="{DynamicResource Ui_Group_by_app_process_workspace_and_expand_X11_ch}" />
+                <ToggleButton Content="{DynamicResource Ui_This_PID_only}" Classes="chip"
                               IsChecked="{Binding OnlySelectedPid, Mode=TwoWay}"
-                              ToolTip.Tip="只显示当前选中窗口的 PID 的所有窗口" />
+                              ToolTip.Tip="{DynamicResource Ui_Show_only_windows_with_the_selected_window_s_PID}" />
               </WrapPanel>
               <Grid Grid.Row="4" ColumnDefinitions="Auto,*" ColumnSpacing="8"
                     Margin="0,8,0,0" IsVisible="{Binding TreeMode}">
-                <TextBlock Text="分组方式" Classes="muted" FontSize="11" VerticalAlignment="Center" />
+                <TextBlock Text="{DynamicResource Ui_Group_by}" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                 <ComboBox Grid.Column="1" ItemsSource="{Binding TreeGroupModes}"
                           SelectedIndex="{Binding TreeGroupModeIndex, Mode=TwoWay}" />
               </Grid>
@@ -213,24 +215,24 @@
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
                   <ComboBox ItemsSource="{Binding FilterPresets}"
                             SelectedIndex="{Binding SelectedFilterPresetIndex, Mode=TwoWay}"
-                            PlaceholderText="筛选预设">
+                            PlaceholderText="{DynamicResource Ui_Filter_presets}">
                     <ComboBox.ItemTemplate>
                       <DataTemplate x:DataType="models:FilterPreset">
                         <TextBlock Text="{Binding Name}" />
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
-                  <Button Grid.Column="1" Content="应用" Click="ApplyFilterPreset_Click"
+                  <Button Grid.Column="1" Content="{DynamicResource Ui_Apply}" Click="ApplyFilterPreset_Click"
                           Classes="ghost" FontSize="11" Padding="8,4" />
-                  <Button Grid.Column="2" Content="删除" Click="DeleteFilterPreset_Click"
+                  <Button Grid.Column="2" Content="{DynamicResource Ui_Delete}" Click="DeleteFilterPreset_Click"
                           Classes="ghost" FontSize="11" Padding="8,4" />
                 </Grid>
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                  <TextBox PlaceholderText="预设名称（留空自动命名）"
+                  <TextBox PlaceholderText="{DynamicResource Ui_Preset_name_leave_empty_to_auto_name}"
                            Text="{Binding FilterPresetName, Mode=TwoWay}" />
-                  <Button Grid.Column="1" Content="保存当前筛选" Click="SaveFilterPreset_Click"
+                  <Button Grid.Column="1" Content="{DynamicResource Ui_Save_current_filter}" Click="SaveFilterPreset_Click"
                           Classes="ghost" FontSize="11" Padding="8,4" />
-                  <Button Grid.Column="2" Content="清除" Click="ResetFilters_Click"
+                  <Button Grid.Column="2" Content="{DynamicResource Ui_Clear}" Click="ResetFilters_Click"
                           Classes="ghost" FontSize="11" Padding="8,4" />
                 </Grid>
                 <TextBlock Text="{Binding FilterError}" IsVisible="{Binding HasFilterError}"
@@ -239,10 +241,10 @@
             </Grid>
 
             <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="12,12,12,6">
-              <TextBlock Text="窗口 / TOPLEVEL" Classes="section" VerticalAlignment="Center" />
+              <TextBlock Text="{DynamicResource Ui_Windows_TOPLEVEL}" Classes="section" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="{Binding FilterSummaryText}" FontSize="11"
                          Foreground="#F6C177" VerticalAlignment="Center" Margin="8,0" />
-              <TextBlock Grid.Column="2" Text="来源 · 后端 · 几何" FontSize="11" Foreground="#66758C" />
+              <TextBlock Grid.Column="2" Text="{DynamicResource Ui_Source_Backend_Geometry}" FontSize="11" Foreground="#66758C" />
             </Grid>
 
             <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow, Mode=TwoWay}"
@@ -373,18 +375,18 @@
                 </StackPanel>
                 <Grid Grid.Row="1" Grid.ColumnSpan="2" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*"
                       Margin="0,10,0,0">
-                  <Button Content="复制摘要" Click="CopySummary_Click" Classes="ghost" IsEnabled="{Binding HasSelection}" />
-                  <Button Grid.Column="1" Content="复制 JSON" Click="CopyJson_Click" Classes="ghost"
+                  <Button Content="{DynamicResource Ui_Copy_summary}" Click="CopySummary_Click" Classes="ghost" IsEnabled="{Binding HasSelection}" />
+                  <Button Grid.Column="1" Content="{DynamicResource Ui_Copy_JSON}" Click="CopyJson_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
-                  <Button Grid.Column="2" Content="截图" Click="Screenshot_Click" Classes="ghost"
+                  <Button Grid.Column="2" Content="{DynamicResource Ui_Screenshot}" Click="Screenshot_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0"
-                          ToolTip.Tip="捕获选中窗口（X11 XGetImage / niri / grim）" />
-                  <Button Grid.Column="3" Content="高亮" Click="Highlight_Click" Classes="ghost"
+                          ToolTip.Tip="{DynamicResource Ui_Capture_the_selected_window_X11_XGetImage_niri_g}" />
+                  <Button Grid.Column="3" Content="{DynamicResource Ui_Highlight}" Click="Highlight_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0"
-                          ToolTip.Tip="在 X11 屏幕上绘制边框；Wayland 窗口请用“聚焦”" />
-                  <Button Grid.Column="4" Content="聚焦" Click="Focus_Click" Classes="ghost"
+                          ToolTip.Tip="{DynamicResource Ui_Draw_a_border_on_the_X11_screen_use_Focus_for_Wa}" />
+                  <Button Grid.Column="4" Content="{DynamicResource Ui_Focus}" Click="Focus_Click" Classes="ghost"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
-                  <Button Grid.Column="5" Content="关闭窗口" Click="Close_Click" Classes="danger"
+                  <Button Grid.Column="5" Content="{DynamicResource Ui_Close_window}" Click="Close_Click" Classes="danger"
                           IsEnabled="{Binding HasSelection}" Margin="6,0,0,0" />
                   <TextBlock Grid.Column="6" Text="{Binding SelectedId, StringFormat='ID {0}'}" Classes="muted" FontSize="10"
                              FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
@@ -396,19 +398,19 @@
 
             <TabControl Grid.Row="1" Margin="10,8,10,10"
                         SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
-              <TabItem Header="概览">
+              <TabItem Header="{DynamicResource Ui_Overview}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12">
-                    <TextBlock Text="窗口属性" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Window_properties}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding OverviewRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                     <Border Classes="divider" />
                     <TextBlock Classes="hint"
-                               Text="“后端”为 X11 时表示该窗口是 X11 客户端；在 Wayland 会话下它就是 XWayland 窗口。进程页会进一步显示它实际连接的 X11 / Wayland socket，以及 GTK/Qt/Electron/Flutter 等工具包证据。" />
+                               Text="{DynamicResource Ui_When_Backend_is_X11_the_window_is_an_X11_client_}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="进程">
+              <TabItem Header="{DynamicResource Ui_Process}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12">
                     <TextBlock Text="{Binding ProcessHeader}" FontSize="13" FontWeight="SemiBold"
@@ -416,7 +418,7 @@
                     <ItemsControl ItemsSource="{Binding ProcessRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
 
                     <Border Classes="divider" />
-                    <TextBlock Text="工具包证据" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Toolkit_evidence}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding ToolkitEvidence}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -433,7 +435,7 @@
                     </ItemsControl>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="关键动态库" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Key_shared_libraries}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding KeyLibraries}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -453,22 +455,22 @@
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="X11 属性">
+              <TabItem Header="{DynamicResource Ui_X11_properties}">
                 <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*" Margin="6,8,10,8">
-                  <TextBlock Grid.Row="0" Text="X11 窗口属性" Classes="section" Margin="0,0,0,6" />
+                  <TextBlock Grid.Row="0" Text="{DynamicResource Ui_X11_window_properties}" Classes="section" Margin="0,0,0,6" />
                   <ScrollViewer Grid.Row="1" MaxHeight="190" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Rows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                   </ScrollViewer>
                   <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="10" Margin="0,12,0,6">
-                    <TextBlock Text="{Binding X11Details.Properties.Count, StringFormat='{}{0} 个 X11 属性（点击复制）'}"
+                    <TextBlock Text="{Binding X11PropertyCountText}"
                                Classes="section" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Width="300" PlaceholderText="过滤属性名 / 类型 / 值…"
+                    <TextBox Grid.Column="1" Width="300" PlaceholderText="{DynamicResource Ui_Filter_property_name_type_value}"
                              Text="{Binding PropertyFilterText, Mode=TwoWay}" />
                   </Grid>
                   <ScrollViewer Grid.Row="3" MaxHeight="250" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Properties}" ItemTemplate="{StaticResource X11PropertyTemplate}" />
                   </ScrollViewer>
-                  <TextBlock Grid.Row="4" Text="{Binding X11Details.Children.Count, StringFormat='{}{0} 个子窗口'}"
+                  <TextBlock Grid.Row="4" Text="{Binding X11ChildCountText}"
                              Classes="section" Margin="0,12,0,6" IsVisible="{Binding HasX11Details}" />
                   <ScrollViewer Grid.Row="5" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding X11Children}" ItemTemplate="{StaticResource X11ChildTemplate}" />
@@ -482,7 +484,7 @@
                                 ItemTemplate="{StaticResource InfoRowTemplate}" />
                   <ScrollViewer Grid.Row="1" Margin="0,10,0,0">
                     <StackPanel>
-                      <TextBlock Text="合成器原始数据" Classes="section" Margin="0,0,0,6" />
+                      <TextBlock Text="{DynamicResource Ui_Raw_compositor_data}" Classes="section" Margin="0,0,0,6" />
                       <SelectableTextBlock Text="{Binding NativeJson}" FontSize="11"
                                            FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                                            Foreground="#B9C9E2" TextWrapping="Wrap" />
@@ -491,21 +493,21 @@
                 </Grid>
               </TabItem>
 
-              <TabItem Header="环境">
+              <TabItem Header="{DynamicResource Ui_Environment}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12">
-                    <TextBlock Text="进程环境变量（优先级排序）" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Process_environment_priority_order}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding EnvironmentRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                     <Border Classes="divider" />
-                    <TextBlock Text="socket 连接" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Socket_connections}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding SocketRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="原始数据">
+              <TabItem Header="{DynamicResource Ui_Raw_data}">
                 <Grid RowDefinitions="Auto,*" Margin="6,8,10,8">
-                  <TextBlock Grid.Row="0" Text="完整检视 JSON（窗口 + 进程 + X11 属性 + socket + 环境）"
+                  <TextBlock Grid.Row="0" Text="{DynamicResource Ui_Full_inspection_JSON_window_process_X11_properti}"
                              Classes="section" Margin="0,0,0,6" />
                   <TextBox Grid.Row="1" Text="{Binding RawJson}" IsReadOnly="True" AcceptsReturn="True"
                            TextWrapping="NoWrap" FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
@@ -514,23 +516,23 @@
                 </Grid>
               </TabItem>
 
-              <TabItem Header="事件">
+              <TabItem Header="{DynamicResource Ui_Events}">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="6,8,10,8">
                   <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,6">
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
-                      <TextBlock Text="实时事件" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Live_events}" Classes="section" VerticalAlignment="Center" />
                       <Border Grid.Column="1" Classes="badge accent" VerticalAlignment="Center">
                         <TextBlock Text="{Binding RealtimeSummary}" />
                       </Border>
                       <TextBlock Grid.Column="2" Text="{Binding EventCountText}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Content="清空" Click="ClearEvents_Click"
+                      <Button Grid.Column="3" Content="{DynamicResource Ui_Clear_2}" Click="ClearEvents_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
-                      <Button Grid.Column="4" Content="复制" Click="CopyEvents_Click"
+                      <Button Grid.Column="4" Content="{DynamicResource Ui_Copy}" Click="CopyEvents_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
-                               Text="实时事件来自 X11 PropertyNotify / ConfigureNotify / Map / Destroy / Focus、niri event-stream、Sway subscribe 和 Hyprland socket2。属性变化会在“概览”和“X11 属性”页标黄并显示旧值。" />
+                               Text="{DynamicResource Ui_Live_events_come_from_X11_PropertyNotify_Configu}" />
                   </Grid>
                   <ListBox Grid.Row="1" ItemsSource="{Binding Events}"
                            ItemTemplate="{StaticResource EventTemplate}">
@@ -542,19 +544,19 @@
                     </ListBox.Styles>
                   </ListBox>
                   <TextBlock Grid.Row="2" Classes="hint" Margin="0,6,0,0"
-                             Text="提示：事件列表只保留最近 800 条；暂停“实时事件”开关后不再记录。" />
+                             Text="{DynamicResource Ui_Note_only_the_latest_800_events_are_kept_no_new_}" />
                 </Grid>
               </TabItem>
 
-              <TabItem Header="截图">
+              <TabItem Header="{DynamicResource Ui_Screenshot}">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="6,8,10,8">
                   <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,8">
                     <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
-                      <Button Content="重新截图" Click="Screenshot_Click" Classes="ghost"
+                      <Button Content="{DynamicResource Ui_Recapture}" Click="Screenshot_Click" Classes="ghost"
                               IsEnabled="{Binding HasSelection}" FontSize="11" Padding="9,4" />
-                      <Button Grid.Column="1" Content="保存 PNG" Click="SaveScreenshot_Click" Classes="ghost"
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Save_PNG}" Click="SaveScreenshot_Click" Classes="ghost"
                               IsEnabled="{Binding HasScreenshot}" FontSize="11" Padding="9,4" />
-                      <Button Grid.Column="2" Content="复制图片" Click="CopyScreenshot_Click" Classes="ghost"
+                      <Button Grid.Column="2" Content="{DynamicResource Ui_Copy_image}" Click="CopyScreenshot_Click" Classes="ghost"
                               IsEnabled="{Binding HasScreenshot}" FontSize="11" Padding="9,4" />
                       <TextBlock Grid.Column="4" Text="{Binding ScreenshotStatus}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center"
@@ -562,70 +564,70 @@
                                  ToolTip.Tip="{Binding ScreenshotStatus}" />
                     </Grid>
                     <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
-                               Text="X11 / XWayland 使用 XGetImage 精确截取窗口；niri 使用 screenshot-window；Sway / Hyprland 使用 grim 按窗口几何截取；GNOME 尝试 gnome-screenshot。" />
+                               Text="{DynamicResource Ui_X11_XWayland_captures_the_window_precisely_with_}" />
                   </Grid>
                   <Border Grid.Row="1" Classes="panel" Background="#0A0E15" ClipToBounds="True">
                     <Panel>
                       <Image Source="{Binding ScreenshotImage}" Stretch="Uniform" Margin="10"
                              HorizontalAlignment="Center" VerticalAlignment="Center" />
-                      <TextBlock Text="尚未截图 · 点击工具栏“截图”或上方“重新截图”"
+                      <TextBlock Text="{DynamicResource Ui_No_screenshot_yet_use_Screenshot_in_the_toolbar_}"
                                  Classes="muted" FontSize="12"
                                  HorizontalAlignment="Center" VerticalAlignment="Center"
                                  IsVisible="{Binding !HasScreenshot}" />
                     </Panel>
                   </Border>
                   <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
-                    <TextBlock Text="{Binding ScreenshotSource, StringFormat='来源：{0}'}"
+                    <TextBlock Text="{Binding ScreenshotSourceText}"
                                Classes="muted" FontSize="10" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Classes="hint"
-                               Text="截图仅保存在内存中，点击“保存 PNG”写入磁盘。" />
+                               Text="{DynamicResource Ui_Screenshots_are_kept_in_memory_only_click_Save_P}" />
                   </Grid>
                 </Grid>
               </TabItem>
 
-              <TabItem Header="规则">
+              <TabItem Header="{DynamicResource Ui_Rules}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="10">
                     <Grid ColumnDefinitions="Auto,180,*,Auto" ColumnSpacing="10">
-                      <TextBlock Text="目标合成器" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Target_compositor}" Classes="section" VerticalAlignment="Center" />
                       <ComboBox Grid.Column="1" ItemsSource="{Binding RuleCompositors}"
                                 SelectedIndex="{Binding RuleCompositorIndex, Mode=TwoWay}" />
                       <TextBlock Grid.Column="3" Classes="hint" VerticalAlignment="Center"
-                                 Text="根据选中窗口生成可直接粘贴的配置" />
+                                 Text="{DynamicResource Ui_Generate_paste_ready_configuration_for_the_selec}" />
                     </Grid>
 
                     <WrapPanel ItemSpacing="12" LineSpacing="6">
-                      <CheckBox Content="浮动" IsChecked="{Binding RuleFloating, Mode=TwoWay}" />
-                      <CheckBox Content="全屏" IsChecked="{Binding RuleFullscreen, Mode=TwoWay}" />
-                      <CheckBox Content="无边框" IsChecked="{Binding RuleNoBorder, Mode=TwoWay}" />
-                      <CheckBox Content="固定 / Sticky" IsChecked="{Binding RuleSticky, Mode=TwoWay}" />
-                      <CheckBox Content="同时匹配标题" IsChecked="{Binding RuleMatchTitle, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Floating}" IsChecked="{Binding RuleFloating, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Fullscreen}" IsChecked="{Binding RuleFullscreen, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Borderless}" IsChecked="{Binding RuleNoBorder, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Sticky}" IsChecked="{Binding RuleSticky, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Match_title_too}" IsChecked="{Binding RuleMatchTitle, Mode=TwoWay}" />
                     </WrapPanel>
 
                     <Grid ColumnDefinitions="Auto,110,Auto,110,Auto,160,*" ColumnSpacing="8">
-                      <TextBlock Text="宽度" Classes="muted" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Width}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="1" Text="{Binding RuleWidth, Mode=TwoWay}"
-                               PlaceholderText="留空表示不限制" />
-                      <TextBlock Grid.Column="2" Text="高度" Classes="muted" VerticalAlignment="Center" />
+                               PlaceholderText="{DynamicResource Ui_Leave_empty_for_no_limit}" />
+                      <TextBlock Grid.Column="2" Text="{DynamicResource Ui_Height}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="3" Text="{Binding RuleHeight, Mode=TwoWay}"
-                               PlaceholderText="留空表示不限制" />
-                      <TextBlock Grid.Column="4" Text="工作区" Classes="muted" VerticalAlignment="Center" />
+                               PlaceholderText="{DynamicResource Ui_Leave_empty_for_no_limit}" />
+                      <TextBlock Grid.Column="4" Text="{DynamicResource Ui_Workspace}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="5" Text="{Binding RuleWorkspace, Mode=TwoWay}"
-                               PlaceholderText="名称 / 编号" />
+                               PlaceholderText="{DynamicResource Ui_Name_number}" />
                     </Grid>
 
                     <Grid ColumnDefinitions="Auto,110,*" ColumnSpacing="8">
-                      <TextBlock Text="不透明度" Classes="muted" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Opacity}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="1" Text="{Binding RuleOpacity, Mode=TwoWay}"
                                PlaceholderText="0.0 - 1.0" />
                       <TextBlock Grid.Column="2" Classes="hint" VerticalAlignment="Center"
-                                 Text="留空表示不生成透明度规则；niri / Sway / Hyprland 支持程度不同" />
+                                 Text="{DynamicResource Ui_Leave_empty_to_skip_the_opacity_rule_niri_Sway_H}" />
                     </Grid>
 
                     <Border Classes="divider" />
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="生成的配置" Classes="section" VerticalAlignment="Center" />
-                      <Button Grid.Column="1" Content="复制规则" Click="CopyRule_Click"
+                      <TextBlock Text="{DynamicResource Ui_Generated_configuration}" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Copy_rule}" Click="CopyRule_Click"
                               Classes="ghost" FontSize="11" Padding="9,4" />
                     </Grid>
                     <TextBox Text="{Binding GeneratedRule}" IsReadOnly="True"
@@ -635,12 +637,12 @@
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto" />
                     <TextBlock Classes="hint"
-                               Text="生成结果只是起点：请确认 app-id / class / title 与应用一致，再按注释中的路径粘贴并重载配置。匹配标题会随窗口标题变化而失效。" />
+                               Text="{DynamicResource Ui_The_result_is_only_a_starting_point_verify_app_i}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="X11 事件">
+              <TabItem Header="{DynamicResource Ui_X11_events}">
                 <Grid RowDefinitions="Auto,Auto,*" Margin="6,8,10,8">
                   <Grid RowDefinitions="Auto,Auto">
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
@@ -653,25 +655,25 @@
                                  TextTrimming="CharacterEllipsis" />
                       <TextBlock Grid.Column="3" Text="{Binding X11EventCountText}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
-                      <Button Grid.Column="4" Content="清空" Click="ClearX11Events_Click"
+                      <Button Grid.Column="4" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Events_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
-                      <Button Grid.Column="5" Content="复制" Click="CopyX11Events_Click"
+                      <Button Grid.Column="5" Content="{DynamicResource Ui_Copy}" Click="CopyX11Events_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
                     </Grid>
                     <WrapPanel Grid.Row="1" Margin="0,8,0,0" ItemSpacing="12" LineSpacing="5">
-                      <CheckBox Content="键盘" IsChecked="{Binding X11RecordKeys, Mode=TwoWay}" />
-                      <CheckBox Content="鼠标" IsChecked="{Binding X11RecordMouse, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Keyboard}" IsChecked="{Binding X11RecordKeys, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Mouse}" IsChecked="{Binding X11RecordMouse, Mode=TwoWay}" />
                       <CheckBox Content="Configure" IsChecked="{Binding X11RecordConfigure, Mode=TwoWay}" />
                       <CheckBox Content="Property" IsChecked="{Binding X11RecordProperty, Mode=TwoWay}" />
                       <CheckBox Content="Focus" IsChecked="{Binding X11RecordFocus, Mode=TwoWay}" />
                       <CheckBox Content="Map / Unmap" IsChecked="{Binding X11RecordMap, Mode=TwoWay}" />
                       <CheckBox Content="ClientMessage" IsChecked="{Binding X11RecordClientMessage, Mode=TwoWay}" />
-                      <CheckBox Content="其他" IsChecked="{Binding X11RecordOther, Mode=TwoWay}" />
-                      <CheckBox Content="只监视选中窗口" IsChecked="{Binding X11RecordOnlySelected, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Other}" IsChecked="{Binding X11RecordOther, Mode=TwoWay}" />
+                      <CheckBox Content="{DynamicResource Ui_Watch_selected_window_only}" IsChecked="{Binding X11RecordOnlySelected, Mode=TwoWay}" />
                     </WrapPanel>
                   </Grid>
                   <TextBlock Grid.Row="1" Classes="hint" Margin="0,8,0,8"
-                             Text="使用 libXtst RECORD 扩展全局记录事件，不需要修改目标窗口的 event mask。修改过滤条件立即生效；Record 事件与上方“实时事件”相互独立。" />
+                             Text="{DynamicResource Ui_Uses_the_libXtst_RECORD_extension_to_record_even}" />
                   <ListBox Grid.Row="2" ItemsSource="{Binding X11Events}"
                            ItemTemplate="{StaticResource X11RecordTemplate}">
                     <ListBox.Styles>
@@ -684,13 +686,13 @@
                 </Grid>
               </TabItem>
 
-              <TabItem Header="控件">
+              <TabItem Header="{DynamicResource Ui_Controls}">
                 <Grid RowDefinitions="Auto,Auto,*" Margin="6,8,10,8">
                   <Grid RowDefinitions="Auto" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
-                    <TextBlock Text="AT-SPI 控件树" Classes="section" VerticalAlignment="Center" />
-                    <Button Grid.Column="1" Content="加载控件树" Click="LoadAtspi_Click"
+                    <TextBlock Text="{DynamicResource Ui_AT_SPI_control_tree}" Classes="section" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="{DynamicResource Ui_Load_control_tree}" Click="LoadAtspi_Click"
                             Classes="ghost" FontSize="11" Padding="9,4" />
-                    <Button Grid.Column="2" Content="复制" Click="CopyAtspi_Click"
+                    <Button Grid.Column="2" Content="{DynamicResource Ui_Copy}" Click="CopyAtspi_Click"
                             Classes="ghost" FontSize="11" Padding="9,4" />
                     <TextBlock Grid.Column="3" Text="{Binding AtspiStatus}" Classes="muted"
                                FontSize="11" VerticalAlignment="Center"
@@ -700,7 +702,7 @@
                                FontSize="11" VerticalAlignment="Center" />
                   </Grid>
                   <TextBlock Grid.Row="1" Classes="hint" Margin="0,8,0,8"
-                             Text="通过 AT-SPI2 / python3-gi 读取 GTK、Qt 等应用的无障碍控件树。应用必须启用无障碍桥（例如 GTK_MODULES=gail:atk-bridge、QT_ACCESSIBILITY=1 或桌面“屏幕阅读器”支持）。未精确匹配时会显示全部已注册应用。" />
+                             Text="{DynamicResource Ui_Reads_the_accessibility_control_tree_of_GTK_Qt_a}" />
                   <Panel Grid.Row="2">
                     <TreeView ItemsSource="{Binding AtspiTree}">
                       <TreeView.Styles>
@@ -725,7 +727,7 @@
                         </TreeDataTemplate>
                       </TreeView.ItemTemplate>
                     </TreeView>
-                    <TextBlock Text="尚未加载 · 点击上方“加载控件树”"
+                    <TextBlock Text="{DynamicResource Ui_Not_loaded_click_Load_control_tree_above}"
                                Classes="muted" FontSize="12"
                                HorizontalAlignment="Center" VerticalAlignment="Center"
                                IsVisible="{Binding !HasAtspiTree}" />
@@ -733,10 +735,10 @@
                 </Grid>
               </TabItem>
 
-              <TabItem Header="热键">
+              <TabItem Header="{DynamicResource Ui_Hotkey}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="10">
-                    <TextBlock Text="全局拾取热键" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Global_pick_hotkey}" Classes="section" />
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
                       <Button Content="{Binding GlobalHotkeyButtonText}" Click="ToggleHotkey_Click"
                               Classes="pick" FontSize="11" Padding="10,4" />
@@ -747,12 +749,12 @@
                       </Border>
                     </Grid>
                     <TextBlock Classes="hint"
-                               Text="启用后通过 X11 XGrabKey 注册系统级 Ctrl+Alt+X。X11 会话可直接使用；Wayland 会话只有合成器把按键路由到 XWayland 时才生效，因此下方同时提供各合成器原生快捷键配置。" />
+                               Text="{DynamicResource Ui_When_enabled_registers_system_wide_Ctrl_Alt_X_th}" />
 
                     <Border Classes="divider" />
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="合成器快捷键配置" Classes="section" VerticalAlignment="Center" />
-                      <Button Grid.Column="1" Content="复制配置" Click="CopyHotkey_Click"
+                      <TextBlock Text="{DynamicResource Ui_Compositor_keybinding_configuration}" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Copy_configuration}" Click="CopyHotkey_Click"
                               Classes="ghost" FontSize="11" Padding="9,4" />
                     </Grid>
                     <TextBox Text="{Binding HotkeyConfig}" IsReadOnly="True"
@@ -762,99 +764,99 @@
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto" />
                     <TextBlock Classes="hint"
-                               Text="将对应行加入合成器配置并重载后，按下 Super+Shift+X 会启动 TuxViewer 的 X11 拾取模式。适合 Wayland 原生窗口（XWayland 窗口）以及 niri / Sway / Hyprland。" />
+                               Text="{DynamicResource Ui_Add_the_matching_line_to_the_compositor_configur}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="控制">
+              <TabItem Header="{DynamicResource Ui_Control}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="窗口状态" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Window_state}" Classes="section" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1" Text="{Binding ControlStatus}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center"
                                  TextTrimming="CharacterEllipsis" MaxWidth="520"
                                  ToolTip.Tip="{Binding ControlStatus}" />
                     </Grid>
                     <WrapPanel ItemSpacing="8" LineSpacing="6">
-                      <Button Content="置顶" Tag="above" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="置底" Tag="below" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="取消置顶 / 置底" Tag="clearabove" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="全屏" Tag="fullon" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="退出全屏" Tag="fulloff" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="切换浮动" Tag="floating" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="启用 Sticky" Tag="stickyon" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="取消 Sticky" Tag="stickoff" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Keep_above}" Tag="above" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Keep_below}" Tag="below" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Clear_above_below}" Tag="clearabove" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Fullscreen}" Tag="fullon" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Exit_fullscreen}" Tag="fulloff" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Toggle_floating}" Tag="floating" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Enable_sticky}" Tag="stickyon" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Disable_sticky}" Tag="stickoff" Click="ControlAction_Click" Classes="ghost" />
                     </WrapPanel>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="不透明度（X11 / XWayland）" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Opacity_X11_XWayland}" Classes="section" />
                     <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="10">
                       <Slider Minimum="0" Maximum="100" TickFrequency="5" IsSnapToTickEnabled="True"
                               Value="{Binding OpacityValue, Mode=TwoWay}" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1" Text="{Binding OpacityValue, StringFormat='{}{0:0}%'}"
                                  Classes="muted" VerticalAlignment="Center" MinWidth="42" />
-                      <Button Grid.Column="2" Content="应用" Tag="opacity"
+                      <Button Grid.Column="2" Content="{DynamicResource Ui_Apply}" Tag="opacity"
                               Click="ControlAction_Click" Classes="ghost" />
-                      <Button Grid.Column="3" Content="清除" Tag="clearopacity"
+                      <Button Grid.Column="3" Content="{DynamicResource Ui_Clear}" Tag="clearopacity"
                               Click="ControlAction_Click" Classes="ghost" />
                     </Grid>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="几何（X11 / Sway；niri 只支持宽高）" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Geometry_X11_Sway_niri_only_supports_width_heigh}" Classes="section" />
                     <Grid ColumnDefinitions="Auto,100,Auto,100,Auto,100,Auto,100,*" ColumnSpacing="8">
                       <TextBlock Text="X" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="1" Text="{Binding GeoX, Mode=TwoWay}" />
                       <TextBlock Grid.Column="2" Text="Y" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="3" Text="{Binding GeoY, Mode=TwoWay}" />
-                      <TextBlock Grid.Column="4" Text="宽" Classes="muted" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="4" Text="{DynamicResource Ui_Width_2}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="5" Text="{Binding GeoW, Mode=TwoWay}" />
-                      <TextBlock Grid.Column="6" Text="高" Classes="muted" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="6" Text="{DynamicResource Ui_Height_2}" Classes="muted" VerticalAlignment="Center" />
                       <TextBox Grid.Column="7" Text="{Binding GeoH, Mode=TwoWay}" />
-                      <Button Grid.Column="8" Content="应用几何" Tag="geometry"
+                      <Button Grid.Column="8" Content="{DynamicResource Ui_Apply_geometry}" Tag="geometry"
                               Click="ControlAction_Click" Classes="ghost" HorizontalAlignment="Left" />
                     </Grid>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="进程" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Process}" Classes="section" />
                     <ItemsControl ItemsSource="{Binding ProcessRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
                     <WrapPanel ItemSpacing="8" LineSpacing="6" Margin="0,8,0,0">
-                      <Button Content="发送关闭请求" Tag="close" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Send_close_request}" Tag="close" Click="ControlAction_Click" Classes="ghost" />
                       <Button Content="{Binding ForceKillButtonText}" Tag="kill"
                               Click="ControlAction_Click" Classes="danger" />
-                      <Button Content="打开可执行文件目录" Tag="openfolder" Click="ControlAction_Click" Classes="ghost" />
-                      <Button Content="复制进程信息" Tag="copyproc" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Open_executable_directory}" Tag="openfolder" Click="ControlAction_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Copy_process_info}" Tag="copyproc" Click="ControlAction_Click" Classes="ghost" />
                     </WrapPanel>
                     <TextBlock Classes="hint"
-                               Text="“强制结束”只会对 X11 / XWayland 客户端调用 XKillClient，需要二次点击确认；Wayland 原生窗口请使用合成器或应用自身的退出方式。" />
+                               Text="{DynamicResource Ui_Force_kill_only_calls_XKillClient_for_X11_XWayla}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="报告">
+              <TabItem Header="{DynamicResource Ui_Report}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="10">
                     <Grid ColumnDefinitions="*,Auto">
-                      <TextBlock Text="导出当前检视" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Export_current_inspection}" Classes="section" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1" Text="{Binding ReportStatus}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
                     </Grid>
                     <WrapPanel ItemSpacing="8" LineSpacing="6">
-                      <Button Content="导出 HTML" Click="ExportHtml_Click" Classes="ghost" />
-                      <Button Content="导出 Markdown" Click="ExportMarkdown_Click" Classes="ghost" />
-                      <Button Content="导出 JSON" Click="ExportJson_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Export_HTML}" Click="ExportHtml_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Export_Markdown}" Click="ExportMarkdown_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Export_JSON}" Click="ExportJson_Click" Classes="ghost" />
                     </WrapPanel>
                     <TextBlock Classes="hint"
-                               Text="导出内容包含窗口概览、进程、X11 属性、子窗口、完整 JSON，并自动附带当前窗口截图（HTML 内嵌；Markdown 保存同名 PNG）。" />
+                               Text="{DynamicResource Ui_The_export_contains_the_window_overview_process_}" />
 
                     <Border Classes="divider" />
-                    <TextBlock Text="窗口快照" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Window_snapshots}" Classes="section" />
                     <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                       <TextBox Text="{Binding SnapshotName, Mode=TwoWay}"
-                               PlaceholderText="快照名称（可留空，默认使用标题 + 时间）" />
-                      <Button Grid.Column="1" Content="保存当前快照" Click="SaveSnapshot_Click" Classes="ghost" />
-                      <Button Grid.Column="2" Content="刷新列表" Click="RefreshSnapshots_Click" Classes="ghost" />
+                               PlaceholderText="{DynamicResource Ui_Snapshot_name_optional_defaults_to_title_time}" />
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Save_current_snapshot}" Click="SaveSnapshot_Click" Classes="ghost" />
+                      <Button Grid.Column="2" Content="{DynamicResource Ui_Refresh_list}" Click="RefreshSnapshots_Click" Classes="ghost" />
                     </Grid>
                     <ListBox ItemsSource="{Binding Snapshots}"
                              SelectedItem="{Binding SelectedSnapshot, Mode=TwoWay}"
@@ -871,8 +873,8 @@
                       </ListBox.ItemTemplate>
                     </ListBox>
                     <WrapPanel ItemSpacing="8" LineSpacing="6">
-                      <Button Content="对比选中快照" Click="CompareSnapshot_Click" Classes="ghost" />
-                      <Button Content="删除选中快照" Click="DeleteSnapshot_Click" Classes="danger" />
+                      <Button Content="{DynamicResource Ui_Compare_selected_snapshot}" Click="CompareSnapshot_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Delete_selected_snapshot}" Click="DeleteSnapshot_Click" Classes="danger" />
                       <TextBlock Text="{Binding SnapshotStatus}" Classes="muted" FontSize="11"
                                  VerticalAlignment="Center" />
                     </WrapPanel>
@@ -884,19 +886,19 @@
                              ScrollViewer.VerticalScrollBarVisibility="Auto"
                              ScrollViewer.HorizontalScrollBarVisibility="Auto" />
                     <TextBlock Classes="hint"
-                               Text="快照保存在 $XDG_STATE_HOME/TuxViewer/snapshots（默认 ~/.local/state/TuxViewer/snapshots），包含窗口概览、X11 属性、进程信息和截图。对比会列出新增、删除和变化的字段。" />
+                               Text="{DynamicResource Ui_Snapshots_are_saved_under_XDG_STATE_HOME_TuxView}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="输出">
+              <TabItem Header="{DynamicResource Ui_Outputs}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="10">
                     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                      <TextBlock Text="多显示器 / 输出" Classes="section" VerticalAlignment="Center" />
+                      <TextBlock Text="{DynamicResource Ui_Displays_outputs}" Classes="section" VerticalAlignment="Center" />
                       <TextBlock Grid.Column="1" Text="{Binding OutputStatus}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
-                      <Button Grid.Column="2" Content="刷新输出" Click="RefreshOutputs_Click"
+                      <Button Grid.Column="2" Content="{DynamicResource Ui_Refresh_outputs}" Click="RefreshOutputs_Click"
                               Classes="ghost" FontSize="11" Padding="9,4" />
                     </Grid>
                     <TextBlock Text="{Binding OutputNote}" Classes="hint"
@@ -914,11 +916,11 @@
                               <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}"
                                          Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
                               <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="16">
-                                <TextBlock Text="{Binding ScaleText, StringFormat='缩放 {0}'}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding RefreshText, StringFormat='刷新率 {0}'}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding Transform, StringFormat='变换 {0}'}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding Mode, StringFormat='模式 {0}'}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding Workspace, StringFormat='工作区 {0}'}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding ScaleLabel}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding RefreshLabel}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding TransformLabel}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding ModeLabel}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding WorkspaceLabel}" FontSize="10" Foreground="#93A4BC" />
                               </StackPanel>
                             </Grid>
                           </Border>
@@ -927,7 +929,7 @@
                     </ItemsControl>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="工作区" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Workspace}" Classes="section" />
                     <ItemsControl ItemsSource="{Binding OutputWorkspaces}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -947,7 +949,7 @@
                     </ItemsControl>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="工作区 / 列布局" Classes="section" />
+                    <TextBlock Text="{DynamicResource Ui_Workspaces_column_layout}" Classes="section" />
                     <ItemsControl ItemsSource="{Binding OutputLayoutLines}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:CompileBindings="False">
@@ -959,31 +961,31 @@
                     </ItemsControl>
 
                     <TextBlock Classes="hint"
-                               Text="输出坐标来自合成器逻辑布局；XWayland 的 X11 根窗口可能经过缩放或偏移，详情页与截图使用 X11 坐标空间。niri 的“列布局”按 pos_in_scrolling_layout 显示每个工作区的列与窗口。" />
+                               Text="{DynamicResource Ui_Output_coordinates_come_from_the_compositor_s_lo}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
 
-              <TabItem Header="诊断">
+              <TabItem Header="{DynamicResource Ui_Diagnostics}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">
-                    <TextBlock Text="会话" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Session}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding SessionRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
 
                     <Border Classes="divider" />
-                    <TextBlock Text="实时监控" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Live_monitoring}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding RealtimeRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
 
                     <Border Classes="divider" />
                     <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,6">
-                      <TextBlock Text="窗口后端" Classes="section" VerticalAlignment="Center" />
-                      <Button Grid.Column="1" Content="刷新诊断" Click="RefreshDiagnostics_Click"
+                      <TextBlock Text="{DynamicResource Ui_Window_backends}" Classes="section" VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Refresh_diagnostics}" Click="RefreshDiagnostics_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
                     </Grid>
                     <ItemsControl ItemsSource="{Binding Diagnostics}" ItemTemplate="{StaticResource ProviderTemplate}" />
 
                     <Border Classes="divider" />
-                    <TextBlock Text="Wayland 全局协议（wayland-info）" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Wayland_global_protocols_wayland_info}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding WaylandProtocols}">
                       <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
@@ -1000,19 +1002,19 @@
                     </ItemsControl>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="GNOME 支持" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_GNOME_support}" Classes="section" Margin="0,0,0,6" />
                     <TextBlock Classes="hint"
-                               Text="GNOME Shell 默认禁止第三方读取窗口列表。TuxViewer 附带一个可选扩展，安装并重新登录后即可枚举窗口和按指针拾取。" />
+                               Text="{DynamicResource Ui_GNOME_Shell_forbids_third_party_window_list_acce}" />
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
-                      <Button Content="安装 GNOME 扩展" Click="InstallGnome_Click" Classes="ghost" />
+                      <Button Content="{DynamicResource Ui_Install_GNOME_extension}" Click="InstallGnome_Click" Classes="ghost" />
                       <TextBlock Text="{Binding GnomeInstallStatus}" Classes="hint" VerticalAlignment="Center"
                                  MaxWidth="520" />
                     </StackPanel>
 
                     <Border Classes="divider" />
-                    <TextBlock Text="限制说明" Classes="section" Margin="0,0,0,6" />
+                    <TextBlock Text="{DynamicResource Ui_Limitations}" Classes="section" Margin="0,0,0,6" />
                     <TextBlock Classes="hint"
-                               Text="Wayland 不允许普通客户端全局抓取输入或读取其他窗口内容。TuxViewer 会按合成器选择原生方案：niri pick-window、KWin queryWindowInfo、Hyprland 指针坐标、Sway 聚焦窗口、GNOME 扩展。X11 / XWayland 窗口则使用真正的全局指针抓取。" />
+                               Text="{DynamicResource Ui_Wayland_does_not_allow_regular_clients_to_grab_i}" />
                   </StackPanel>
                 </ScrollViewer>
               </TabItem>
@@ -1030,12 +1032,12 @@
           <TextBlock Text="◎" FontSize="20" Foreground="#7EABFF" VerticalAlignment="Center" />
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{Binding PickBanner}" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock Text="提示：点击模式单击目标；拖动模式按住拖动后松开；右键 / Esc 取消" FontSize="10" Foreground="#7E8CA3" />
+            <TextBlock Text="{DynamicResource Ui_Tip_click_mode_clicks_the_target_drag_mode_holds}" FontSize="10" Foreground="#7E8CA3" />
           </StackPanel>
           <Border Classes="badge accent" IsVisible="{Binding HasPickCountdown}">
             <TextBlock Text="{Binding PickCountdown}" />
           </Border>
-          <Button Content="取消" Click="CancelPick_Click" Classes="ghost" VerticalAlignment="Center" />
+          <Button Content="{DynamicResource Ui_Cancel}" Click="CancelPick_Click" Classes="ghost" VerticalAlignment="Center" />
         </StackPanel>
       </Border>
     </Grid>
@@ -1048,7 +1050,7 @@
                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Text="{Binding Session.SessionType}" FontSize="10"
                    Foreground="#66758C" Margin="10,0" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="2" Text="{Binding LastUpdatedText, StringFormat='更新 {0}'}"
+        <TextBlock Grid.Column="2" Text="{Binding UpdatedText}"
                    FontSize="10" Foreground="#66758C" VerticalAlignment="Center" />
       </Grid>
     </Border>

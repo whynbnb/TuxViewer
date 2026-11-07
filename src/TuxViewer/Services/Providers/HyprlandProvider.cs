@@ -18,8 +18,8 @@ public sealed class HyprlandProvider : WindowProviderBase
     public override string Name => "Hyprland IPC";
     public override bool IsAvailable => CommandRunner.Exists("hyprctl") && !string.IsNullOrWhiteSpace(_instance);
     public override string Detail => IsAvailable
-        ? $"Hyprland {_version ?? ""}".Trim() + " · 指针停留拾取"
-        : "未检测到 HYPRLAND_INSTANCE_SIGNATURE";
+        ? $"Hyprland {_version ?? ""}".Trim() + LocalizationService.L(" · 指针停留拾取", " · pointer-hover picking")
+        : LocalizationService.L("未检测到 HYPRLAND_INSTANCE_SIGNATURE", "HYPRLAND_INSTANCE_SIGNATURE not detected");
     public override PickCapability Pick => PickCapability.Cursor;
     public override bool CanFocus => true;
     public override bool CanClose => true;
@@ -53,7 +53,7 @@ public sealed class HyprlandProvider : WindowProviderBase
     {
         var position = await GetCursorPositionAsync(cancellationToken);
         if (position is null) return null;
-        progress?.Report(new PickProgress { Message = $"Hyprland：指针位置 {position.Value.X},{position.Value.Y}" });
+        progress?.Report(new PickProgress { Message = LocalizationService.F("Hyprland：指针位置 {0},{1}", "Hyprland: pointer at {0},{1}", position.Value.X, position.Value.Y) });
 
         var windows = await GetWindowsAsync(cancellationToken);
         var hits = windows
@@ -212,7 +212,7 @@ public sealed class HyprlandProvider : WindowProviderBase
             SourceId = "hyprland",
             SourceName = "Hyprland",
             NativeId = address,
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = cls,
             WmClass = cls,
             Pid = pid,

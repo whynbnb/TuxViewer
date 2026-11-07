@@ -10,8 +10,8 @@ public sealed class X11WindowProvider(X11Inspector inspector, bool isWaylandSess
     public override string Name => "X11 / XWayland";
     public override bool IsAvailable => Inspector.IsAvailable;
     public override string Detail => IsAvailable
-        ? $"{Inspector.DisplayName} · {(isWaylandSession ? "XWayland" : "原生 X11")} · {Inspector.GetWmName() ?? "WM 未知"}"
-        : Inspector.Error ?? "X11 不可用";
+        ? $"{Inspector.DisplayName} · {(isWaylandSession ? "XWayland" : LocalizationService.L("原生 X11", "native X11"))} · {Inspector.GetWmName() ?? LocalizationService.L("WM 未知", "WM unknown")}"
+        : Inspector.Error ?? LocalizationService.L("X11 不可用", "X11 unavailable");
     public override PickCapability Pick => PickCapability.Interactive;
     public override bool CanFocus => true;
     public override bool CanClose => true;
@@ -40,7 +40,7 @@ public sealed class X11WindowProvider(X11Inspector inspector, bool isWaylandSess
             SourceId = "x11",
             SourceName = "X11",
             NativeId = $"0x{id:x}",
-            Title = string.IsNullOrWhiteSpace(details.Title) ? "(无标题)" : details.Title!,
+            Title = string.IsNullOrWhiteSpace(details.Title) ? LocalizationService.L("(无标题)", "(untitled)") : details.Title!,
             AppId = details.ClassName,
             WmClass = details.ClassName,
             Backend = WindowBackend.X11,

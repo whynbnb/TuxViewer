@@ -28,6 +28,8 @@ public partial class MainWindow : Window
         await ViewModel.InitializeAsync();
     }
 
+    private void ToggleLanguage_Click(object? sender, RoutedEventArgs e) => ViewModel?.ToggleLanguage();
+
     private void SaveFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.SaveFilterPreset();
 
     private void ApplyFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.ApplySelectedFilterPreset();

@@ -38,13 +38,13 @@ public sealed class X11EventMonitor : IDisposable
             _display = XRecordNative.XOpenDisplay(null);
             if (_display == IntPtr.Zero)
             {
-                Error = "无法连接 X 服务器";
+                Error = LocalizationService.L("无法连接 X 服务器", "Cannot connect to the X server");
                 return false;
             }
 
             if (XRecordNative.XRecordQueryVersion(_display, out _, out _) == 0)
             {
-                Error = "X 服务器不支持 RECORD 扩展";
+                Error = LocalizationService.L("X 服务器不支持 RECORD 扩展", "The X server does not support the RECORD extension");
                 XRecordNative.XCloseDisplay(_display);
                 _display = IntPtr.Zero;
                 return false;
@@ -54,7 +54,7 @@ public sealed class X11EventMonitor : IDisposable
             _range = XRecordNative.XRecordAllocRange();
             if (_range == IntPtr.Zero)
             {
-                Error = "XRecordAllocRange 失败";
+                Error = LocalizationService.L("XRecordAllocRange 失败", "XRecordAllocRange failed");
                 Cleanup();
                 return false;
             }
@@ -71,7 +71,7 @@ public sealed class X11EventMonitor : IDisposable
                 _display, XRecordNative.XRecordFromServer, clients, 1, ranges, 1);
             if (_context == 0)
             {
-                Error = "XRecordCreateContext 失败（权限或扩展不可用）";
+                Error = LocalizationService.L("XRecordCreateContext 失败（权限或扩展不可用）", "XRecordCreateContext failed (permissions or extension unavailable)");
                 Cleanup();
                 return false;
             }
@@ -101,7 +101,7 @@ public sealed class X11EventMonitor : IDisposable
         {
             if (XRecordNative.XRecordEnableContextAsync(_display, _context, _callback!, IntPtr.Zero) == 0)
             {
-                Error = "XRecordEnableContextAsync 失败";
+                Error = LocalizationService.L("XRecordEnableContextAsync 失败", "XRecordEnableContextAsync failed");
                 IsRunning = false;
                 return;
             }

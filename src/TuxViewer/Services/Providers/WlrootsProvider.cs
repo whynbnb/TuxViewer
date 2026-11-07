@@ -16,8 +16,8 @@ public sealed class WlrootsProvider : WindowProviderBase
     public override string Name => "wlroots (wlrctl)";
     public override bool IsAvailable => _available;
     public override string Detail => _available
-        ? "外接 wlrctl：仅窗口列表（无 PID / 几何，合成器协议限制）"
-        : _reason ?? (_probed ? "未检测到 wlrctl 或 wlr-foreign-toplevel 支持" : "未初始化");
+        ? LocalizationService.L("外接 wlrctl：仅窗口列表（无 PID / 几何，合成器协议限制）", "External wlrctl: window list only (no PID / geometry due to protocol limits)")
+        : _reason ?? (_probed ? LocalizationService.L("未检测到 wlrctl 或 wlr-foreign-toplevel 支持", "wlrctl or wlr-foreign-toplevel support not detected") : LocalizationService.L("未初始化", "Not initialized"));
     public override PickCapability Pick => PickCapability.None;
     public override bool CanFocus => true;
     public override bool CanClose => true;
@@ -33,18 +33,18 @@ public sealed class WlrootsProvider : WindowProviderBase
             (Environment.GetEnvironmentVariable("XDG_CURRENT_DESKTOP") ?? "").Contains("KDE", StringComparison.OrdinalIgnoreCase);
         if (otherProvider)
         {
-            _reason = "已由 niri / Sway / Hyprland / GNOME / KDE 原生后端接管";
+            _reason = LocalizationService.L("已由 niri / Sway / Hyprland / GNOME / KDE 原生后端接管", "Handled by the native niri / Sway / Hyprland / GNOME / KDE backend");
             return;
         }
         if (!CommandRunner.Exists("wlrctl"))
         {
-            _reason = "未安装 wlrctl（可选）";
+            _reason = LocalizationService.L("未安装 wlrctl（可选）", "wlrctl is not installed (optional)");
             return;
         }
 
         var result = await CommandRunner.TryRunAsync("wlrctl", ["toplevel", "list"], 3000, cancellationToken);
         _available = result?.Success == true;
-        if (!_available) _reason = "合成器未暴露 wlr-foreign-toplevel-management";
+        if (!_available) _reason = LocalizationService.L("合成器未暴露 wlr-foreign-toplevel-management", "The compositor does not expose wlr-foreign-toplevel-management");
     }
 
     public override async Task<IReadOnlyList<WindowInfo>> GetWindowsAsync(CancellationToken cancellationToken)
@@ -67,7 +67,7 @@ public sealed class WlrootsProvider : WindowProviderBase
                 SourceId = "wlroots",
                 SourceName = "wlrctl",
                 NativeId = title.Length > 0 ? title : appId,
-                Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title,
+                Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title,
                 AppId = appId.Length > 0 ? appId : null,
                 WmClass = appId.Length > 0 ? appId : null,
                 Backend = WindowBackend.Wayland,

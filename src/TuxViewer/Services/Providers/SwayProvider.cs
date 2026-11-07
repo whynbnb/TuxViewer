@@ -18,8 +18,8 @@ public sealed class SwayProvider : WindowProviderBase
     public override string Name => "Sway IPC";
     public override bool IsAvailable => CommandRunner.Exists("swaymsg") && !string.IsNullOrWhiteSpace(_socket);
     public override string Detail => IsAvailable
-        ? $"sway {_version ?? ""}".Trim() + " · XWayland 标记"
-        : "未检测到 SWAYSOCK";
+        ? $"sway {_version ?? ""}".Trim() + LocalizationService.L(" · XWayland 标记", " · XWayland tag")
+        : LocalizationService.L("未检测到 SWAYSOCK", "SWAYSOCK not detected");
     public override PickCapability Pick => PickCapability.Focused;
     public override bool CanFocus => true;
     public override bool CanClose => true;
@@ -136,7 +136,7 @@ public sealed class SwayProvider : WindowProviderBase
             SourceId = "sway",
             SourceName = "sway",
             NativeId = nodeId.ToString(CultureInfo.InvariantCulture),
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = cls,
             WmClass = cls,
             Pid = pid,

@@ -48,14 +48,14 @@ public sealed class X11Inspector : IDisposable
             var display = Environment.GetEnvironmentVariable("DISPLAY");
             if (string.IsNullOrWhiteSpace(display))
             {
-                Error = "DISPLAY 未设置";
+                Error = LocalizationService.L("DISPLAY 未设置", "DISPLAY is not set");
                 return;
             }
 
             _display = X11Native.XOpenDisplay(null);
             if (_display == IntPtr.Zero)
             {
-                Error = $"无法连接 X 服务器 ({display})";
+                Error = LocalizationService.F("无法连接 X 服务器 ({0})", "Cannot connect to the X server ({0})", display);
                 return;
             }
 
@@ -177,7 +177,7 @@ public sealed class X11Inspector : IDisposable
             SourceId = "x11",
             SourceName = "X11",
             NativeId = $"0x{id:x}",
-            Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title!,
+            Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title!,
             AppId = cls,
             WmClass = cls,
             Pid = pid,
@@ -253,7 +253,7 @@ public sealed class X11Inspector : IDisposable
         error = null;
         if (!IsAvailable)
         {
-            error = "X11 不可用";
+            error = LocalizationService.L("X11 不可用", "X11 unavailable");
             return null;
         }
 
@@ -264,12 +264,12 @@ public sealed class X11Inspector : IDisposable
                 var window = (IntPtr)(nuint)id;
                 if (X11Native.XGetWindowAttributes(_display, window, out var attrs) == 0)
                 {
-                    error = "无法读取窗口属性";
+                    error = LocalizationService.L("无法读取窗口属性", "Cannot read window properties");
                     return null;
                 }
                 if (attrs.Width <= 0 || attrs.Height <= 0)
                 {
-                    error = "窗口尺寸无效";
+                    error = LocalizationService.L("窗口尺寸无效", "Invalid window size");
                     return null;
                 }
 
@@ -278,7 +278,7 @@ public sealed class X11Inspector : IDisposable
                     X11Native.AllPlanes, X11Native.ZPixmap);
                 if (image == IntPtr.Zero)
                 {
-                    error = "XGetImage 失败（窗口可能不可见）";
+                    error = LocalizationService.L("XGetImage 失败（窗口可能不可见）", "XGetImage failed (the window may not be visible)");
                     return null;
                 }
 
@@ -287,7 +287,7 @@ public sealed class X11Inspector : IDisposable
                     var data = ConvertXImage(image, attrs.Width, attrs.Height);
                     if (data is null)
                     {
-                        error = "无法解析 XImage 像素格式";
+                        error = LocalizationService.L("无法解析 XImage 像素格式", "Cannot parse the XImage pixel format");
                         return null;
                     }
                     return (data, attrs.Width, attrs.Height);
@@ -481,7 +481,7 @@ public sealed class X11Inspector : IDisposable
                 Dbg($"XGrabPointer status={grab}");
                 if (!grabbedPointer)
                 {
-                    progress?.Report(new PickProgress { Message = "X11 指针抓取失败（Wayland 下通常只支持 X11 窗口）" });
+                    progress?.Report(new PickProgress { Message = LocalizationService.L("X11 指针抓取失败（Wayland 下通常只支持 X11 窗口）", "X11 pointer grab failed (under Wayland this usually only works for X11 windows)") });
                     return null;
                 }
 
@@ -495,8 +495,8 @@ public sealed class X11Inspector : IDisposable
                 progress?.Report(new PickProgress
                 {
                     Message = mode == PickMode.Drag
-                        ? "X11 拖动拾取：在目标窗口按住左键拖动，松开选择 · 右键 / Esc 取消"
-                        : "X11 点击拾取：移动准星，单击目标窗口 · 右键 / Esc 取消",
+                        ? LocalizationService.L("X11 拖动拾取：在目标窗口按住左键拖动，松开选择 · 右键 / Esc 取消", "X11 drag pick: hold the left button on the target window and release to select · right-click / Esc to cancel")
+                        : LocalizationService.L("X11 点击拾取：移动准星，单击目标窗口 · 右键 / Esc 取消", "X11 click pick: move the crosshair and click a target window · right-click / Esc to cancel"),
                 });
 
                 while (!cancellationToken.IsCancellationRequested)
@@ -559,13 +559,13 @@ public sealed class X11Inspector : IDisposable
                         X11Native.XGetWindowAttributes(_display, (IntPtr)(nuint)hover, out var ha);
                         progress?.Report(new PickProgress
                         {
-                            Message = $"X11 {(mode == PickMode.Drag ? "拖动" : "点击")}：0x{hover:x} · {cls ?? "?"} · {title}",
+                            Message = LocalizationService.F("X11 {0}：0x{1:x} · {2} · {3}", "X11 {0}: 0x{1:x} · {2} · {3}", mode == PickMode.Drag ? LocalizationService.L("拖动", "drag") : LocalizationService.L("点击", "click"), hover, cls ?? "?", title),
                             HoverWindow = new WindowInfo
                             {
                                 Id = $"x11:0x{hover:x}",
                                 SourceId = "x11",
                                 SourceName = "X11",
-                                Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title,
+                                Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title,
                                 AppId = cls,
                                 WmClass = cls,
                                 Pid = GetPid(hover),
@@ -615,7 +615,7 @@ public sealed class X11Inspector : IDisposable
     {
         if (deepWindow == 0)
         {
-            progress?.Report(new PickProgress { Message = "指针下没有可选择的窗口" });
+            progress?.Report(new PickProgress { Message = LocalizationService.L("指针下没有可选择的窗口", "No selectable window under the pointer") });
             return null;
         }
 
@@ -628,13 +628,13 @@ public sealed class X11Inspector : IDisposable
         ShowHighlightUnlocked(target, 2600);
         progress?.Report(new PickProgress
         {
-            Message = $"已选择 X11 窗口 0x{target:x}",
+            Message = LocalizationService.F("已选择 X11 窗口 0x{0:x}", "Selected X11 window 0x{0:x}", target),
             HoverWindow = new WindowInfo
             {
                 Id = $"x11:0x{target:x}",
                 SourceId = "x11",
                 SourceName = "X11",
-                Title = string.IsNullOrWhiteSpace(title) ? "(无标题)" : title,
+                Title = string.IsNullOrWhiteSpace(title) ? LocalizationService.L("(无标题)", "(untitled)") : title,
                 AppId = cls,
                 WmClass = cls,
                 Pid = GetPid(target),
@@ -948,7 +948,7 @@ public sealed class X11Inspector : IDisposable
                 {
                     if (name == "_NET_WM_ICON")
                     {
-                        result.Add(new X11Property { Name = name, Type = "CARDINAL", Format = 32, Value = "(图标 ARGB 数据，已省略)" });
+                        result.Add(new X11Property { Name = name, Type = "CARDINAL", Format = 32, Value = LocalizationService.L("(图标 ARGB 数据，已省略)", "(icon ARGB data omitted)") });
                         continue;
                     }
 
@@ -982,7 +982,7 @@ public sealed class X11Inspector : IDisposable
     {
         try
         {
-            if (name == "_NET_WM_ICON") return "(图标 ARGB 数据，已省略)";
+            if (name == "_NET_WM_ICON") return LocalizationService.L("(图标 ARGB 数据，已省略)", "(icon ARGB data omitted)");
             if (format == 8)
             {
                 var text = Encoding.UTF8.GetString(bytes).TrimEnd('\0');
@@ -999,14 +999,14 @@ public sealed class X11Inspector : IDisposable
                 if (typeName == "WINDOW")
                     return string.Join(", ", values.Select(v => $"0x{v:x}"));
                 var ints = values.Select(v => unchecked((int)v)).ToList();
-                return string.Join(", ", ints.Take(128)) + (ints.Count > 128 ? $" … ({ints.Count} 项)" : "");
+                return string.Join(", ", ints.Take(128)) + (ints.Count > 128 ? LocalizationService.F(" … ({0} 项)", " … ({0} items)", ints.Count) : "");
             }
 
             if (format == 16)
             {
                 var values = new ushort[items];
                 Buffer.BlockCopy(bytes, 0, values, 0, Math.Min(bytes.Length, items * 2));
-                return string.Join(", ", values.Take(128)) + (values.Length > 128 ? $" … ({values.Length} 项)" : "");
+                return string.Join(", ", values.Take(128)) + (values.Length > 128 ? LocalizationService.F(" … ({0} 项)", " … ({0} items)", values.Length) : "");
             }
 
             return $"({bytes.Length} bytes)";
