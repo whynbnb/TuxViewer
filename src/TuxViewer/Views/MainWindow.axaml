@@ -13,14 +13,14 @@
   <Window.Resources>
     <DataTemplate x:Key="InfoRowTemplate" x:DataType="models:InfoRow">
       <Grid ColumnDefinitions="176,*,Auto" Margin="0,2" ColumnSpacing="8">
-        <TextBlock Text="{Binding Label}" Foreground="#8795AB" FontSize="12"
+        <TextBlock Text="{Binding Label}" Foreground="{DynamicResource Theme_8795AB}" FontSize="12"
                    LineHeight="18" VerticalAlignment="Top" />
         <StackPanel Grid.Column="1" Spacing="1">
           <SelectableTextBlock Text="{Binding Value}"
                                FontFamily="{Binding FontFamily}" FontSize="12"
-                               LineHeight="18" Foreground="#DCE5F4" TextWrapping="Wrap" />
+                               LineHeight="18" Foreground="{DynamicResource Theme_DCE5F4}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding ChangeText}" IsVisible="{Binding IsChanged}"
-                     FontSize="10" Foreground="#F6C177" TextWrapping="Wrap" />
+                     FontSize="10" Foreground="{DynamicResource Theme_F6C177}" TextWrapping="Wrap" />
         </StackPanel>
         <Border Grid.Column="2" Classes="change-badge" IsVisible="{Binding IsChanged}"
                 VerticalAlignment="Top" Margin="0,2,0,0">
@@ -33,7 +33,7 @@
       <Border Classes="card" Classes.changed="{Binding IsChanged}" Margin="0,0,0,4" Padding="10,7">
         <StackPanel Spacing="2">
           <Grid ColumnDefinitions="*,Auto">
-            <TextBlock Text="{Binding NameAndType}" FontSize="11" Foreground="#8FA6C9"
+            <TextBlock Text="{Binding NameAndType}" FontSize="11" Foreground="{DynamicResource Theme_8FA6C9}"
                        FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                        TextWrapping="Wrap" />
             <Border Grid.Column="1" Classes="change-badge" IsVisible="{Binding IsChanged}">
@@ -42,9 +42,9 @@
           </Grid>
           <SelectableTextBlock Text="{Binding Value}" FontSize="12"
                                FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
-                               Foreground="#DCE5F4" TextWrapping="Wrap" />
+                               Foreground="{DynamicResource Theme_DCE5F4}" TextWrapping="Wrap" />
           <TextBlock Text="{Binding ChangeText}" IsVisible="{Binding IsChanged}"
-                     FontSize="10" Foreground="#F6C177"
+                     FontSize="10" Foreground="{DynamicResource Theme_F6C177}"
                      FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                      TextWrapping="Wrap" />
         </StackPanel>
@@ -53,16 +53,16 @@
 
     <DataTemplate x:Key="X11RecordTemplate" x:DataType="models:X11RecordedEvent">
       <Grid ColumnDefinitions="86,116,104,*" ColumnSpacing="8" Margin="0,1">
-        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="{DynamicResource Theme_66758C}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Text="{Binding TypeName}" FontSize="10" Foreground="#9BC0FF"
+        <TextBlock Grid.Column="1" Text="{Binding TypeName}" FontSize="10" Foreground="{DynamicResource Theme_9BC0FF}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-        <TextBlock Grid.Column="2" Text="{Binding WindowHex}" FontSize="10" Foreground="#F0B57D"
+        <TextBlock Grid.Column="2" Text="{Binding WindowHex}" FontSize="10" Foreground="{DynamicResource Theme_F0B57D}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="{DynamicResource Theme_C6D3E8}"
                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                    ToolTip.Tip="{Binding Summary}" />
       </Grid>
@@ -70,20 +70,20 @@
 
     <DataTemplate x:Key="X11ProtocolTemplate" x:DataType="models:X11ProtocolRecord">
       <Grid ColumnDefinitions="86,40,58,150,*" ColumnSpacing="8" Margin="0,1">
-        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="{DynamicResource Theme_66758C}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Text="{Binding Direction}" FontSize="10" Foreground="#F6C177"
+        <TextBlock Grid.Column="1" Text="{Binding Direction}" FontSize="10" Foreground="{DynamicResource Theme_F6C177}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="10" Foreground="#9BC0FF"
+        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="10" Foreground="{DynamicResource Theme_9BC0FF}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="3" Text="{Binding Name}" FontSize="10" Foreground="#C6D3E8"
+        <TextBlock Grid.Column="3" Text="{Binding Name}" FontSize="10" Foreground="{DynamicResource Theme_C6D3E8}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                    ToolTip.Tip="{Binding Name}" />
-        <TextBlock Grid.Column="4" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+        <TextBlock Grid.Column="4" Text="{Binding Summary}" FontSize="11" Foreground="{DynamicResource Theme_C6D3E8}"
                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                    ToolTip.Tip="{Binding DisplayText}" />
       </Grid>
@@ -91,17 +91,17 @@
 
     <DataTemplate x:Key="EventTemplate" x:DataType="models:WindowEventRecord">
       <Grid ColumnDefinitions="86,64,96,*" ColumnSpacing="8" Margin="0,1">
-        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="{DynamicResource Theme_66758C}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
         <Border Grid.Column="1" Classes="tag" HorizontalAlignment="Left"
                 VerticalAlignment="Center">
           <TextBlock Text="{Binding Source}" />
         </Border>
-        <TextBlock Grid.Column="2" Text="{Binding KindText}" FontSize="10" Foreground="#9BC0FF"
+        <TextBlock Grid.Column="2" Text="{Binding KindText}" FontSize="10" Foreground="{DynamicResource Theme_9BC0FF}"
                    FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                    VerticalAlignment="Center" />
-        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+        <TextBlock Grid.Column="3" Text="{Binding Summary}" FontSize="11" Foreground="{DynamicResource Theme_C6D3E8}"
                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
                    ToolTip.Tip="{Binding Summary}" />
       </Grid>
@@ -111,7 +111,7 @@
       <Border Classes="card" Margin="0,0,0,3" Padding="9,6">
         <SelectableTextBlock Text="{Binding DisplayText}" FontSize="11"
                              FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
-                             Foreground="#C6D3E8" TextWrapping="Wrap" />
+                             Foreground="{DynamicResource Theme_C6D3E8}" TextWrapping="Wrap" />
       </Border>
     </DataTemplate>
 
@@ -127,7 +127,7 @@
             </Border>
           </Grid>
           <TextBlock Text="{Binding Detail}" Classes="hint" />
-          <TextBlock Text="{Binding CapabilityText}" Classes="hint" Foreground="#6E7F98" />
+          <TextBlock Text="{Binding CapabilityText}" Classes="hint" Foreground="{DynamicResource Theme_6E7F98}" />
         </StackPanel>
       </Border>
     </DataTemplate>
@@ -136,16 +136,16 @@
   <Grid RowDefinitions="Auto,*,Auto">
 
     <!-- Top bar -->
-    <Border Grid.Row="0" Background="#0E131D" BorderBrush="#222B3B" BorderThickness="0,0,0,1" Padding="16,10">
+    <Border Grid.Row="0" Background="{DynamicResource Theme_0E131D}" BorderBrush="{DynamicResource Theme_222B3B}" BorderThickness="0,0,0,1" Padding="16,10">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
         <StackPanel Orientation="Horizontal" Spacing="12">
-          <Border Width="38" Height="38" CornerRadius="11" Background="#4F8CFF">
-            <TextBlock Text="TV" FontSize="15" FontWeight="Bold" Foreground="#08101E"
+          <Border Width="38" Height="38" CornerRadius="11" Background="{DynamicResource Theme_4F8CFF}">
+            <TextBlock Text="TV" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource Theme_08101E}"
                        HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
           <StackPanel VerticalAlignment="Center" Spacing="1">
             <TextBlock Text="TuxViewer" FontSize="20" FontWeight="Bold" LetterSpacing="0.4" />
-            <TextBlock Text="{DynamicResource Ui_Linux_desktop_window_inspector}" FontSize="11" Foreground="#7E8CA3" />
+            <TextBlock Text="{DynamicResource Ui_Linux_desktop_window_inspector}" FontSize="11" Foreground="{DynamicResource Theme_7E8CA3}" />
           </StackPanel>
         </StackPanel>
 
@@ -163,8 +163,8 @@
         </StackPanel>
 
         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7">
-          <Button Content="{Binding LanguageButtonText}" Click="ToggleLanguage_Click" Classes="ghost"
-                  ToolTip.Tip="{Binding LanguageToolTip}" />
+          <Button Content="{DynamicResource Ui_Settings}" Click="Settings_Click" Classes="ghost"
+                  ToolTip.Tip="{DynamicResource Ui_Settings}" />
           <Button Content="{DynamicResource Ui_Refresh}" Click="Refresh_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
                   ToolTip.Tip="{DynamicResource Ui_Refresh_window_list_F5}" />
           <Button Content="{DynamicResource Ui_Current_focus}" Click="Focused_Click" Classes="ghost" IsEnabled="{Binding IsIdle}"
@@ -257,15 +257,15 @@
                           Classes="ghost" FontSize="11" Padding="8,4" />
                 </Grid>
                 <TextBlock Text="{Binding FilterError}" IsVisible="{Binding HasFilterError}"
-                           Foreground="#F7768E" FontSize="10" TextWrapping="Wrap" />
+                           Foreground="{DynamicResource Theme_F7768E}" FontSize="10" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
 
             <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="12,12,12,6">
               <TextBlock Text="{DynamicResource Ui_Windows_TOPLEVEL}" Classes="section" VerticalAlignment="Center" />
               <TextBlock Grid.Column="1" Text="{Binding FilterSummaryText}" FontSize="11"
-                         Foreground="#F6C177" VerticalAlignment="Center" Margin="8,0" />
-              <TextBlock Grid.Column="2" Text="{DynamicResource Ui_Source_Backend_Geometry}" FontSize="11" Foreground="#66758C" />
+                         Foreground="{DynamicResource Theme_F6C177}" VerticalAlignment="Center" Margin="8,0" />
+              <TextBlock Grid.Column="2" Text="{DynamicResource Ui_Source_Backend_Geometry}" FontSize="11" Foreground="{DynamicResource Theme_66758C}" />
             </Grid>
 
             <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow, Mode=TwoWay}"
@@ -274,10 +274,10 @@
                 <DataTemplate x:DataType="models:WindowInfo">
                   <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="10" Height="44">
                     <Panel Width="36" Height="36" VerticalAlignment="Center">
-                      <Border CornerRadius="9" Background="#1B2638" BorderBrush="#2A3850"
+                      <Border CornerRadius="9" Background="{DynamicResource Theme_1B2638}" BorderBrush="{DynamicResource Theme_2A3850}"
                               BorderThickness="1">
                         <TextBlock Text="{Binding IconInitial}" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="#AFC3E4" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource Theme_AFC3E4}" HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
                       </Border>
                       <Border CornerRadius="9" ClipToBounds="True" IsVisible="{Binding HasIcon}">
@@ -295,17 +295,17 @@
                           <TextBlock Text="{Binding BackendShort}" />
                         </Border>
                         <TextBlock Grid.Column="1" Text="{Binding Subtitle}" FontSize="11"
-                                   Foreground="#7E8CA3" LineHeight="15"
+                                   Foreground="{DynamicResource Theme_7E8CA3}" LineHeight="15"
                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                       </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
                                 HorizontalAlignment="Right">
-                      <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="#93A4BC"
+                      <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}"
                                  FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                                  LineHeight="14" HorizontalAlignment="Right" />
-                      <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="#4F8CFF"
+                      <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="{DynamicResource Theme_4F8CFF}"
                                  LineHeight="14" HorizontalAlignment="Right" />
                     </StackPanel>
                   </Grid>
@@ -326,10 +326,10 @@
                 <TreeDataTemplate ItemsSource="{Binding Children}" x:DataType="models:WindowNode">
                   <Grid ColumnDefinitions="40,*,Auto" ColumnSpacing="8" Height="44" Margin="0,1">
                     <Panel Width="36" Height="36" VerticalAlignment="Center">
-                      <Border CornerRadius="9" Background="#1B2638" BorderBrush="#2A3850"
+                      <Border CornerRadius="9" Background="{DynamicResource Theme_1B2638}" BorderBrush="{DynamicResource Theme_2A3850}"
                               BorderThickness="1">
                         <TextBlock Text="{Binding IconInitial}" FontSize="14" FontWeight="SemiBold"
-                                   Foreground="#AFC3E4" HorizontalAlignment="Center"
+                                   Foreground="{DynamicResource Theme_AFC3E4}" HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
                       </Border>
                       <Border CornerRadius="9" ClipToBounds="True" IsVisible="{Binding HasIcon}">
@@ -348,17 +348,17 @@
                           <TextBlock Text="{Binding BackendShort}" />
                         </Border>
                         <TextBlock Grid.Column="1" Text="{Binding Subtitle}" FontSize="11"
-                                   Foreground="#7E8CA3" LineHeight="15"
+                                   Foreground="{DynamicResource Theme_7E8CA3}" LineHeight="15"
                                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                       </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center"
                                 HorizontalAlignment="Right">
-                      <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="#93A4BC"
+                      <TextBlock Text="{Binding GeometryText}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}"
                                  FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                                  LineHeight="14" HorizontalAlignment="Right" />
-                      <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="#4F8CFF"
+                      <TextBlock Text="{Binding FocusGlyph}" FontSize="10" Foreground="{DynamicResource Theme_4F8CFF}"
                                  LineHeight="14" HorizontalAlignment="Right" />
                     </StackPanel>
                   </Grid>
@@ -371,7 +371,7 @@
         <!-- Details -->
         <Border Grid.Column="2" Classes="panel" Margin="0,12,12,12" ClipToBounds="True">
           <Grid RowDefinitions="Auto,*">
-            <Border Grid.Row="0" Background="#101724" BorderBrush="#232C3D" BorderThickness="0,0,0,1"
+            <Border Grid.Row="0" Background="{DynamicResource Theme_101724}" BorderBrush="{DynamicResource Theme_232C3D}" BorderThickness="0,0,0,1"
                     Padding="16,12">
               <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                 <StackPanel Grid.Row="0" Grid.Column="0" Spacing="2">
@@ -379,7 +379,7 @@
                              LineHeight="24" Height="28" TextWrapping="NoWrap"
                              TextTrimming="CharacterEllipsis"
                              ToolTip.Tip="{Binding SelectedTitle}" />
-                  <TextBlock Text="{Binding SelectedSubtitle}" FontSize="11" Foreground="#7E8CA3"
+                  <TextBlock Text="{Binding SelectedSubtitle}" FontSize="11" Foreground="{DynamicResource Theme_7E8CA3}"
                              LineHeight="16" Height="18" TextWrapping="NoWrap"
                              TextTrimming="CharacterEllipsis"
                              ToolTip.Tip="{Binding SelectedSubtitle}" />
@@ -590,7 +590,7 @@
                       <TextBlock Text="{DynamicResource Ui_Raw_compositor_data}" Classes="section" Margin="0,0,0,6" />
                       <SelectableTextBlock Text="{Binding NativeJson}" FontSize="11"
                                            FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
-                                           Foreground="#B9C9E2" TextWrapping="Wrap" />
+                                           Foreground="{DynamicResource Theme_B9C9E2}" TextWrapping="Wrap" />
                     </StackPanel>
                   </ScrollViewer>
                 </Grid>
@@ -683,7 +683,7 @@
                     <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
                                Text="{DynamicResource Ui_X11_XWayland_captures_the_window_precisely_with_}" />
                   </Grid>
-                  <Border Grid.Row="1" Classes="panel" Background="#0A0E15" ClipToBounds="True">
+                  <Border Grid.Row="1" Classes="panel" Background="{DynamicResource Theme_0A0E15}" ClipToBounds="True">
                     <Panel>
                       <Image Source="{Binding ScreenshotImage}" Stretch="Uniform" Margin="10"
                              HorizontalAlignment="Center" VerticalAlignment="Center" />
@@ -892,7 +892,7 @@
                               <TextBlock Text="{Binding Title}" FontSize="12"
                                          TextTrimming="CharacterEllipsis" />
                               <TextBlock Text="{Binding Description}" IsVisible="{Binding HasDescription}"
-                                         FontSize="10" Foreground="#7E8CA3"
+                                         FontSize="10" Foreground="{DynamicResource Theme_7E8CA3}"
                                          TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                           </Grid>
@@ -1038,7 +1038,7 @@
                           <StackPanel Spacing="1">
                             <TextBlock Text="{Binding DisplayText}" FontSize="12" FontWeight="SemiBold"
                                        TextTrimming="CharacterEllipsis" />
-                            <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="#7E8CA3"
+                            <TextBlock Text="{Binding Subtitle}" FontSize="10" Foreground="{DynamicResource Theme_7E8CA3}"
                                        TextTrimming="CharacterEllipsis" />
                           </StackPanel>
                         </DataTemplate>
@@ -1088,11 +1088,11 @@
                               <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Detail}"
                                          Classes="muted" FontSize="11" TextTrimming="CharacterEllipsis" />
                               <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="16">
-                                <TextBlock Text="{Binding ScaleLabel}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding RefreshLabel}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding TransformLabel}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding ModeLabel}" FontSize="10" Foreground="#93A4BC" />
-                                <TextBlock Text="{Binding WorkspaceLabel}" FontSize="10" Foreground="#93A4BC" />
+                                <TextBlock Text="{Binding ScaleLabel}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}" />
+                                <TextBlock Text="{Binding RefreshLabel}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}" />
+                                <TextBlock Text="{Binding TransformLabel}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}" />
+                                <TextBlock Text="{Binding ModeLabel}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}" />
+                                <TextBlock Text="{Binding WorkspaceLabel}" FontSize="10" Foreground="{DynamicResource Theme_93A4BC}" />
                               </StackPanel>
                             </Grid>
                           </Border>
@@ -1113,7 +1113,7 @@
                           <Border Classes="tag" Padding="8,4" ToolTip.Tip="{Binding Subtitle}">
                             <StackPanel Spacing="1">
                               <TextBlock Text="{Binding DisplayText}" FontSize="11" />
-                              <TextBlock Text="{Binding Subtitle}" FontSize="9" Foreground="#7E8CA3" />
+                              <TextBlock Text="{Binding Subtitle}" FontSize="9" Foreground="{DynamicResource Theme_7E8CA3}" />
                             </StackPanel>
                           </Border>
                         </DataTemplate>
@@ -1127,7 +1127,7 @@
                         <DataTemplate x:CompileBindings="False">
                           <SelectableTextBlock Text="{Binding}" FontSize="11"
                                                FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
-                                               Foreground="#C6D3E8" TextWrapping="Wrap" Margin="0,1" />
+                                               Foreground="{DynamicResource Theme_C6D3E8}" TextWrapping="Wrap" Margin="0,1" />
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -1152,7 +1152,7 @@
                     <TextBlock Classes="hint" Text="{DynamicResource Ui_Bundle_hint}" />
                     <SelectableTextBlock Text="{Binding DiagnosticsBundleStatus}"
                                          IsVisible="{Binding HasDiagnosticsBundleStatus}"
-                                         FontSize="10" Foreground="#8FA6C9"
+                                         FontSize="10" Foreground="{DynamicResource Theme_8FA6C9}"
                                          FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
                                          TextWrapping="Wrap" Margin="0,4,0,0" />
 
@@ -1214,13 +1214,13 @@
       <!-- Pick banner -->
       <Border IsVisible="{Binding IsPicking}" ZIndex="10"
               HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,22,0,0"
-              Background="#F2172338" BorderBrush="#4F8CFF" BorderThickness="1" CornerRadius="10"
+              Background="{DynamicResource Theme_F2172338}" BorderBrush="{DynamicResource Theme_4F8CFF}" BorderThickness="1" CornerRadius="10"
               Padding="14,10" BoxShadow="0 8 30 0 #80000000">
         <StackPanel Orientation="Horizontal" Spacing="12">
-          <TextBlock Text="◎" FontSize="20" Foreground="#7EABFF" VerticalAlignment="Center" />
+          <TextBlock Text="◎" FontSize="20" Foreground="{DynamicResource Theme_7EABFF}" VerticalAlignment="Center" />
           <StackPanel Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{Binding PickBanner}" FontSize="13" FontWeight="SemiBold" />
-            <TextBlock Text="{DynamicResource Ui_Tip_click_mode_clicks_the_target_drag_mode_holds}" FontSize="10" Foreground="#7E8CA3" />
+            <TextBlock Text="{DynamicResource Ui_Tip_click_mode_clicks_the_target_drag_mode_holds}" FontSize="10" Foreground="{DynamicResource Theme_7E8CA3}" />
           </StackPanel>
           <Border Classes="badge accent" IsVisible="{Binding HasPickCountdown}">
             <TextBlock Text="{Binding PickCountdown}" />
@@ -1231,15 +1231,15 @@
     </Grid>
 
     <!-- Status bar -->
-    <Border Grid.Row="2" Background="#0E131D" BorderBrush="#222B3B" BorderThickness="0,1,0,0"
+    <Border Grid.Row="2" Background="{DynamicResource Theme_0E131D}" BorderBrush="{DynamicResource Theme_222B3B}" BorderThickness="0,1,0,0"
             Padding="14,6">
       <Grid ColumnDefinitions="*,Auto,Auto">
-        <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="#93A4BC"
+        <TextBlock Text="{Binding StatusText}" FontSize="11" Foreground="{DynamicResource Theme_93A4BC}"
                    TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
         <TextBlock Grid.Column="1" Text="{Binding Session.SessionType}" FontSize="10"
-                   Foreground="#66758C" Margin="10,0" VerticalAlignment="Center" />
+                   Foreground="{DynamicResource Theme_66758C}" Margin="10,0" VerticalAlignment="Center" />
         <TextBlock Grid.Column="2" Text="{Binding UpdatedText}"
-                   FontSize="10" Foreground="#66758C" VerticalAlignment="Center" />
+                   FontSize="10" Foreground="{DynamicResource Theme_66758C}" VerticalAlignment="Center" />
       </Grid>
     </Border>
   </Grid>

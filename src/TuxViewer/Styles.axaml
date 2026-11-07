@@ -1,75 +1,63 @@
 <Styles xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <Styles.Resources>
-    <SolidColorBrush x:Key="AppBackground" Color="#0B0E14" />
-    <SolidColorBrush x:Key="PanelBackground" Color="#121722" />
-    <SolidColorBrush x:Key="PanelAltBackground" Color="#171E2B" />
-    <SolidColorBrush x:Key="BorderColor" Color="#232C3D" />
-    <SolidColorBrush x:Key="TextColor" Color="#E7EDF7" />
-    <SolidColorBrush x:Key="MutedColor" Color="#8795AB" />
-    <SolidColorBrush x:Key="AccentColor" Color="#4F8CFF" />
-    <SolidColorBrush x:Key="Accent2Color" Color="#67E8C3" />
-    <SolidColorBrush x:Key="WarnColor" Color="#F6C177" />
-    <SolidColorBrush x:Key="DangerColor" Color="#FF6B81" />
-  </Styles.Resources>
 
   <Style Selector="Window">
-    <Setter Property="Background" Value="{StaticResource AppBackground}" />
-    <Setter Property="Foreground" Value="{StaticResource TextColor}" />
+    <Setter Property="Background" Value="{DynamicResource Theme_0B0E14}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_E7EDF7}" />
   </Style>
 
   <Style Selector="Border.panel">
-    <Setter Property="Background" Value="{StaticResource PanelBackground}" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderColor}" />
+    <Setter Property="Background" Value="{DynamicResource Theme_121722}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_232C3D}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="10" />
   </Style>
 
   <Style Selector="Border.card">
-    <Setter Property="Background" Value="{StaticResource PanelAltBackground}" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderColor}" />
+    <Setter Property="Background" Value="{DynamicResource Theme_171E2B}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_232C3D}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="12,9" />
   </Style>
 
   <Style Selector="Border.badge">
-    <Setter Property="Background" Value="#1A2435" />
-    <Setter Property="BorderBrush" Value="#2A3A57" />
+    <Setter Property="Background" Value="{DynamicResource Theme_1A2435}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2A3A57}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="8,3" />
     <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
   <Style Selector="Border.badge TextBlock">
-    <Setter Property="Foreground" Value="#AFC3E4" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_AFC3E4}" />
     <Setter Property="FontSize" Value="11" />
   </Style>
   <Style Selector="Border.badge.accent">
-    <Setter Property="Background" Value="#17345F" />
-    <Setter Property="BorderBrush" Value="#2E5FA8" />
+    <Setter Property="Background" Value="{DynamicResource Theme_17345F}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2E5FA8}" />
   </Style>
   <Style Selector="Border.badge.accent TextBlock">
-    <Setter Property="Foreground" Value="#9BC0FF" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_9BC0FF}" />
   </Style>
   <Style Selector="Border.badge.x11">
-    <Setter Property="Background" Value="#3A2518" />
-    <Setter Property="BorderBrush" Value="#77502E" />
+    <Setter Property="Background" Value="{DynamicResource Theme_3A2518}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_77502E}" />
   </Style>
   <Style Selector="Border.badge.x11 TextBlock">
-    <Setter Property="Foreground" Value="#F0B57D" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_F0B57D}" />
   </Style>
   <Style Selector="Border.badge.wl">
-    <Setter Property="Background" Value="#12332C" />
-    <Setter Property="BorderBrush" Value="#235C4E" />
+    <Setter Property="Background" Value="{DynamicResource Theme_12332C}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_235C4E}" />
   </Style>
   <Style Selector="Border.badge.wl TextBlock">
-    <Setter Property="Foreground" Value="#7FE5C9" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_7FE5C9}" />
   </Style>
 
   <Style Selector="Border.tag">
-    <Setter Property="Background" Value="#182131" />
-    <Setter Property="BorderBrush" Value="#2B374B" />
+    <Setter Property="Background" Value="{DynamicResource Theme_182131}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2B374B}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="4" />
     <Setter Property="Padding" Value="5,0" />
@@ -80,89 +68,90 @@
     <Setter Property="FontSize" Value="9" />
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="LineHeight" Value="14" />
-    <Setter Property="Foreground" Value="#AFC3E4" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_AFC3E4}" />
     <Setter Property="HorizontalAlignment" Value="Center" />
   </Style>
   <Style Selector="Border.tag.x11">
-    <Setter Property="Background" Value="#3A2518" />
-    <Setter Property="BorderBrush" Value="#77502E" />
+    <Setter Property="Background" Value="{DynamicResource Theme_3A2518}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_77502E}" />
   </Style>
   <Style Selector="Border.tag.x11 TextBlock">
-    <Setter Property="Foreground" Value="#F0B57D" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_F0B57D}" />
   </Style>
   <Style Selector="Border.tag.wl">
-    <Setter Property="Background" Value="#12332C" />
-    <Setter Property="BorderBrush" Value="#235C4E" />
+    <Setter Property="Background" Value="{DynamicResource Theme_12332C}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_235C4E}" />
   </Style>
   <Style Selector="Border.tag.wl TextBlock">
-    <Setter Property="Foreground" Value="#7FE5C9" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_7FE5C9}" />
   </Style>
 
   <Style Selector="Button">
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="Padding" Value="12,7" />
     <Setter Property="FontSize" Value="12" />
-    <Setter Property="Background" Value="#1A2231" />
-    <Setter Property="Foreground" Value="{StaticResource TextColor}" />
-    <Setter Property="BorderBrush" Value="#2A3548" />
+    <Setter Property="Background" Value="{DynamicResource Theme_1A2231}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_E7EDF7}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2A3548}" />
     <Setter Property="BorderThickness" Value="1" />
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#243148" />
+    <Setter Property="Background" Value="{DynamicResource Theme_243148}" />
   </Style>
   <Style Selector="Button.pick">
-    <Setter Property="Background" Value="{StaticResource AccentColor}" />
-    <Setter Property="Foreground" Value="#07101F" />
-    <Setter Property="BorderBrush" Value="#7EABFF" />
+    <Setter Property="Background" Value="{DynamicResource Theme_4F8CFF}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_07101F}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_7EABFF}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
   <Style Selector="Button.pick:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#6C9EFF" />
+    <Setter Property="Background" Value="{DynamicResource Theme_6C9EFF}" />
   </Style>
   <Style Selector="Button.ghost">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="#2A3548" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2A3548}" />
   </Style>
   <Style Selector="Button.danger">
-    <Setter Property="Background" Value="#351923" />
-    <Setter Property="BorderBrush" Value="#6B2B3B" />
-    <Setter Property="Foreground" Value="#FF9DAB" />
+    <Setter Property="Background" Value="{DynamicResource Theme_351923}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_6B2B3B}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_FF9DAB}" />
   </Style>
 
   <Style Selector="ToggleButton.chip">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="{StaticResource MutedColor}" />
-    <Setter Property="BorderBrush" Value="#293345" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_8795AB}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_293345}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="6" />
     <Setter Property="Padding" Value="8,4" />
     <Setter Property="FontSize" Value="11" />
   </Style>
   <Style Selector="ToggleButton.chip:checked">
-    <Setter Property="Background" Value="#1C3357" />
-    <Setter Property="BorderBrush" Value="#2E5FA8" />
-    <Setter Property="Foreground" Value="#9BC0FF" />
+    <Setter Property="Background" Value="{DynamicResource Theme_1C3357}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_2E5FA8}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_9BC0FF}" />
   </Style>
   <Style Selector="ToggleButton.chip:checked /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1C3357" />
+    <Setter Property="Background" Value="{DynamicResource Theme_1C3357}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_9BC0FF}" />
   </Style>
 
   <Style Selector="TextBox">
-    <Setter Property="Background" Value="#0E131D" />
-    <Setter Property="BorderBrush" Value="#263146" />
+    <Setter Property="Background" Value="{DynamicResource Theme_0E131D}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_263146}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="7" />
-    <Setter Property="Foreground" Value="{StaticResource TextColor}" />
-    <Setter Property="SelectionBrush" Value="#2F5FA8" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_E7EDF7}" />
+    <Setter Property="SelectionBrush" Value="{DynamicResource Theme_2F5FA8}" />
     <Setter Property="Padding" Value="10,7" />
   </Style>
   <Style Selector="TextBox:focus /template/ Border">
-    <Setter Property="BorderBrush" Value="{StaticResource AccentColor}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_4F8CFF}" />
   </Style>
 
   <Style Selector="ComboBox">
-    <Setter Property="Background" Value="#0E131D" />
-    <Setter Property="BorderBrush" Value="#263146" />
+    <Setter Property="Background" Value="{DynamicResource Theme_0E131D}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_263146}" />
     <Setter Property="CornerRadius" Value="7" />
     <Setter Property="MinHeight" Value="32" />
   </Style>
@@ -188,10 +177,10 @@
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
   </Style>
   <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-    <Setter Property="Background" Value="#192233" />
+    <Setter Property="Background" Value="{DynamicResource Theme_192233}" />
   </Style>
   <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-    <Setter Property="Background" Value="#1E3355" />
+    <Setter Property="Background" Value="{DynamicResource Theme_1E3355}" />
   </Style>
 
   <Style Selector="TabControl">
@@ -204,32 +193,32 @@
   </Style>
 
   <Style Selector="TextBlock.section">
-    <Setter Property="Foreground" Value="{StaticResource MutedColor}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_8795AB}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="LetterSpacing" Value="0.6" />
   </Style>
   <Style Selector="TextBlock.muted">
-    <Setter Property="Foreground" Value="{StaticResource MutedColor}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_8795AB}" />
   </Style>
   <Style Selector="TextBlock.mono">
     <Setter Property="FontFamily" Value="Cascadia Mono,DejaVu Sans Mono,Noto Sans Mono,monospace" />
   </Style>
   <Style Selector="TextBlock.hint">
-    <Setter Property="Foreground" Value="{StaticResource MutedColor}" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_8795AB}" />
     <Setter Property="FontSize" Value="11" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
   <Style Selector="Border.divider">
     <Setter Property="Height" Value="1" />
-    <Setter Property="Background" Value="{StaticResource BorderColor}" />
+    <Setter Property="Background" Value="{DynamicResource Theme_232C3D}" />
     <Setter Property="Margin" Value="0,10" />
   </Style>
 
   <Style Selector="Border.change-badge">
-    <Setter Property="Background" Value="#3B2A14" />
-    <Setter Property="BorderBrush" Value="#8A5B22" />
+    <Setter Property="Background" Value="{DynamicResource Theme_3B2A14}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_8A5B22}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="4" />
     <Setter Property="Padding" Value="5,1" />
@@ -238,25 +227,25 @@
   <Style Selector="Border.change-badge TextBlock">
     <Setter Property="FontSize" Value="9" />
     <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="Foreground" Value="#F6C177" />
+    <Setter Property="Foreground" Value="{DynamicResource Theme_F6C177}" />
     <Setter Property="LetterSpacing" Value="0.5" />
   </Style>
   <Style Selector="Border.card.changed">
-    <Setter Property="Background" Value="#2A2214" />
-    <Setter Property="BorderBrush" Value="#8A5B22" />
+    <Setter Property="Background" Value="{DynamicResource Theme_2A2214}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_8A5B22}" />
   </Style>
 
   <Style Selector="Border.provider">
-    <Setter Property="Background" Value="#141B27" />
-    <Setter Property="BorderBrush" Value="#232E41" />
+    <Setter Property="Background" Value="{DynamicResource Theme_141B27}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_232E41}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="12,9" />
     <Setter Property="Margin" Value="0,0,0,7" />
   </Style>
   <Style Selector="Border.provider.available">
-    <Setter Property="Background" Value="#12251F" />
-    <Setter Property="BorderBrush" Value="#235444" />
+    <Setter Property="Background" Value="{DynamicResource Theme_12251F}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Theme_235444}" />
   </Style>
 
   <Style Selector="ScrollViewer">

@@ -105,8 +105,10 @@ TuxViewer 用于回答这些问题：
 - X11 属性支持按名称 / 类型 / 值过滤
 - **X11 属性编辑 / ClientMessage**：选择属性自动填充编辑器，可新增、替换 / 前置 / 追加、删除属性；支持向指定窗口或 root 发送 32 位 ClientMessage（`_NET_ACTIVE_WINDOW`、`_NET_CURRENT_DESKTOP` 等），操作会立即影响目标客户端
 - **多显示器 / 输出**：显示各输出逻辑坐标、缩放、刷新率、模式和当前工作区；niri 额外显示工作区 / 列布局；提示 XWayland 与合成器坐标差异
-- **设置持久化**：窗口尺寸 / 位置、窗口筛选、筛选预设、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤、界面语言保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
-- **中英文切换**：顶部 `EN` / `中文` 按钮即时切换，静态 UI、窗口详情、诊断、规则注释与导出报告同步切换；首次启动按 `LC_ALL` / `LANG` 自动选择，语言偏好随设置持久化
+- **独立设置界面**：顶部“设置”按钮或 `Ctrl+,` 打开独立窗口；外观（主题 / 语言）、配置路径和版本集中管理
+- **设置持久化**：窗口尺寸 / 位置、窗口筛选、筛选预设、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤、界面语言、浅色 / 深色主题保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
+- **主题 / 语言切换**：设置窗口中选择“跟随系统 / 浅色 / 深色”和“跟随系统 / 中文 / English”，默认都跟随系统；修改立即应用，静态 UI、窗口详情、诊断、规则注释与导出报告同步切换
+- **浅色 / 深色主题**：基于 Avalonia ThemeVariant 与语义色板，系统主题变化时“跟随系统”自动响应
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、规则、X11 事件、控件、热键、控制、报告、输出、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消
@@ -329,6 +331,7 @@ TuxViewer/
 │  │  ├─ OutputService.cs           # 输出 / 工作区 / 布局信息
 │  │  ├─ SettingsService.cs         # XDG 配置读写 / 防抖保存
 │  │  ├─ LocalizationService.cs     # 中文 / English 运行时切换
+│  │  ├─ ThemeService.cs            # 系统 / 浅色 / 深色主题
 │  │  ├─ DiagnosticsBundleService.cs # 诊断包 zip 导出
 │  │  ├─ AppLog.cs                  # 内存环形日志
 │  │  ├─ EventRecorderService.cs    # 事件 JSONL 录制
@@ -336,7 +339,9 @@ TuxViewer/
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）
-│  └─ Styles.axaml                  # 深色主题
+│  ├─ Themes/ThemeResources.axaml    # 浅色 / 深色语义色板
+│  ├─ Views/SettingsWindow.axaml(.cs) # 独立设置窗口
+│  └─ Styles.axaml                  # 控件样式
 ├─ packaging/                        # .desktop / SVG 图标
 ├─ scripts/install.sh
 └─ docs/screenshot.png
@@ -353,7 +358,8 @@ TuxViewer/
 - **XWayland 坐标**：X11 几何是 XWayland 坐标空间，和合成器布局不一定一致；“输出”页会同时显示两者和缩放比例。
 - **多显示器**：输出信息来自 niri / Sway / Hyprland IPC 或 xrandr；不同合成器的刷新率、变换和工作区字段可能不同。
 - **设置持久化**：只保存偏好和窗口尺寸 / 位置，不保存最后选中的窗口、搜索词或当前 Tab；删除 `~/.config/TuxViewer/settings.json` 即可恢复默认。
-- **界面语言**：支持中文 / English 即时切换；未设置时读取 `LC_ALL` / `LC_MESSAGES` / `LANG`，以 `zh` 开头显示中文，否则显示英文。
+- **界面语言 / 主题**：设置中可选择“跟随系统 / 中文 / English”和“跟随系统 / 浅色 / 深色”。语言未设置时读取 `LC_ALL` / `LC_MESSAGES` / `LANG`，以 `zh` 开头显示中文；主题使用 Avalonia `ThemeVariant.Default` 跟随桌面。
+- **主题色板**：浅色和深色由 `Themes/ThemeResources.axaml` 的 ThemeDictionaries 提供；自定义样式全部使用 `DynamicResource`，运行时切换无闪烁。
 - **诊断包**：诊断页点击“导出诊断包”即可生成 zip；包含窗口标题和进程路径，提交前请检查隐私内容。
 - **事件录制**：录制文件位于 `$XDG_STATE_HOME/TuxViewer/events`（默认 `~/.local/state/TuxViewer/events`）；正在录制/最近一次录制会附加到诊断包中。
 - **窗口控制**：置顶 / 置底 / 不透明度 / 精确移动缩放主要面向 X11 / XWayland；Wayland 原生窗口使用各合成器的全屏、浮动、Sticky 等 IPC 能力。

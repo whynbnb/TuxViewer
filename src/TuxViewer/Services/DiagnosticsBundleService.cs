@@ -154,6 +154,7 @@ working directories. Review it before publishing a bug report.
         os = RuntimeInformation.OSDescription,
         architecture = RuntimeInformation.ProcessArchitecture.ToString(),
         language = LocalizationService.LanguageCode,
+        theme = ThemeService.CurrentCode,
         sessionType = data.Session.SessionType,
         desktop = data.Session.Desktop,
         compositor = data.Session.Compositor,

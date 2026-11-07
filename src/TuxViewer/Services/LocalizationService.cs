@@ -36,7 +36,14 @@ public static class LocalizationService
 
     public static void SetLanguage(string code)
     {
-        var english = string.Equals(code, "en", StringComparison.OrdinalIgnoreCase);
+        var normalized = (code ?? "auto").Trim().ToLowerInvariant();
+        var english = normalized switch
+        {
+            "en" => true,
+            "zh" => false,
+            _ => !IsChineseLocale(),
+        };
+
         if (_initialized && english == IsEnglish)
         {
             ApplyResources();

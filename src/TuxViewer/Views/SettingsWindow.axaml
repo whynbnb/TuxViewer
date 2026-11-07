@@ -1,0 +1,83 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:TuxViewer.ViewModels"
+        x:Class="TuxViewer.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Title="{DynamicResource Ui_Settings}"
+        Width="620" Height="560"
+        MinWidth="520" MinHeight="480"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="True"
+        KeyDown="Window_KeyDown">
+  <Grid RowDefinitions="Auto,*,Auto">
+    <Border Grid.Row="0" Background="{DynamicResource Theme_0E131D}"
+            BorderBrush="{DynamicResource Theme_222B3B}" BorderThickness="0,0,0,1"
+            Padding="20,16">
+      <StackPanel Spacing="4">
+        <TextBlock Text="{DynamicResource Ui_Settings}" FontSize="20" FontWeight="Bold" />
+        <TextBlock Text="{DynamicResource Ui_Settings_hint}" Classes="hint" />
+      </StackPanel>
+    </Border>
+
+    <ScrollViewer Grid.Row="1">
+      <StackPanel Margin="20,16,20,20" Spacing="14">
+        <TextBlock Text="{DynamicResource Ui_Appearance}" Classes="section" />
+        <Border Classes="card">
+          <StackPanel Spacing="12">
+            <Grid ColumnDefinitions="180,*">
+              <TextBlock Text="{DynamicResource Ui_Theme}" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding ThemeOptions}"
+                        SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" />
+            </Grid>
+            <Grid ColumnDefinitions="180,*">
+              <TextBlock Text="{DynamicResource Ui_Language}" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" ItemsSource="{Binding LanguageOptions}"
+                        SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}" />
+            </Grid>
+            <TextBlock Text="{DynamicResource Ui_Appearance_hint}" Classes="hint" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{DynamicResource Ui_Paths}" Classes="section" />
+        <Border Classes="card">
+          <StackPanel Spacing="8">
+            <Grid ColumnDefinitions="180,*" ColumnSpacing="8">
+              <TextBlock Text="{DynamicResource Ui_Settings_file}" Classes="muted" FontSize="11" />
+              <SelectableTextBlock Grid.Column="1" Text="{Binding SettingsPath}"
+                                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                   FontSize="11" TextWrapping="Wrap" />
+            </Grid>
+            <Grid ColumnDefinitions="180,*" ColumnSpacing="8">
+              <TextBlock Text="{DynamicResource Ui_Events_directory}" Classes="muted" FontSize="11" />
+              <SelectableTextBlock Grid.Column="1" Text="{Binding EventsPath}"
+                                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                   FontSize="11" TextWrapping="Wrap" />
+            </Grid>
+            <Grid ColumnDefinitions="180,*" ColumnSpacing="8">
+              <TextBlock Text="{DynamicResource Ui_Diagnostics_directory}" Classes="muted" FontSize="11" />
+              <SelectableTextBlock Grid.Column="1" Text="{Binding DiagnosticsPath}"
+                                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                   FontSize="11" TextWrapping="Wrap" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="{DynamicResource Ui_About}" Classes="section" />
+        <Border Classes="card">
+          <Grid ColumnDefinitions="180,*" ColumnSpacing="8">
+            <TextBlock Text="{DynamicResource Ui_Version}" Classes="muted" FontSize="11" />
+            <TextBlock Grid.Column="1" Text="{Binding Version}" FontSize="11" />
+          </Grid>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border Grid.Row="2" Background="{DynamicResource Theme_0E131D}"
+            BorderBrush="{DynamicResource Theme_222B3B}" BorderThickness="0,1,0,0"
+            Padding="16,10">
+      <Button Content="{DynamicResource Ui_Close}" Click="Close_Click"
+              Classes="ghost" HorizontalAlignment="Right" />
+    </Border>
+  </Grid>
+</Window>

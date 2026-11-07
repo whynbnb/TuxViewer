@@ -26,6 +26,7 @@ public partial class App : Application
             var settingsService = new SettingsService();
             settingsService.Load();
             LocalizationService.Initialize(settingsService.Settings.Language);
+            ThemeService.Initialize(settingsService.Settings.Theme);
             var version = typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown";
             AppLog.Info($"TuxViewer {version} starting · language={LocalizationService.LanguageCode} · settings={settingsService.FilePath}");
             if (!string.IsNullOrEmpty(settingsService.LastError))

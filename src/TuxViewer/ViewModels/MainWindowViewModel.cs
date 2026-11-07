@@ -1121,21 +1121,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string SettingsFilePath => _settingsService.FilePath;
 
-    public string LanguageButtonText => LocalizationService.IsEnglish ? "中文" : "EN";
-
-    public string LanguageToolTip => LocalizationService.L("切换到 English", "Switch to 中文");
-
-    public void ToggleLanguage()
-    {
-        LocalizationService.SetLanguage(LocalizationService.IsEnglish ? "zh" : "en");
-        _settingsService.Update(settings => settings.Language = LocalizationService.LanguageCode);
-    }
+    public SettingsService SettingsService => _settingsService;
 
     private void OnLanguageChanged(object? sender, EventArgs e)
     {
         RebuildLocalizedOptions();
-        OnPropertyChanged(nameof(LanguageButtonText));
-        OnPropertyChanged(nameof(LanguageToolTip));
         OnPropertyChanged(nameof(SelectedTitle));
         OnPropertyChanged(nameof(SelectedSubtitle));
         OnPropertyChanged(nameof(ProcessHeader));

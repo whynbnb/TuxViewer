@@ -183,6 +183,19 @@ internal static class LocalizationResources
         ["Ui_Filter_events"] = "过滤 source / 类型 / 摘要 / 窗口…",
         ["Ui_Filter_x11_events"] = "过滤类型 / 摘要 / 窗口…",
         ["Ui_Event_recording_hint"] = "录制写入 $XDG_STATE_HOME/TuxViewer/events，包含实时事件、X11 事件和协议记录。",
+        ["Ui_Settings"] = "设置",
+        ["Ui_Settings_hint"] = "语言和主题默认跟随系统；修改会立即应用并保存。",
+        ["Ui_Appearance"] = "外观",
+        ["Ui_Theme"] = "主题",
+        ["Ui_Language"] = "语言",
+        ["Ui_Appearance_hint"] = "选择“跟随系统”时，TuxViewer 会使用桌面当前的浅色 / 深色和系统语言。",
+        ["Ui_Paths"] = "路径",
+        ["Ui_Settings_file"] = "设置文件",
+        ["Ui_Events_directory"] = "事件录制目录",
+        ["Ui_Diagnostics_directory"] = "诊断包目录",
+        ["Ui_About"] = "关于",
+        ["Ui_Version"] = "版本",
+        ["Ui_Close"] = "关闭",
     };
 
     internal static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -365,5 +378,18 @@ internal static class LocalizationResources
         ["Ui_Filter_events"] = "Filter source / kind / summary / window…",
         ["Ui_Filter_x11_events"] = "Filter type / summary / window…",
         ["Ui_Event_recording_hint"] = "Recording writes to $XDG_STATE_HOME/TuxViewer/events and includes realtime events, X11 events and protocol records.",
+        ["Ui_Settings"] = "Settings",
+        ["Ui_Settings_hint"] = "Language and theme follow the system by default; changes apply and save immediately.",
+        ["Ui_Appearance"] = "Appearance",
+        ["Ui_Theme"] = "Theme",
+        ["Ui_Language"] = "Language",
+        ["Ui_Appearance_hint"] = "With “Follow system”, TuxViewer uses the desktop's current light / dark appearance and system language.",
+        ["Ui_Paths"] = "Paths",
+        ["Ui_Settings_file"] = "Settings file",
+        ["Ui_Events_directory"] = "Event recording directory",
+        ["Ui_Diagnostics_directory"] = "Diagnostics directory",
+        ["Ui_About"] = "About",
+        ["Ui_Version"] = "Version",
+        ["Ui_Close"] = "Close",
     };
 }

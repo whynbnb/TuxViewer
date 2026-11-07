@@ -11,6 +11,9 @@ public sealed class AppSettings
     /// <summary>UI language: "auto", "zh" or "en".</summary>
     public string Language { get; set; } = "auto";
 
+    /// <summary>UI theme: "system", "light" or "dark".</summary>
+    public string Theme { get; set; } = "system";
+
     // Window geometry (app frame, not a restored session).
     public double WindowWidth { get; set; } = 1440;
     public double WindowHeight { get; set; } = 900;

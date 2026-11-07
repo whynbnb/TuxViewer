@@ -29,7 +29,14 @@ public partial class MainWindow : Window
         await ViewModel.InitializeAsync();
     }
 
-    private void ToggleLanguage_Click(object? sender, RoutedEventArgs e) => ViewModel?.ToggleLanguage();
+    private void Settings_Click(object? sender, RoutedEventArgs e) => _ = OpenSettingsAsync();
+
+    private async Task OpenSettingsAsync()
+    {
+        if (ViewModel is null) return;
+        var window = new SettingsWindow(ViewModel.SettingsService);
+        await window.ShowDialog(this);
+    }
 
     private void SaveFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.SaveFilterPreset();
 
@@ -430,6 +437,10 @@ public partial class MainWindow : Window
         if (ViewModel is null) return;
         switch (e.Key)
         {
+            case Key.OemComma when e.KeyModifiers.HasFlag(KeyModifiers.Control):
+                e.Handled = true;
+                await OpenSettingsAsync();
+                break;
             case Key.F2:
                 e.Handled = true;
                 await ViewModel.PickAsync(

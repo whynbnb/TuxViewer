@@ -131,6 +131,12 @@ public sealed class SettingsService : IDisposable
             "en" => "en",
             _ => "auto",
         };
+        settings.Theme = (settings.Theme ?? "system").Trim().ToLowerInvariant() switch
+        {
+            "light" => "light",
+            "dark" => "dark",
+            _ => "system",
+        };
         if (settings.WindowWidth is < 800 or > 10000) settings.WindowWidth = 1440;
         if (settings.WindowHeight is < 600 or > 10000) settings.WindowHeight = 900;
         if (settings.WindowX is < -30000 or > 30000) settings.WindowX = null;
