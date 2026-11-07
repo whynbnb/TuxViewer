@@ -544,6 +544,28 @@ public sealed class X11RecordedEvent
     public string DisplayText => $"{TimeText}  {TypeName,-18} {WindowHex,-12} {Summary}";
 }
 
+/// <summary>A recorded X11 protocol request or reply (XRecord core request/reply ranges).</summary>
+public sealed class X11ProtocolRecord
+{
+    public DateTime Timestamp { get; init; } = DateTime.Now;
+    public bool IsRequest { get; init; }
+    public int Opcode { get; init; }
+    public string Name { get; init; } = "";
+    public ulong ClientBase { get; init; }
+    public long Sequence { get; init; }
+    public ulong Window { get; init; }
+    public string Summary { get; init; } = "";
+    public string Hex { get; init; } = "";
+
+    public string TimeText => Timestamp.ToString("HH:mm:ss.fff");
+    public string Direction => IsRequest ? "C→S" : "S→C";
+    public string Kind => IsRequest ? "REQ" : "REPLY";
+    public string WindowHex => Window == 0 ? "—" : $"0x{Window:x}";
+    public string ClientHex => ClientBase == 0 ? "—" : $"0x{ClientBase:x}";
+    public string OpcodeText => IsRequest ? $"0x{Opcode:x2}" : $"seq {Sequence}";
+    public string DisplayText => $"{TimeText}  {Direction} {Kind,-5} {Name,-18} {Summary}";
+}
+
 public sealed class OutputInfo
 {
     public string Name { get; init; } = "";

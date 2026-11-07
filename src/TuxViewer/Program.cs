@@ -20,7 +20,7 @@ internal static class Program
                   TuxViewer [--select <id|app_id|标题>] [--capture] [--tree] [--group 0-3]
                             [--record] [--record-selected] [--atspi-load] [--hotkey]
                             [--gui-pick <click|drag>] [--gui-pick-x11 <click|drag>]
-                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|control|report|outputs|diagnostics>]
+                            [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|x11requests|atspi|hotkey|control|report|outputs|diagnostics>]
                             [--new-instance]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]

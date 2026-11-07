@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text;
 using TuxViewer.Interop;
 using TuxViewer.Models;
 
@@ -14,6 +15,7 @@ public sealed class X11EventMonitor : IDisposable
     private readonly Lock _lock = new();
     private readonly Dictionary<uint, string> _atomCache = [];
     private readonly Dictionary<int, string> _keyCache = [];
+    private readonly Dictionary<(ulong Client, long Sequence), (string Name, ulong Window)> _lastRequests = [];
     private CancellationTokenSource? _cts;
     private XRecordNative.XRecordInterceptProc? _callback;
     private Thread? _thread;
@@ -26,6 +28,7 @@ public sealed class X11EventMonitor : IDisposable
     public bool IsRunning { get; private set; }
     public string? Error { get; private set; }
     public Func<X11RecordedEvent, bool>? Filter { get; set; }
+    public Action<X11ProtocolRecord>? ProtocolSink { get; set; }
 
     public bool Start(Action<X11RecordedEvent> sink)
     {
@@ -59,16 +62,43 @@ public sealed class X11EventMonitor : IDisposable
                 return false;
             }
 
-            // Capture all delivered/device events and errors. The RECORD protocol
-            // rejects ranges with first < 2 unless both ends are zero.
+            // Capture all delivered/device events, protocol requests/replies and errors.
+            // Core request ranges may be rejected by some servers; retry without them.
+            WriteRange(_range, XRecordNative.RangeCoreRequests, 1, 127);
+            WriteRange(_range, XRecordNative.RangeCoreReplies, 1, 127);
+            WriteExtRange(_range, XRecordNative.RangeExtRequests, 128, 255, 0, ushort.MaxValue);
+            WriteExtRange(_range, XRecordNative.RangeExtReplies, 128, 255, 0, ushort.MaxValue);
             WriteRange(_range, XRecordNative.RangeDeliveredEvents, 2, 255);
             WriteRange(_range, XRecordNative.RangeDeviceEvents, 2, 255);
             WriteRange(_range, XRecordNative.RangeErrors, 0, 255);
 
             var clients = new[] { XRecordNative.XRecordAllClients };
             var ranges = new[] { _range };
+            var datumFlags = XRecordNative.XRecordFromServerTime | XRecordNative.XRecordFromClientSequence;
             _context = XRecordNative.XRecordCreateContext(
-                _display, XRecordNative.XRecordFromServer, clients, 1, ranges, 1);
+                _display, datumFlags, clients, 1, ranges, 1);
+            if (_context == 0)
+            {
+                // Some servers reject core request ranges. Fall back to events only.
+                XRecordNative.XFree(_range);
+                _range = XRecordNative.XRecordAllocRange();
+                if (_range == IntPtr.Zero)
+                {
+                    Error = LocalizationService.L("XRecordAllocRange 失败", "XRecordAllocRange failed");
+                    Cleanup();
+                    return false;
+                }
+
+                WriteRange(_range, XRecordNative.RangeDeliveredEvents, 2, 255);
+                WriteRange(_range, XRecordNative.RangeDeviceEvents, 2, 255);
+                WriteRange(_range, XRecordNative.RangeErrors, 0, 255);
+                ranges = [_range];
+                _context = XRecordNative.XRecordCreateContext(
+                    _display, datumFlags, clients, 1, ranges, 1);
+                if (_context != 0)
+                    AppLog.Warn("X11 RECORD request/reply ranges were rejected; recording events only.");
+            }
+
             if (_context == 0)
             {
                 Error = LocalizationService.L("XRecordCreateContext 失败（权限或扩展不可用）", "XRecordCreateContext failed (permissions or extension unavailable)");
@@ -93,6 +123,15 @@ public sealed class X11EventMonitor : IDisposable
     {
         Marshal.WriteByte(range, offset, first);
         Marshal.WriteByte(range, offset + 1, last);
+    }
+
+    private static void WriteExtRange(
+        IntPtr range, int offset, byte firstMajor, byte lastMajor, ushort firstMinor, ushort lastMinor)
+    {
+        Marshal.WriteByte(range, offset, firstMajor);
+        Marshal.WriteByte(range, offset + 1, lastMajor);
+        Marshal.WriteInt16(range, offset + 2, unchecked((short)firstMinor));
+        Marshal.WriteInt16(range, offset + 4, unchecked((short)lastMinor));
     }
 
     private void Run()
@@ -150,10 +189,27 @@ public sealed class X11EventMonitor : IDisposable
             var length = (int)Math.Min(dataLength, 4096);
             var bytes = new byte[length];
             Marshal.Copy(dataPtr, bytes, 0, length);
+            if (swapped) return; // local servers are never byte-swapped; skip exotic remotes
+
+            var clientBase = (ulong)Marshal.ReadInt64(recordedData, XRecordNative.DataIdBase);
+            var clientSequence = Marshal.ReadInt64(recordedData, XRecordNative.DataClientSequence);
+
+            if (category == XRecordNative.XRecordFromClient)
+            {
+                if (ProtocolSink is null || bytes.Length < 4) return;
+                ProtocolSink(ParseRequest(bytes, clientBase, clientSequence));
+                return;
+            }
 
             if (category != XRecordNative.XRecordFromServer) return;
             if (bytes.Length < 4) return;
-            if (swapped) return; // local servers are never byte-swapped; skip exotic remotes
+
+            if ((bytes[0] & 0x7f) == 1)
+            {
+                if (ProtocolSink is null) return;
+                ProtocolSink(ParseReply(bytes, clientBase, clientSequence));
+                return;
+            }
 
             var type = bytes[0] & 0x7f;
             var recorded = Parse(type, bytes);
@@ -171,6 +227,313 @@ public sealed class X11EventMonitor : IDisposable
                 XRecordNative.XRecordFreeData(recordedData);
         }
     }
+
+    private X11ProtocolRecord ParseRequest(byte[] b, ulong clientBase, long clientSequence)
+    {
+        var opcode = b[0];
+        var name = RequestName(opcode);
+        var window = RequestWindow(opcode, b);
+        if (_lastRequests.Count > 800) _lastRequests.Clear();
+        _lastRequests[(clientBase, clientSequence)] = (name, window);
+
+        return new X11ProtocolRecord
+        {
+            IsRequest = true,
+            Opcode = opcode,
+            Name = name,
+            ClientBase = clientBase,
+            Sequence = clientSequence,
+            Window = window,
+            Summary = DescribeRequest(opcode, b),
+            Hex = Convert.ToHexString(b.AsSpan(0, Math.Min(b.Length, 64))),
+        };
+    }
+
+    private X11ProtocolRecord ParseReply(byte[] b, ulong clientBase, long clientSequence)
+    {
+        var sequence = (long)U16(b, 2);
+        if (!_lastRequests.TryGetValue((clientBase, sequence), out var request) &&
+            clientSequence != sequence)
+        {
+            _lastRequests.TryGetValue((clientBase, clientSequence), out request);
+        }
+
+        var name = string.IsNullOrEmpty(request.Name) ? "Reply" : $"Reply · {request.Name}";
+        var summary = DescribeReply(request.Name, b, sequence);
+        return new X11ProtocolRecord
+        {
+            IsRequest = false,
+            Opcode = 1,
+            Name = name,
+            ClientBase = clientBase,
+            Sequence = sequence,
+            Window = request.Window,
+            Summary = summary,
+            Hex = Convert.ToHexString(b.AsSpan(0, Math.Min(b.Length, 64))),
+        };
+    }
+
+    private string DescribeRequest(int opcode, byte[] b)
+    {
+        switch (opcode)
+        {
+            case 1: // CreateWindow
+                return $"wid=0x{U32(b, 4):x} parent=0x{U32(b, 8):x} {U16(b, 16)}×{U16(b, 18)} @ {I16(b, 20)},{I16(b, 22)}";
+            case 2: // ChangeWindowAttributes
+                return $"window=0x{U32(b, 4):x} mask=0x{U32(b, 8):x}";
+            case 7: // ReparentWindow
+                return $"window=0x{U32(b, 4):x} parent=0x{U32(b, 8):x} @ {I16(b, 12)},{I16(b, 14)}";
+            case 12: // ConfigureWindow
+                return $"window=0x{U32(b, 4):x} mask=0x{U16(b, 8):x}";
+            case 16: // InternAtom
+            {
+                var nameLength = U16(b, 8);
+                var atom = nameLength > 0 && b.Length >= 12 + nameLength
+                    ? Encoding.ASCII.GetString(b, 12, nameLength)
+                    : "";
+                return $"name={atom} only_if_exists={b[4]}";
+            }
+            case 17: // GetAtomName
+                return $"atom={AtomName(U32(b, 4))}";
+            case 18: // ChangeProperty
+            {
+                var property = AtomName(U32(b, 8));
+                var type = AtomName(U32(b, 12));
+                var format = b.Length > 16 ? b[16] : 0;
+                var items = b.Length >= 24 ? U32(b, 20) : 0;
+                return $"window=0x{U32(b, 4):x} property={property} type={type} format={format} items={items}" +
+                       FormatPropertyPreview(type, format, items, b, 24);
+            }
+            case 19: // DeleteProperty
+                return $"window=0x{U32(b, 4):x} property={AtomName(U32(b, 8))}";
+            case 20: // GetProperty
+                return $"window=0x{U32(b, 4):x} property={AtomName(U32(b, 8))} type={AtomName(U32(b, 12))} offset={U32(b, 16)} length={U32(b, 20)}";
+            case 22: // SetSelectionOwner
+                return $"owner=0x{U32(b, 4):x} selection={AtomName(U32(b, 8))} time={U32(b, 12)}";
+            case 24: // ConvertSelection
+                return $"requestor=0x{U32(b, 4):x} selection={AtomName(U32(b, 8))} target={AtomName(U32(b, 12))} property={AtomName(U32(b, 16))}";
+            case 25: // SendEvent
+            {
+                var eventType = b.Length > 16 ? b[16] & 0x7f : 0;
+                var detail = eventType == 33 && b.Length >= 28
+                    ? $" clientMessage={AtomName(U32(b, 24))} format={(b.Length > 17 ? b[17] : 0)}"
+                    : "";
+                return $"dest=0x{U32(b, 4):x} propagate={b[8]} mask=0x{U32(b, 12):x} event={TypeName(eventType)}{detail}";
+            }
+            case 40: // TranslateCoordinates
+                return $"src=0x{U32(b, 4):x} dst=0x{U32(b, 8):x} @ {I16(b, 12)},{I16(b, 14)}";
+            case 42: // SetInputFocus
+                return $"focus=0x{U32(b, 4):x} revert={b[8]} time={U32(b, 12)}";
+            case 45: // OpenFont
+            case 47: // QueryFont
+                return $"font=0x{U32(b, 4):x}";
+            case 62: // CopyArea
+            case 63: // CopyPlane
+                return $"src=0x{U32(b, 4):x} dst=0x{U32(b, 8):x}";
+            case 72: // PutImage
+            case 73: // GetImage
+                return $"drawable=0x{U32(b, 4):x}";
+            default:
+                var window = RequestWindow(opcode, b);
+                return window != 0 ? $"window=0x{window:x}" : "";
+        }
+    }
+
+    private string DescribeReply(string requestName, byte[] b, long sequence)
+    {
+        var length = U32(b, 4);
+        var summary = $"seq={sequence} len={length}";
+
+        if (requestName == "GetProperty" && b.Length >= 32)
+        {
+            var type = AtomName(U32(b, 8));
+            var format = b[1];
+            var items = U32(b, 16);
+            summary += $" type={type} format={format} items={items}" +
+                       FormatPropertyPreview(type, format, items, b, 32);
+        }
+        else if (requestName == "GetGeometry" && b.Length >= 24)
+        {
+            summary += $" root=0x{U32(b, 8):x} {I16(b, 12)}×{I16(b, 14)} @ {I16(b, 16)},{I16(b, 18)} border={I16(b, 20)} depth={b[21]}";
+        }
+        else if (requestName == "QueryTree" && b.Length >= 20)
+        {
+            summary += $" root=0x{U32(b, 8):x} parent=0x{U32(b, 12):x} children={U16(b, 16)}";
+        }
+        else if (requestName == "GetWindowAttributes" && b.Length >= 24)
+        {
+            summary += $" class={b[8]} map_state={b[26]} override_redirect={b[27]}";
+        }
+
+        return summary;
+    }
+
+    private static string FormatPropertyPreview(
+        string atomName, int format, uint items, byte[] b, int offset)
+    {
+        if (format == 0 || items == 0 || b.Length <= offset) return "";
+        try
+        {
+            if (format == 8)
+            {
+                var count = (int)Math.Min(Math.Min(items, 48u), (uint)(b.Length - offset));
+                if (count <= 0) return "";
+                if (atomName is "STRING" or "UTF8_STRING" or "ATOM_NAME")
+                {
+                    var text = Encoding.UTF8.GetString(b, offset, count).ReplaceLineEndings(" ");
+                    return $" value=\"{text}\"";
+                }
+                return $" data={Convert.ToHexString(b.AsSpan(offset, count))}";
+            }
+
+            if (format == 32)
+            {
+                var count = (int)Math.Min(Math.Min(items, 8u), (uint)((b.Length - offset) / 4));
+                if (count <= 0) return "";
+                var values = new List<string>(count);
+                for (var i = 0; i < count; i++) values.Add(U32(b, offset + i * 4).ToString());
+                return $" values=[{string.Join(", ", values)}]";
+            }
+        }
+        catch { /* malformed optional preview */ }
+        return "";
+    }
+
+    private static ulong RequestWindow(int opcode, byte[] b) => opcode switch
+    {
+        16 or 17 or 36 or 37 or 43 or 44 or 45 or 47 or 49 or 50 or 52 or 83 or 85 or 91 or 92 or 97 or 98 or 99 or 101 or 104 or 106 or 108 or 110 or 117 or 119 => 0,
+        1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9 or 10 or 11 or 12 or 13 or 14 or 15 or 18 or 19 or 20 or 21 or 22 or 24 or 25 or 26 or 28 or 31 or 33 or 38 or 39 or 40 or 42 or 53 or 54 or 55 or 56 or 60 or 61 or 62 or 63 or 72 or 73 => b.Length >= 8 ? U32(b, 4) : 0,
+        _ => b.Length >= 8 ? U32(b, 4) : 0,
+    };
+
+    private static string RequestName(int opcode) => opcode switch
+    {
+        1 => "CreateWindow",
+        2 => "ChangeWindowAttributes",
+        3 => "GetWindowAttributes",
+        4 => "DestroyWindow",
+        5 => "DestroySubwindows",
+        6 => "ChangeSaveSet",
+        7 => "ReparentWindow",
+        8 => "MapWindow",
+        9 => "MapSubwindows",
+        10 => "UnmapWindow",
+        11 => "UnmapSubwindows",
+        12 => "ConfigureWindow",
+        13 => "CirculateWindow",
+        14 => "GetGeometry",
+        15 => "QueryTree",
+        16 => "InternAtom",
+        17 => "GetAtomName",
+        18 => "ChangeProperty",
+        19 => "DeleteProperty",
+        20 => "GetProperty",
+        21 => "ListProperties",
+        22 => "SetSelectionOwner",
+        23 => "GetSelectionOwner",
+        24 => "ConvertSelection",
+        25 => "SendEvent",
+        26 => "GrabPointer",
+        27 => "UngrabPointer",
+        28 => "GrabButton",
+        29 => "UngrabButton",
+        30 => "ChangeActivePointerGrab",
+        31 => "GrabKeyboard",
+        32 => "UngrabKeyboard",
+        33 => "GrabKey",
+        34 => "UngrabKey",
+        35 => "AllowEvents",
+        36 => "GrabServer",
+        37 => "UngrabServer",
+        38 => "QueryPointer",
+        39 => "GetMotionEvents",
+        40 => "TranslateCoordinates",
+        41 => "WarpPointer",
+        42 => "SetInputFocus",
+        43 => "GetInputFocus",
+        44 => "QueryKeymap",
+        45 => "OpenFont",
+        46 => "CloseFont",
+        47 => "QueryFont",
+        48 => "QueryTextExtents",
+        49 => "ListFonts",
+        50 => "ListFontsWithInfo",
+        51 => "SetFontPath",
+        52 => "GetFontPath",
+        53 => "CreatePixmap",
+        54 => "FreePixmap",
+        55 => "CreateGC",
+        56 => "ChangeGC",
+        57 => "CopyGC",
+        58 => "SetDashes",
+        59 => "SetClipRectangles",
+        60 => "FreeGC",
+        61 => "ClearArea",
+        62 => "CopyArea",
+        63 => "CopyPlane",
+        64 => "PolyPoint",
+        65 => "PolyLine",
+        66 => "PolySegment",
+        67 => "PolyRectangle",
+        68 => "PolyArc",
+        69 => "FillPoly",
+        70 => "PolyFillRectangle",
+        71 => "PolyFillArc",
+        72 => "PutImage",
+        73 => "GetImage",
+        74 => "PolyText8",
+        75 => "PolyText16",
+        76 => "ImageText8",
+        77 => "ImageText16",
+        78 => "CreateColormap",
+        79 => "FreeColormap",
+        80 => "CopyColormapAndFree",
+        81 => "InstallColormap",
+        82 => "UninstallColormap",
+        83 => "ListInstalledColormaps",
+        84 => "AllocColor",
+        85 => "AllocNamedColor",
+        86 => "AllocColorCells",
+        87 => "AllocColorPlanes",
+        88 => "FreeColors",
+        89 => "StoreColors",
+        90 => "StoreNamedColor",
+        91 => "QueryColors",
+        92 => "LookupColor",
+        93 => "CreateCursor",
+        94 => "CreateGlyphCursor",
+        95 => "FreeCursor",
+        96 => "RecolorCursor",
+        97 => "QueryBestSize",
+        98 => "QueryExtension",
+        99 => "ListExtensions",
+        100 => "ChangeKeyboardMapping",
+        101 => "GetKeyboardMapping",
+        102 => "ChangeKeyboardControl",
+        103 => "GetKeyboardControl",
+        104 => "Bell",
+        105 => "ChangePointerControl",
+        106 => "GetPointerControl",
+        107 => "SetScreenSaver",
+        108 => "GetScreenSaver",
+        109 => "ChangeHosts",
+        110 => "ListHosts",
+        111 => "SetAccessControl",
+        112 => "SetCloseDownMode",
+        113 => "KillClient",
+        114 => "RotateProperties",
+        115 => "ForceScreenSaver",
+        116 => "SetPointerMapping",
+        117 => "GetPointerMapping",
+        118 => "SetModifierMapping",
+        119 => "GetModifierMapping",
+        127 => "NoOperation",
+        >= 128 => $"Extension {opcode:x2}",
+        _ => $"Request {opcode}",
+    };
+
+    private static short I16(byte[] b, int offset)
+        => (short)(b[offset] | (b[offset + 1] << 8));
 
     private X11RecordedEvent? Parse(int type, byte[] b)
     {

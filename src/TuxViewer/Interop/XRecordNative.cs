@@ -9,16 +9,29 @@ internal static class XRecordNative
     private const string XTst = "libXtst.so.6";
 
     public const int XRecordFromServer = 0;
+    public const int XRecordFromClient = 1;
+    public const int XRecordClientStarted = 2;
+    public const int XRecordClientDied = 3;
     public const int XRecordStartOfData = 4;
     public const int XRecordEndOfData = 5;
     public const nuint XRecordAllClients = 3;
 
+    public const int XRecordFromServerTime = 0x01;
+    public const int XRecordFromClientSequence = 0x04;
+
     // XRecordRange offsets (64-bit, verified with offsetof on the system headers).
+    public const int RangeCoreRequests = 0;
+    public const int RangeCoreReplies = 2;
+    public const int RangeExtRequests = 4;
+    public const int RangeExtReplies = 10;
     public const int RangeDeliveredEvents = 16;
     public const int RangeDeviceEvents = 18;
     public const int RangeErrors = 20;
 
     // XRecordInterceptData offsets.
+    public const int DataIdBase = 0;
+    public const int DataServerTime = 8;
+    public const int DataClientSequence = 16;
     public const int DataCategory = 24;
     public const int DataClientSwapped = 28;
     public const int DataPointer = 32;

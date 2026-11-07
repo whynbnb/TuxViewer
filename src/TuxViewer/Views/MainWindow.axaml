@@ -68,6 +68,27 @@
       </Grid>
     </DataTemplate>
 
+    <DataTemplate x:Key="X11ProtocolTemplate" x:DataType="models:X11ProtocolRecord">
+      <Grid ColumnDefinitions="86,40,58,150,*" ColumnSpacing="8" Margin="0,1">
+        <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Text="{Binding Direction}" FontSize="10" Foreground="#F6C177"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding Kind}" FontSize="10" Foreground="#9BC0FF"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" />
+        <TextBlock Grid.Column="3" Text="{Binding Name}" FontSize="10" Foreground="#C6D3E8"
+                   FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                   ToolTip.Tip="{Binding Name}" />
+        <TextBlock Grid.Column="4" Text="{Binding Summary}" FontSize="11" Foreground="#C6D3E8"
+                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                   ToolTip.Tip="{Binding DisplayText}" />
+      </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="EventTemplate" x:DataType="models:WindowEventRecord">
       <Grid ColumnDefinitions="86,64,96,*" ColumnSpacing="8" Margin="0,1">
         <TextBlock Text="{Binding TimeText}" FontSize="10" Foreground="#66758C"
@@ -676,6 +697,45 @@
                              Text="{DynamicResource Ui_Uses_the_libXtst_RECORD_extension_to_record_even}" />
                   <ListBox Grid.Row="2" ItemsSource="{Binding X11Events}"
                            ItemTemplate="{StaticResource X11RecordTemplate}">
+                    <ListBox.Styles>
+                      <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="6,2" />
+                        <Setter Property="Margin" Value="0" />
+                      </Style>
+                    </ListBox.Styles>
+                  </ListBox>
+                </Grid>
+              </TabItem>
+
+              <TabItem Header="{DynamicResource Ui_X11_requests}">
+                <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="6,8,10,8">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                    <TextBlock Text="X11 REQUEST / REPLY" Classes="section" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Content="{Binding X11RecordButtonText}"
+                            Click="ToggleX11Record_Click" Classes="pick"
+                            FontSize="11" Padding="10,4" />
+                    <TextBlock Grid.Column="2" Text="{Binding X11RecordStatus}" Classes="muted"
+                               FontSize="11" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock Grid.Column="3" Text="{Binding X11ProtocolCountText}" Classes="muted"
+                               FontSize="11" VerticalAlignment="Center" />
+                    <Button Grid.Column="4" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Protocol_Click"
+                            Classes="ghost" FontSize="11" Padding="8,4" />
+                    <Button Grid.Column="5" Content="{DynamicResource Ui_Copy}" Click="CopyX11Protocol_Click"
+                            Classes="ghost" FontSize="11" Padding="8,4" />
+                  </Grid>
+                  <WrapPanel Grid.Row="1" Margin="0,8,0,0" ItemSpacing="12" LineSpacing="5">
+                    <CheckBox Content="{DynamicResource Ui_Request}"
+                              IsChecked="{Binding X11ProtocolShowRequests, Mode=TwoWay}" />
+                    <CheckBox Content="{DynamicResource Ui_Reply}"
+                              IsChecked="{Binding X11ProtocolShowReplies, Mode=TwoWay}" />
+                    <TextBox Width="300" PlaceholderText="{DynamicResource Ui_Filter_opcode_window_client}"
+                             Text="{Binding X11ProtocolFilterText, Mode=TwoWay}" />
+                  </WrapPanel>
+                  <TextBlock Grid.Row="2" Classes="hint" Margin="0,8,0,8"
+                             Text="{DynamicResource Ui_Protocol_hint}" />
+                  <ListBox Grid.Row="3" ItemsSource="{Binding X11ProtocolRecords}"
+                           ItemTemplate="{StaticResource X11ProtocolTemplate}">
                     <ListBox.Styles>
                       <Style Selector="ListBoxItem">
                         <Setter Property="Padding" Value="6,2" />

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -103,6 +104,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _x11EventCountText = L("0 条事件", "0 events");
     private ulong? _selectedX11Id;
     private (int X, int Y, int W, int H)? _selectedX11Rect;
+    private readonly List<X11ProtocolRecord> _x11ProtocolAll = [];
+    private readonly ConcurrentQueue<X11ProtocolRecord> _x11ProtocolQueue = new();
+    private DispatcherTimer? _x11ProtocolTimer;
+    private string _x11ProtocolFilterText = "";
+    private bool _x11ProtocolShowRequests = true;
+    private bool _x11ProtocolShowReplies = true;
+    private int _x11ProtocolCount;
+    private string _x11ProtocolCountText = L("0 条请求 / 回复", "0 requests / replies");
     private string _atspiStatus = L("尚未加载", "Not loaded");
     private string _atspiCountText = "";
 
@@ -167,6 +176,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
     public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
+    public ObservableCollection<X11ProtocolRecord> X11ProtocolRecords { get; } = [];
     public ObservableCollection<AtspiNode> AtspiTree { get; } = [];
     public ObservableCollection<WindowSnapshot> Snapshots { get; } = [];
     public ObservableCollection<OutputInfo> Outputs { get; } = [];
@@ -695,6 +705,30 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         set => Set(ref _x11RecordOnlySelected, value);
     }
 
+    public string X11ProtocolFilterText
+    {
+        get => _x11ProtocolFilterText;
+        set { if (Set(ref _x11ProtocolFilterText, value)) ApplyX11ProtocolFilter(); }
+    }
+
+    public bool X11ProtocolShowRequests
+    {
+        get => _x11ProtocolShowRequests;
+        set { if (Set(ref _x11ProtocolShowRequests, value)) ApplyX11ProtocolFilter(); }
+    }
+
+    public bool X11ProtocolShowReplies
+    {
+        get => _x11ProtocolShowReplies;
+        set { if (Set(ref _x11ProtocolShowReplies, value)) ApplyX11ProtocolFilter(); }
+    }
+
+    public string X11ProtocolCountText
+    {
+        get => _x11ProtocolCountText;
+        private set => Set(ref _x11ProtocolCountText, value);
+    }
+
     public bool X11RecordKeys
     {
         get => _x11RecordKeys;
@@ -919,6 +953,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(X11RecordButtonText));
         OnPropertyChanged(nameof(X11RecordStatus));
         OnPropertyChanged(nameof(X11EventCountText));
+        OnPropertyChanged(nameof(X11ProtocolCountText));
         OnPropertyChanged(nameof(EventCountText));
         OnPropertyChanged(nameof(RealtimeSummary));
         OnPropertyChanged(nameof(AtspiStatus));
@@ -1484,6 +1519,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (_x11EventMonitor.IsRunning)
         {
             _x11EventMonitor.Stop();
+            StopX11ProtocolTimer();
+            FlushX11ProtocolQueue();
             X11RecordEnabled = false;
             X11RecordStatus = L("已停止", "Stopped");
             StatusText = L("X11 RECORD 事件监视已停止", "X11 RECORD event monitoring stopped");
@@ -1491,14 +1528,97 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         }
 
         _x11EventMonitor.Filter = PassesX11Filter;
+        _x11EventMonitor.ProtocolSink = OnX11ProtocolRecorded;
         var ok = _x11EventMonitor.Start(OnX11Recorded);
         X11RecordEnabled = ok;
+        if (ok) StartX11ProtocolTimer();
         X11RecordStatus = ok
             ? _x11RecordOnlySelected
                 ? L("录制中 · 仅选中窗口（RECORD 扩展）", "Recording · selected window only (RECORD)")
                 : L("录制中 · 全局（RECORD 扩展）", "Recording · global (RECORD)")
             : LF("启动失败：{0}", "Start failed: {0}", _x11EventMonitor.Error);
         StatusText = ok ? L("X11 RECORD 事件监视已启动", "X11 RECORD event monitoring started") : X11RecordStatus;
+    }
+
+    private void StartX11ProtocolTimer()
+    {
+        _x11ProtocolTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _x11ProtocolTimer.Tick -= OnX11ProtocolTick;
+        _x11ProtocolTimer.Tick += OnX11ProtocolTick;
+        _x11ProtocolTimer.Start();
+    }
+
+    private void StopX11ProtocolTimer() => _x11ProtocolTimer?.Stop();
+
+    private void OnX11ProtocolTick(object? sender, EventArgs e) => FlushX11ProtocolQueue();
+
+    private void OnX11ProtocolRecorded(X11ProtocolRecord record)
+        => _x11ProtocolQueue.Enqueue(record);
+
+    private void FlushX11ProtocolQueue()
+    {
+        var added = 0;
+        while (added < 1000 && _x11ProtocolQueue.TryDequeue(out var record))
+        {
+            _x11ProtocolAll.Add(record);
+            added++;
+        }
+
+        if (added == 0) return;
+        _x11ProtocolCount += added;
+        if (_x11ProtocolAll.Count > 3000)
+            _x11ProtocolAll.RemoveRange(0, _x11ProtocolAll.Count - 3000);
+        X11ProtocolCountText = LF("{0} 条请求 / 回复", "{0} requests / replies", _x11ProtocolCount);
+        ApplyX11ProtocolFilter();
+    }
+
+    private void ApplyX11ProtocolFilter()
+    {
+        var query = _x11ProtocolFilterText.Trim();
+        X11ProtocolRecords.Clear();
+        for (var i = _x11ProtocolAll.Count - 1; i >= 0; i--)
+        {
+            var record = _x11ProtocolAll[i];
+            if (record.IsRequest && !_x11ProtocolShowRequests) continue;
+            if (!record.IsRequest && !_x11ProtocolShowReplies) continue;
+            if (query.Length > 0 &&
+                !Contains(record.DisplayText, query) &&
+                !Contains(record.Name, query) &&
+                !Contains(record.Summary, query) &&
+                !Contains(record.WindowHex, query) &&
+                !Contains(record.ClientHex, query))
+                continue;
+
+            X11ProtocolRecords.Add(record);
+            if (X11ProtocolRecords.Count >= 2000) break;
+        }
+    }
+
+    public void ClearX11Protocol()
+    {
+        while (_x11ProtocolQueue.TryDequeue(out _)) { }
+        _x11ProtocolAll.Clear();
+        X11ProtocolRecords.Clear();
+        _x11ProtocolCount = 0;
+        X11ProtocolCountText = L("0 条请求 / 回复", "0 requests / replies");
+    }
+
+    public string BuildX11ProtocolText()
+    {
+        var sb = new System.Text.StringBuilder();
+        if (X11ProtocolRecords.Count == 0)
+            return L("TuxViewer X11 请求 / 回复（空）", "TuxViewer X11 requests / replies (empty)");
+
+        sb.AppendLine(LF("TuxViewer X11 请求 / 回复 · {0} 条 · {1}",
+            "TuxViewer X11 requests / replies · {0} · {1}",
+            X11ProtocolRecords.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+        sb.AppendLine(new string('─', 60));
+        foreach (var record in X11ProtocolRecords.Reverse())
+        {
+            sb.AppendLine(record.DisplayText);
+            if (!string.IsNullOrWhiteSpace(record.Hex)) sb.AppendLine($"  {record.Hex}");
+        }
+        return sb.ToString();
     }
 
     private void OnX11Recorded(X11RecordedEvent recorded)
@@ -1994,6 +2114,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void Shutdown()
     {
         _refreshTimer?.Stop();
+        _x11ProtocolTimer?.Stop();
         _pickCts?.Cancel();
         _refreshCts?.Cancel();
         _inspectCts?.Cancel();

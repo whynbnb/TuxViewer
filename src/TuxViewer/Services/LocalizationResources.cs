@@ -163,6 +163,11 @@ internal static class LocalizationResources
         ["Ui_Diagnostics_bundle"] = "诊断包",
         ["Ui_Export_diagnostics_bundle"] = "导出诊断包",
         ["Ui_Bundle_hint"] = "一键打包会话、后端状态、运行日志、窗口 JSON、设置和选中窗口截图，便于提交 bug 报告。",
+        ["Ui_X11_requests"] = "X11 请求",
+        ["Ui_Request"] = "请求",
+        ["Ui_Reply"] = "回复",
+        ["Ui_Filter_opcode_window_client"] = "过滤 opcode / 窗口 / 客户端…",
+        ["Ui_Protocol_hint"] = "使用 RECORD 扩展的 core requests / replies 范围记录 X11 协议请求与回复；可看到 opcode、客户端、sequence、窗口和属性数据。请求/回复会显著增加事件量，建议配合过滤使用。",
     };
 
     internal static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -325,5 +330,10 @@ internal static class LocalizationResources
         ["Ui_Diagnostics_bundle"] = "Diagnostics bundle",
         ["Ui_Export_diagnostics_bundle"] = "Export diagnostics bundle",
         ["Ui_Bundle_hint"] = "One-click archive with the session, backend state, runtime logs, window JSON, settings and selected-window screenshot for bug reports.",
+        ["Ui_X11_requests"] = "X11 requests",
+        ["Ui_Request"] = "Requests",
+        ["Ui_Reply"] = "Replies",
+        ["Ui_Filter_opcode_window_client"] = "Filter opcode / window / client…",
+        ["Ui_Protocol_hint"] = "Records X11 protocol requests and replies via the RECORD extension's core requests / replies ranges, including opcode, client, sequence, window and property data. Request/reply traffic is high; use the filters.",
     };
 }

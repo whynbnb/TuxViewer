@@ -193,6 +193,15 @@ public partial class MainWindow : Window
 
     private void ClearX11Events_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearX11Events();
 
+    private void ClearX11Protocol_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearX11Protocol();
+
+    private async void CopyX11Protocol_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        if (clipboard is not null) await clipboard.SetTextAsync(ViewModel.BuildX11ProtocolText());
+    }
+
     private async void CopyX11Events_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;

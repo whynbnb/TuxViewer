@@ -93,6 +93,7 @@ TuxViewer 用于回答这些问题：
 - **选中窗口截图**：X11 / XWayland 用 `XGetImage` 精确捕获；niri 用 `screenshot-window`；Sway / Hyprland 用 `grim`；支持预览、保存 PNG、复制图片
 - **一键生成窗口规则**：根据选中窗口生成 niri `window-rule`、Sway `for_window`、Hyprland `windowrulev2`，可勾选浮动 / 全屏 / 无边框 / sticky / 尺寸 / 工作区 / 透明度
 - **X11 事件监视器（XRecord）**：全局记录键盘、鼠标、Configure、Property、Focus、Map/Unmap、ClientMessage；无需修改目标窗口 event mask，支持分类过滤和“只监视选中窗口”
+- **X11 请求 / 回复监视**：利用 RECORD 的 core requests / replies 范围记录协议请求与回复，显示 opcode、客户端、sequence、窗口、属性数据和收发方向；支持请求 / 回复筛选和文本过滤
 - **AT-SPI2 控件树**：通过 `python3-gi` 读取 GTK/Qt 应用的角色、名称、描述和控件层级；应用需启用无障碍桥
 - **全局拾取热键**：X11 会话用 `XGrabKey` 注册 `Ctrl+Alt+X`；Wayland 提供 niri / Sway / Hyprland 原生快捷键配置，一键复制
 - **窗口控制动作**：置顶 / 置底、全屏、浮动 / Sticky、X11 不透明度、移动 / 调整大小、`WM_DELETE_WINDOW`、`XKillClient` 二次确认、打开可执行文件目录、复制进程信息
@@ -145,6 +146,9 @@ TuxViewer --hotkey
 # 启动 GUI 并自动开始 X11 RECORD 录制
 TuxViewer --record --tab xrecord
 TuxViewer --record --record-selected --select xeyes
+
+# 打开 X11 请求 / 回复页
+TuxViewer --record --tab x11requests
 
 # 安装可选 GNOME Shell 扩展
 TuxViewer --install-gnome-extension
