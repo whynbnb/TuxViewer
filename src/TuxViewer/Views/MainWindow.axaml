@@ -969,6 +969,22 @@
               <TabItem Header="{DynamicResource Ui_Diagnostics}">
                 <ScrollViewer>
                   <StackPanel Margin="6,8,10,12" Spacing="2">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                      <TextBlock Text="{DynamicResource Ui_Diagnostics_bundle}" Classes="section"
+                                 VerticalAlignment="Center" />
+                      <Button Grid.Column="1" Content="{DynamicResource Ui_Export_diagnostics_bundle}"
+                              Click="ExportDiagnosticsBundle_Click" Classes="ghost"
+                              FontSize="11" Padding="9,4"
+                              IsEnabled="{Binding !IsExportingDiagnosticsBundle}" />
+                    </Grid>
+                    <TextBlock Classes="hint" Text="{DynamicResource Ui_Bundle_hint}" />
+                    <SelectableTextBlock Text="{Binding DiagnosticsBundleStatus}"
+                                         IsVisible="{Binding HasDiagnosticsBundleStatus}"
+                                         FontSize="10" Foreground="#8FA6C9"
+                                         FontFamily="Cascadia Mono,DejaVu Sans Mono,monospace"
+                                         TextWrapping="Wrap" Margin="0,4,0,0" />
+
+                    <Border Classes="divider" />
                     <TextBlock Text="{DynamicResource Ui_Session}" Classes="section" Margin="0,0,0,6" />
                     <ItemsControl ItemsSource="{Binding SessionRows}" ItemTemplate="{StaticResource InfoRowTemplate}" />
 

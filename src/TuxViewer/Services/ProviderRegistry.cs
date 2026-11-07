@@ -35,7 +35,10 @@ public sealed class ProviderRegistry : IDisposable
             {
                 await provider.InitializeAsync(cancellationToken);
             }
-            catch { /* provider remains unavailable */ }
+            catch (Exception ex)
+            {
+                AppLog.Warn($"{provider.Name} initialization failed: {ex.Message}");
+            }
         }
 
         X11 = new X11WindowProvider(new X11Inspector(IsWaylandSession), IsWaylandSession);
@@ -63,8 +66,9 @@ public sealed class ProviderRegistry : IDisposable
                 {
                     return await provider.GetWindowsAsync(cancellationToken);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    AppLog.Warn($"{provider.Name} window enumeration failed: {ex.Message}");
                     return (IReadOnlyList<WindowInfo>)[];
                 }
             })

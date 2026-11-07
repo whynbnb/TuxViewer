@@ -163,6 +163,12 @@ public partial class MainWindow : Window
 
     private void RefreshDiagnostics_Click(object? sender, RoutedEventArgs e) => ViewModel?.RefreshDiagnostics();
 
+    private async void ExportDiagnosticsBundle_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ViewModel is null) return;
+        await ViewModel.ExportDiagnosticsBundleAsync();
+    }
+
     private void ClearEvents_Click(object? sender, RoutedEventArgs e) => ViewModel?.ClearEvents();
 
     private async void CopyEvents_Click(object? sender, RoutedEventArgs e)

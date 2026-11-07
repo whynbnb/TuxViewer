@@ -19,6 +19,10 @@ public partial class App : Application
             var settingsService = new SettingsService();
             settingsService.Load();
             LocalizationService.Initialize(settingsService.Settings.Language);
+            var version = typeof(App).Assembly.GetName().Version?.ToString() ?? "unknown";
+            AppLog.Info($"TuxViewer {version} starting · language={LocalizationService.LanguageCode} · settings={settingsService.FilePath}");
+            if (!string.IsNullOrEmpty(settingsService.LastError))
+                AppLog.Warn($"Settings load: {settingsService.LastError}");
             var service = new InspectorService();
             var viewModel = new MainWindowViewModel(service, settingsService);
             viewModel.InitialSelection = ReadSelectArgument(desktop.Args);
@@ -50,6 +54,7 @@ public partial class App : Application
                     });
                 }
                 viewModel.PersistNow();
+                AppLog.Info("TuxViewer exiting");
                 settingsService.Flush();
                 settingsService.Dispose();
                 service.Dispose();

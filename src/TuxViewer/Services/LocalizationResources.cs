@@ -160,6 +160,9 @@ internal static class LocalizationResources
         ["Ui_Wayland_does_not_allow_regular_clients_to_grab_i"] = "Wayland 不允许普通客户端全局抓取输入或读取其他窗口内容。TuxViewer 会按合成器选择原生方案：niri pick-window、KWin queryWindowInfo、Hyprland 指针坐标、Sway 聚焦窗口、GNOME 扩展。X11 / XWayland 窗口则使用真正的全局指针抓取。",
         ["Ui_Tip_click_mode_clicks_the_target_drag_mode_holds"] = "提示：点击模式单击目标；拖动模式按住拖动后松开；右键 / Esc 取消",
         ["Ui_Cancel"] = "取消",
+        ["Ui_Diagnostics_bundle"] = "诊断包",
+        ["Ui_Export_diagnostics_bundle"] = "导出诊断包",
+        ["Ui_Bundle_hint"] = "一键打包会话、后端状态、运行日志、窗口 JSON、设置和选中窗口截图，便于提交 bug 报告。",
     };
 
     internal static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -319,5 +322,8 @@ internal static class LocalizationResources
         ["Ui_Wayland_does_not_allow_regular_clients_to_grab_i"] = "Wayland does not allow regular clients to grab input globally or read other windows' contents. TuxViewer selects a native approach per compositor: niri pick-window, KWin queryWindowInfo, Hyprland pointer coordinates, Sway focused window and the GNOME extension. X11 / XWayland windows use a real global pointer grab.",
         ["Ui_Tip_click_mode_clicks_the_target_drag_mode_holds"] = "Tip: click mode clicks the target; drag mode holds and releases; right-click / Esc cancels",
         ["Ui_Cancel"] = "Cancel",
+        ["Ui_Diagnostics_bundle"] = "Diagnostics bundle",
+        ["Ui_Export_diagnostics_bundle"] = "Export diagnostics bundle",
+        ["Ui_Bundle_hint"] = "One-click archive with the session, backend state, runtime logs, window JSON, settings and selected-window screenshot for bug reports.",
     };
 }

@@ -129,6 +129,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private string _outputStatus = L("尚未读取", "Not loaded");
     private string _outputNote = "";
     private string _outputSource = "";
+    private string _diagnosticsBundleStatus = "";
+    private bool _exportingDiagnosticsBundle;
 
     private readonly SettingsService _settingsService;
     private bool _suppressSettingsSave;
@@ -368,7 +370,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string StatusText
     {
         get => _statusText;
-        private set => Set(ref _statusText, value);
+        private set
+        {
+            if (!Set(ref _statusText, value)) return;
+            AppLog.Info(value);
+        }
     }
 
     public string SessionSummary
@@ -626,6 +632,24 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _outputSource;
         private set => Set(ref _outputSource, value);
+    }
+
+    public string DiagnosticsBundleStatus
+    {
+        get => _diagnosticsBundleStatus;
+        private set
+        {
+            if (!Set(ref _diagnosticsBundleStatus, value)) return;
+            OnPropertyChanged(nameof(HasDiagnosticsBundleStatus));
+        }
+    }
+
+    public bool HasDiagnosticsBundleStatus => !string.IsNullOrEmpty(_diagnosticsBundleStatus);
+
+    public bool IsExportingDiagnosticsBundle
+    {
+        get => _exportingDiagnosticsBundle;
+        private set => Set(ref _exportingDiagnosticsBundle, value);
     }
 
     public bool HasOutputs => Outputs.Count > 0;
@@ -1261,6 +1285,60 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     }
 
     public void RefreshDiagnostics() => _ = LoadDiagnosticsAsync();
+
+    public async Task ExportDiagnosticsBundleAsync()
+    {
+        if (IsExportingDiagnosticsBundle) return;
+        IsExportingDiagnosticsBundle = true;
+        DiagnosticsBundleStatus = L("正在生成诊断包…", "Building diagnostics bundle…");
+        try
+        {
+            if (!_isRefreshing && !IsBusy) await RefreshAsync(showBusy: false);
+            await LoadDiagnosticsAsync();
+
+            var inspection = SelectedWindow is { } selected
+                ? new InspectionResult
+                {
+                    Window = selected,
+                    Process = Process,
+                    X11 = X11Details,
+                    RawJson = RawJson,
+                    Summary = Summary,
+                }
+                : null;
+
+            var data = new DiagnosticsBundleData
+            {
+                Session = _service.Registry.Session,
+                Providers = _service.Registry.GetStatuses(),
+                Windows = _allWindows.ToList(),
+                SelectedWindow = SelectedWindow,
+                Inspection = inspection,
+                Settings = _settingsService.Settings.Clone(),
+                SettingsPath = _settingsService.FilePath,
+                StatusText = StatusText,
+                CountsText = CountsText,
+                SessionRows = SessionRows.ToList(),
+                RealtimeRows = RealtimeRows.ToList(),
+                ScreenshotPng = _screenshotPng,
+            };
+
+            var path = await DiagnosticsBundleService.ExportAsync(data, CancellationToken.None);
+            DiagnosticsBundleStatus = LF("已导出诊断包：{0}", "Diagnostics bundle exported: {0}", path);
+            StatusText = DiagnosticsBundleStatus;
+            AppLog.Info($"Diagnostics bundle exported: {path}");
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsBundleStatus = LF("导出诊断包失败：{0}", "Failed to export diagnostics bundle: {0}", ex.Message);
+            StatusText = DiagnosticsBundleStatus;
+            AppLog.Error($"Diagnostics bundle export failed: {ex.Message}");
+        }
+        finally
+        {
+            IsExportingDiagnosticsBundle = false;
+        }
+    }
 
     private void StartMonitoring()
     {
