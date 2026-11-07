@@ -116,6 +116,7 @@ public partial class App : Application
         if (_mainWindow is null || _viewModel is null) return;
         try
         {
+            AppLog.Info($"Forwarded request received: {string.Join(' ', request.Args)}");
             if (!_mainWindow.IsVisible) _mainWindow.Show();
             if (_mainWindow.WindowState == WindowState.Minimized)
                 _mainWindow.WindowState = WindowState.Normal;
@@ -123,6 +124,7 @@ public partial class App : Application
 
             var options = StartupOptions.Parse(request.Args);
             await _viewModel.ApplyStartupOptionsAsync(options);
+            AppLog.Info("Forwarded request applied.");
         }
         catch (Exception ex)
         {

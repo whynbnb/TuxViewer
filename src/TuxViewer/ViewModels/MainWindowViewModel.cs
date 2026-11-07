@@ -2208,6 +2208,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         var format = _x11PropertyFormatIndex switch { 1 => 16, 2 => 32, _ => 8 };
         var mode = _x11PropertyModeIndex switch { 1 => 1, 2 => 2, _ => 0 };
+        if (string.Equals(_x11PropertyName, "_NET_WM_ICON", StringComparison.Ordinal))
+        {
+            X11PropertyStatus = L("_NET_WM_ICON 编辑器已禁用；请使用外部图标工具", "_NET_WM_ICON editing is disabled; use an external icon tool");
+            return;
+        }
+
         var result = inspector.SetProperty(
             x11Id, _x11PropertyName, _x11PropertyType, format, _x11PropertyValue, mode);
         X11PropertyStatus = result.Message;
