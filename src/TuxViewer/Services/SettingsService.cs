@@ -53,6 +53,7 @@ public sealed class SettingsService : IDisposable
         catch (Exception ex)
         {
             LastError = ex.Message;
+            AppLog.Warn($"Settings load failed: {ex.Message}");
             Settings = new AppSettings();
         }
     }
@@ -73,6 +74,7 @@ public sealed class SettingsService : IDisposable
         catch (Exception ex)
         {
             LastError = ex.Message;
+            AppLog.Warn($"Settings update failed: {ex.Message}");
         }
     }
 
@@ -116,6 +118,7 @@ public sealed class SettingsService : IDisposable
         catch (Exception ex)
         {
             LastError = ex.Message;
+            AppLog.Warn($"Settings write failed: {ex.Message}");
         }
     }
 
