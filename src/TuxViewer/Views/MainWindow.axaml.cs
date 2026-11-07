@@ -28,6 +28,14 @@ public partial class MainWindow : Window
         await ViewModel.InitializeAsync();
     }
 
+    private void SaveFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.SaveFilterPreset();
+
+    private void ApplyFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.ApplySelectedFilterPreset();
+
+    private void DeleteFilterPreset_Click(object? sender, RoutedEventArgs e) => ViewModel?.DeleteSelectedFilterPreset();
+
+    private void ResetFilters_Click(object? sender, RoutedEventArgs e) => ViewModel?.ResetFilters();
+
     private async void Refresh_Click(object? sender, RoutedEventArgs e)
     {
         if (ViewModel is null) return;

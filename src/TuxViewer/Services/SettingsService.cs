@@ -129,6 +129,22 @@ public sealed class SettingsService : IDisposable
         settings.BackendFilterIndex = Math.Clamp(settings.BackendFilterIndex, 0, 4);
         settings.TreeGroupModeIndex = Math.Clamp(settings.TreeGroupModeIndex, 0, 3);
         settings.RuleCompositorIndex = Math.Clamp(settings.RuleCompositorIndex, 0, 2);
+        settings.FilterPresets ??= [];
+        settings.FilterPresets = settings.FilterPresets
+            .Where(preset => !string.IsNullOrWhiteSpace(preset.Name))
+            .Take(40)
+            .Select(preset =>
+            {
+                preset.Name = preset.Name.Trim();
+                if (preset.Name.Length > 60) preset.Name = preset.Name[..60];
+                preset.Search = (preset.Search ?? "").Trim();
+                preset.Pid = (preset.Pid ?? "").Trim();
+                preset.WindowId = (preset.WindowId ?? "").Trim();
+                preset.Workspace = (preset.Workspace ?? "").Trim();
+                preset.BackendFilterIndex = Math.Clamp(preset.BackendFilterIndex, 0, 4);
+                return preset;
+            })
+            .ToList();
         settings.RuleWidth = settings.RuleWidth?.Trim() ?? "";
         settings.RuleHeight = settings.RuleHeight?.Trim() ?? "";
         settings.RuleWorkspace = settings.RuleWorkspace?.Trim() ?? "";

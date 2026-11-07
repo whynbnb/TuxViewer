@@ -77,6 +77,8 @@ TuxViewer 用于回答这些问题：
 ### 5. 交互与工作流
 
 - 窗口列表：应用图标、WL/X11 标签、搜索、后端筛选、隐藏本应用、包含原始 X11 窗口、包含未映射窗口
+- **搜索增强**：普通子串或 .NET 正则搜索（`.*` 开关，支持多行锚点）；可按 PID、窗口 ID（十进制 / `0x` 十六进制，逗号分隔）和工作区组合过滤
+- **筛选预设**：把当前搜索、正则开关、后端、PID / 窗口 ID / 工作区过滤保存为命名预设，随时应用或删除；预设随设置持久化
 - **窗口层次树**：按应用 / 进程 / 工作区分组或平铺，展开 X11 toplevel 的子窗口并点击检视；支持“仅此 PID”过滤
 - **实时事件监控**：X11 `PropertyNotify` / `ConfigureNotify` / `Map` / `Destroy` / `Focus`，niri event-stream、Sway subscribe、Hyprland socket2
 - 属性变化即时刷新，并在“概览”“X11 属性”中标黄显示旧值 → 新值
@@ -97,7 +99,7 @@ TuxViewer 用于回答这些问题：
 - **报告与快照**：导出 HTML / Markdown / JSON（自动附带截图）；保存窗口快照到 `~/.local/state/TuxViewer/snapshots`，稍后对比新增 / 删除 / 变化字段
 - X11 属性支持按名称 / 类型 / 值过滤
 - **多显示器 / 输出**：显示各输出逻辑坐标、缩放、刷新率、模式和当前工作区；niri 额外显示工作区 / 列布局；提示 XWayland 与合成器坐标差异
-- **设置持久化**：窗口尺寸 / 位置、窗口筛选、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
+- **设置持久化**：窗口尺寸 / 位置、窗口筛选、筛选预设、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
 - 详情页：概览、进程、X11 属性、Wayland、环境、原始数据、事件、截图、规则、X11 事件、控件、热键、控制、报告、输出、诊断
 - 诊断页：会话、后端可用性、Wayland 全局协议、GNOME 扩展安装
 - 快捷键：`F2` 点击拾取、`F3` 拖动拾取、`Shift+F2/F3` 强制 X11、`F5` 刷新、`Esc` 取消

@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text.RegularExpressions;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using TuxViewer.Models;
@@ -18,6 +20,14 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private WindowInfo? _selectedWindow;
     private bool _suppressInspect;
     private string _filterText = "";
+    private bool _useRegexSearch;
+    private string _pidFilterText = "";
+    private string _windowIdFilterText = "";
+    private string _workspaceFilterText = "";
+    private string _filterPresetName = "";
+    private int _selectedFilterPresetIndex = -1;
+    private string _filterError = "";
+    private string _filterSummaryText = "";
     private string _statusText = "正在初始化…";
     private string _sessionSummary = "检测会话…";
     private string _countsText = "";
@@ -130,6 +140,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         BackendFilters = ["全部后端", "X11（含 XWayland）", "Wayland 原生", "仅 XWayland", "仅 X11 原生"];
         RuleCompositors = ["niri", "Sway", "Hyprland"];
         TreeGroupModes = ["按应用", "按进程", "按工作区", "平铺"];
+        LoadFilterPresets(settingsService.Settings.FilterPresets);
         ApplySettings(settingsService.Settings);
         PropertyChanged += OnPersistedPropertyChanged;
     }
@@ -157,6 +168,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<OutputInfo> Outputs { get; } = [];
     public ObservableCollection<WorkspaceInfo> OutputWorkspaces { get; } = [];
     public ObservableCollection<string> OutputLayoutLines { get; } = [];
+    public ObservableCollection<FilterPreset> FilterPresets { get; } = [];
     public IReadOnlyList<string> BackendFilters { get; }
     public IReadOnlyList<string> RuleCompositors { get; }
     public IReadOnlyList<string> TreeGroupModes { get; }
@@ -221,6 +233,60 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     {
         get => _filterText;
         set { if (Set(ref _filterText, value)) ApplyFilter(); }
+    }
+
+    public bool UseRegexSearch
+    {
+        get => _useRegexSearch;
+        set { if (Set(ref _useRegexSearch, value)) ApplyFilter(); }
+    }
+
+    public string PidFilterText
+    {
+        get => _pidFilterText;
+        set { if (Set(ref _pidFilterText, value)) ApplyFilter(); }
+    }
+
+    public string WindowIdFilterText
+    {
+        get => _windowIdFilterText;
+        set { if (Set(ref _windowIdFilterText, value)) ApplyFilter(); }
+    }
+
+    public string WorkspaceFilterText
+    {
+        get => _workspaceFilterText;
+        set { if (Set(ref _workspaceFilterText, value)) ApplyFilter(); }
+    }
+
+    public string FilterPresetName
+    {
+        get => _filterPresetName;
+        set => Set(ref _filterPresetName, value);
+    }
+
+    public int SelectedFilterPresetIndex
+    {
+        get => _selectedFilterPresetIndex;
+        set => Set(ref _selectedFilterPresetIndex, value);
+    }
+
+    public string FilterError
+    {
+        get => _filterError;
+        private set
+        {
+            if (!Set(ref _filterError, value)) return;
+            OnPropertyChanged(nameof(HasFilterError));
+        }
+    }
+
+    public bool HasFilterError => !string.IsNullOrEmpty(_filterError);
+
+    public string FilterSummaryText
+    {
+        get => _filterSummaryText;
+        private set => Set(ref _filterSummaryText, value);
     }
 
     public int BackendFilterIndex
@@ -1948,6 +2014,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void ApplyFilter()
     {
         var query = _filterText.Trim();
+        var errors = new List<string>();
         IEnumerable<WindowInfo> filtered = _allWindows;
 
         if (HideOwnWindows) filtered = filtered.Where(w => !w.IsOwnWindow);
@@ -1964,13 +2031,64 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _ => filtered,
         };
 
+        var pidTokens = SplitFilterTokens(_pidFilterText);
+        if (pidTokens.Count > 0)
+        {
+            var pids = new HashSet<int>();
+            foreach (var token in pidTokens)
+            {
+                if (int.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var pid) && pid > 0)
+                    pids.Add(pid);
+                else
+                    errors.Add($"PID “{token}” 不是有效整数");
+            }
+            if (pids.Count > 0)
+                filtered = filtered.Where(w => w.Pid is int pid && pids.Contains(pid));
+        }
+
+        var windowTokens = SplitFilterTokens(_windowIdFilterText);
+        if (windowTokens.Count > 0)
+            filtered = filtered.Where(w => MatchesWindowId(w, windowTokens));
+
+        var workspaceTokens = SplitFilterTokens(_workspaceFilterText);
+        if (workspaceTokens.Count > 0)
+            filtered = filtered.Where(w => MatchesWorkspace(w, workspaceTokens));
+
         if (query.Length > 0)
         {
-            filtered = filtered.Where(w =>
-                Contains(w.Title, query) || Contains(w.AppId, query) || Contains(w.WmClass, query) ||
-                Contains(w.Pid?.ToString(), query) || Contains(w.NativeId, query) ||
-                Contains(w.SourceName, query) || Contains(w.WorkspaceName, query) ||
-                Contains(w.BackendLabel, query));
+            if (UseRegexSearch)
+            {
+                Regex? regex = null;
+                try
+                {
+                    regex = new Regex(
+                        query,
+                        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Multiline,
+                        TimeSpan.FromMilliseconds(250));
+                }
+                catch (ArgumentException ex)
+                {
+                    errors.Add($"正则表达式无效：{ex.Message}");
+                }
+
+                if (regex is not null)
+                {
+                    try
+                    {
+                        var compiled = regex;
+                        filtered = filtered.Where(w => compiled.IsMatch(BuildSearchHaystack(w))).ToList();
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        errors.Add("正则匹配超时（250 ms），请简化表达式");
+                    }
+                }
+            }
+            else
+            {
+                filtered = filtered.Where(w =>
+                    BuildSearchHaystack(w).Contains(query, StringComparison.OrdinalIgnoreCase));
+            }
         }
 
         var list = filtered.ToList();
@@ -1993,6 +2111,217 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
         if (TreeMode) BuildTree();
         UpdateCounts();
+
+        FilterError = errors.Count == 0 ? "" : string.Join(" · ", errors);
+        FilterSummaryText = list.Count == _allWindows.Count && errors.Count == 0
+            ? ""
+            : $"{list.Count} / {_allWindows.Count}";
+    }
+
+    private static string BuildSearchHaystack(WindowInfo window)
+    {
+        var builder = new System.Text.StringBuilder(128);
+        void Add(string? value)
+        {
+            if (string.IsNullOrEmpty(value)) return;
+            builder.Append(value);
+            builder.Append('\n');
+        }
+
+        Add(window.Title);
+        Add(window.AppId);
+        Add(window.WmClass);
+        Add(window.Pid?.ToString(CultureInfo.InvariantCulture));
+        Add(window.NativeId);
+        Add(window.Id);
+        Add(window.SourceName);
+        Add(window.WorkspaceName);
+        Add(window.WorkspaceId?.ToString(CultureInfo.InvariantCulture));
+        Add(window.OutputName);
+        Add(window.BackendLabel);
+        foreach (var pair in window.Extra)
+        {
+            Add(pair.Key);
+            Add(pair.Value);
+        }
+        return builder.ToString();
+    }
+
+    private static List<string> SplitFilterTokens(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return [];
+        return text
+            .Split([',', ';', '，', '；', ' ', '\t', '\n', '\r'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(token => token.Trim())
+            .Where(token => token.Length > 0)
+            .ToList();
+    }
+
+    private static bool MatchesWindowId(WindowInfo window, IReadOnlyList<string> tokens)
+    {
+        foreach (var token in tokens)
+        {
+            var raw = token.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? token[2..] : token;
+
+            if (ulong.TryParse(raw, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hex))
+            {
+                if (window.X11WindowId == hex || window.LinkedX11WindowId == hex) return true;
+                if (string.Equals(window.NativeId, $"0x{hex:x}", StringComparison.OrdinalIgnoreCase)) return true;
+            }
+
+            if (ulong.TryParse(token, NumberStyles.Integer, CultureInfo.InvariantCulture, out var dec))
+            {
+                if (window.X11WindowId == dec || window.LinkedX11WindowId == dec) return true;
+            }
+
+            if (Contains(window.NativeId, token) || Contains(window.Id, token)) return true;
+        }
+        return false;
+    }
+
+    private static bool MatchesWorkspace(WindowInfo window, IReadOnlyList<string> tokens)
+    {
+        foreach (var token in tokens)
+        {
+            if (string.Equals(window.WorkspaceName, token, StringComparison.OrdinalIgnoreCase)) return true;
+            if (Contains(window.WorkspaceName, token)) return true;
+            if (window.WorkspaceId is int id &&
+                (id.ToString(CultureInfo.InvariantCulture) == token ||
+                 $"工作区 {id}".Contains(token, StringComparison.OrdinalIgnoreCase)))
+                return true;
+        }
+        return false;
+    }
+
+    private void LoadFilterPresets(IEnumerable<FilterPreset> presets)
+    {
+        FilterPresets.Clear();
+        foreach (var preset in presets)
+        {
+            if (string.IsNullOrWhiteSpace(preset.Name)) continue;
+            FilterPresets.Add(preset.Clone());
+        }
+    }
+
+    public void SaveFilterPreset()
+    {
+        var name = FilterPresetName.Trim();
+        if (name.Length == 0) name = $"筛选 {FilterPresets.Count + 1}";
+
+        var preset = new FilterPreset
+        {
+            Name = name,
+            Search = _filterText,
+            UseRegex = _useRegexSearch,
+            BackendFilterIndex = _backendFilterIndex,
+            Pid = _pidFilterText,
+            WindowId = _windowIdFilterText,
+            Workspace = _workspaceFilterText,
+            HideOwnWindows = _hideOwnWindows,
+            IncludeRawX11 = _includeRawX11,
+            IncludeUnmapped = _includeUnmapped,
+        };
+
+        var index = -1;
+        for (var i = 0; i < FilterPresets.Count; i++)
+        {
+            if (!string.Equals(FilterPresets[i].Name, name, StringComparison.OrdinalIgnoreCase)) continue;
+            index = i;
+            break;
+        }
+
+        if (index >= 0) FilterPresets[index] = preset;
+        else
+        {
+            FilterPresets.Add(preset);
+            index = FilterPresets.Count - 1;
+        }
+
+        SelectedFilterPresetIndex = index;
+        FilterPresetName = "";
+        SaveFilterPresets();
+        StatusText = $"已保存筛选预设“{name}”";
+    }
+
+    public void ApplySelectedFilterPreset()
+    {
+        if (_selectedFilterPresetIndex < 0 || _selectedFilterPresetIndex >= FilterPresets.Count) return;
+        ApplyFilterPreset(FilterPresets[_selectedFilterPresetIndex]);
+    }
+
+    public void DeleteSelectedFilterPreset()
+    {
+        if (_selectedFilterPresetIndex < 0 || _selectedFilterPresetIndex >= FilterPresets.Count) return;
+        var name = FilterPresets[_selectedFilterPresetIndex].Name;
+        FilterPresets.RemoveAt(_selectedFilterPresetIndex);
+        SelectedFilterPresetIndex = FilterPresets.Count == 0
+            ? -1
+            : Math.Min(_selectedFilterPresetIndex, FilterPresets.Count - 1);
+        SaveFilterPresets();
+        StatusText = $"已删除筛选预设“{name}”";
+    }
+
+    public void ResetFilters()
+    {
+        _filterText = "";
+        _useRegexSearch = false;
+        _pidFilterText = "";
+        _windowIdFilterText = "";
+        _workspaceFilterText = "";
+        _backendFilterIndex = 0;
+        _hideOwnWindows = true;
+        _includeRawX11 = false;
+        _includeUnmapped = true;
+        _onlySelectedPid = false;
+        _pidFilter = null;
+        _selectedFilterPresetIndex = -1;
+
+        OnPropertyChanged(nameof(FilterText));
+        OnPropertyChanged(nameof(UseRegexSearch));
+        OnPropertyChanged(nameof(PidFilterText));
+        OnPropertyChanged(nameof(WindowIdFilterText));
+        OnPropertyChanged(nameof(WorkspaceFilterText));
+        OnPropertyChanged(nameof(BackendFilterIndex));
+        OnPropertyChanged(nameof(HideOwnWindows));
+        OnPropertyChanged(nameof(IncludeRawX11));
+        OnPropertyChanged(nameof(IncludeUnmapped));
+        OnPropertyChanged(nameof(OnlySelectedPid));
+        OnPropertyChanged(nameof(SelectedFilterPresetIndex));
+        ApplyFilter();
+        StatusText = "已清除窗口筛选";
+    }
+
+    private void ApplyFilterPreset(FilterPreset preset)
+    {
+        _filterText = preset.Search;
+        _useRegexSearch = preset.UseRegex;
+        _pidFilterText = preset.Pid;
+        _windowIdFilterText = preset.WindowId;
+        _workspaceFilterText = preset.Workspace;
+        _backendFilterIndex = Math.Clamp(preset.BackendFilterIndex, 0, 4);
+        _hideOwnWindows = preset.HideOwnWindows;
+        _includeRawX11 = preset.IncludeRawX11;
+        _includeUnmapped = preset.IncludeUnmapped;
+        _selectedFilterPresetIndex = FilterPresets.IndexOf(preset);
+
+        OnPropertyChanged(nameof(FilterText));
+        OnPropertyChanged(nameof(UseRegexSearch));
+        OnPropertyChanged(nameof(PidFilterText));
+        OnPropertyChanged(nameof(WindowIdFilterText));
+        OnPropertyChanged(nameof(WorkspaceFilterText));
+        OnPropertyChanged(nameof(BackendFilterIndex));
+        OnPropertyChanged(nameof(HideOwnWindows));
+        OnPropertyChanged(nameof(IncludeRawX11));
+        OnPropertyChanged(nameof(IncludeUnmapped));
+        OnPropertyChanged(nameof(SelectedFilterPresetIndex));
+        ApplyFilter();
+        StatusText = $"已应用筛选预设“{preset.Name}”";
+    }
+
+    private void SaveFilterPresets()
+    {
+        _settingsService.Update(settings =>
+            settings.FilterPresets = FilterPresets.Select(preset => preset.Clone()).ToList());
     }
 
     private void SyncWindows(List<WindowInfo> desired)
@@ -2212,6 +2541,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private static readonly HashSet<string> PersistedProperties = new(StringComparer.Ordinal)
     {
         nameof(BackendFilterIndex), nameof(HideOwnWindows), nameof(IncludeRawX11), nameof(IncludeUnmapped),
+        nameof(UseRegexSearch),
         nameof(AutoRefresh), nameof(RealtimeEnabled), nameof(TreeMode), nameof(TreeGroupModeIndex),
         nameof(RuleCompositorIndex), nameof(RuleFloating), nameof(RuleNoBorder), nameof(RuleFullscreen),
         nameof(RuleSticky), nameof(RuleMatchTitle), nameof(RuleWidth), nameof(RuleHeight),
@@ -2229,6 +2559,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             _hideOwnWindows = settings.HideOwnWindows;
             _includeRawX11 = settings.IncludeRawX11;
             _includeUnmapped = settings.IncludeUnmapped;
+            _useRegexSearch = settings.UseRegexSearch;
             _autoRefresh = settings.AutoRefresh;
             _realtimeEnabled = settings.RealtimeEnabled;
             _treeMode = settings.TreeMode;
@@ -2265,6 +2596,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         settings.HideOwnWindows = _hideOwnWindows;
         settings.IncludeRawX11 = _includeRawX11;
         settings.IncludeUnmapped = _includeUnmapped;
+        settings.UseRegexSearch = _useRegexSearch;
         settings.AutoRefresh = _autoRefresh;
         settings.RealtimeEnabled = _realtimeEnabled;
         settings.TreeMode = _treeMode;

@@ -163,16 +163,29 @@
         <!-- Window list -->
         <Border Grid.Column="0" Classes="panel" Margin="12,12,0,12" ClipToBounds="True">
           <DockPanel>
-            <Grid DockPanel.Dock="Top" Margin="12,12,12,0" RowDefinitions="Auto,Auto,Auto,Auto">
-              <TextBox Grid.Row="0" PlaceholderText="搜索标题、应用 ID、PID、窗口 ID…"
-                       Text="{Binding FilterText, Mode=TwoWay}" />
+            <Grid DockPanel.Dock="Top" Margin="12,12,12,0" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto">
+              <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                <TextBox PlaceholderText="搜索标题、应用 ID、PID、窗口 ID…（支持正则）"
+                         Text="{Binding FilterText, Mode=TwoWay}" />
+                <ToggleButton Grid.Column="1" Content=".*" Classes="chip" Width="38"
+                              IsChecked="{Binding UseRegexSearch, Mode=TwoWay}"
+                              ToolTip.Tip="正则搜索：使用 .NET 正则语法匹配窗口所有可搜索字段" />
+              </Grid>
               <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="0,8,0,0">
                 <ComboBox ItemsSource="{Binding BackendFilters}"
                           SelectedIndex="{Binding BackendFilterIndex, Mode=TwoWay}" />
                 <ToggleButton Grid.Column="1" Content="自动刷新" Classes="chip"
                               IsChecked="{Binding AutoRefresh, Mode=TwoWay}" Margin="8,0,0,0" />
               </Grid>
-              <WrapPanel Grid.Row="2" Margin="0,8,0,0" ItemSpacing="5" LineSpacing="5">
+              <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="6" Margin="0,8,0,0">
+                <TextBox PlaceholderText="PID（逗号分隔）"
+                         Text="{Binding PidFilterText, Mode=TwoWay}" />
+                <TextBox Grid.Column="1" PlaceholderText="窗口 ID / 0x…"
+                         Text="{Binding WindowIdFilterText, Mode=TwoWay}" />
+                <TextBox Grid.Column="2" PlaceholderText="工作区名称 / 编号"
+                         Text="{Binding WorkspaceFilterText, Mode=TwoWay}" />
+              </Grid>
+              <WrapPanel Grid.Row="3" Margin="0,8,0,0" ItemSpacing="5" LineSpacing="5">
                 <ToggleButton Content="隐藏本应用" Classes="chip"
                               IsChecked="{Binding HideOwnWindows, Mode=TwoWay}" />
                 <ToggleButton Content="含原始 X11" Classes="chip"
@@ -190,17 +203,46 @@
                               IsChecked="{Binding OnlySelectedPid, Mode=TwoWay}"
                               ToolTip.Tip="只显示当前选中窗口的 PID 的所有窗口" />
               </WrapPanel>
-              <Grid Grid.Row="3" ColumnDefinitions="Auto,*" ColumnSpacing="8"
+              <Grid Grid.Row="4" ColumnDefinitions="Auto,*" ColumnSpacing="8"
                     Margin="0,8,0,0" IsVisible="{Binding TreeMode}">
                 <TextBlock Text="分组方式" Classes="muted" FontSize="11" VerticalAlignment="Center" />
                 <ComboBox Grid.Column="1" ItemsSource="{Binding TreeGroupModes}"
                           SelectedIndex="{Binding TreeGroupModeIndex, Mode=TwoWay}" />
               </Grid>
+              <StackPanel Grid.Row="5" Spacing="6" Margin="0,8,0,0">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                  <ComboBox ItemsSource="{Binding FilterPresets}"
+                            SelectedIndex="{Binding SelectedFilterPresetIndex, Mode=TwoWay}"
+                            PlaceholderText="筛选预设">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="models:FilterPreset">
+                        <TextBlock Text="{Binding Name}" />
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <Button Grid.Column="1" Content="应用" Click="ApplyFilterPreset_Click"
+                          Classes="ghost" FontSize="11" Padding="8,4" />
+                  <Button Grid.Column="2" Content="删除" Click="DeleteFilterPreset_Click"
+                          Classes="ghost" FontSize="11" Padding="8,4" />
+                </Grid>
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                  <TextBox PlaceholderText="预设名称（留空自动命名）"
+                           Text="{Binding FilterPresetName, Mode=TwoWay}" />
+                  <Button Grid.Column="1" Content="保存当前筛选" Click="SaveFilterPreset_Click"
+                          Classes="ghost" FontSize="11" Padding="8,4" />
+                  <Button Grid.Column="2" Content="清除" Click="ResetFilters_Click"
+                          Classes="ghost" FontSize="11" Padding="8,4" />
+                </Grid>
+                <TextBlock Text="{Binding FilterError}" IsVisible="{Binding HasFilterError}"
+                           Foreground="#F7768E" FontSize="10" TextWrapping="Wrap" />
+              </StackPanel>
             </Grid>
 
-            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="12,12,12,6">
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="12,12,12,6">
               <TextBlock Text="窗口 / TOPLEVEL" Classes="section" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="1" Text="来源 · 后端 · 几何" FontSize="11" Foreground="#66758C" />
+              <TextBlock Grid.Column="1" Text="{Binding FilterSummaryText}" FontSize="11"
+                         Foreground="#F6C177" VerticalAlignment="Center" Margin="8,0" />
+              <TextBlock Grid.Column="2" Text="来源 · 后端 · 几何" FontSize="11" Foreground="#66758C" />
             </Grid>
 
             <ListBox ItemsSource="{Binding Windows}" SelectedItem="{Binding SelectedWindow, Mode=TwoWay}"

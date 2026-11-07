@@ -19,6 +19,8 @@ public sealed class AppSettings
     public bool HideOwnWindows { get; set; } = true;
     public bool IncludeRawX11 { get; set; }
     public bool IncludeUnmapped { get; set; } = true;
+    public bool UseRegexSearch { get; set; }
+    public List<FilterPreset> FilterPresets { get; set; } = [];
 
     // Refresh / monitoring preferences.
     public bool AutoRefresh { get; set; } = true;
@@ -51,5 +53,27 @@ public sealed class AppSettings
     public bool X11RecordOther { get; set; }
     public bool X11RecordOnlySelected { get; set; }
 
-    public AppSettings Clone() => (AppSettings)MemberwiseClone();
+    public AppSettings Clone()
+    {
+        var clone = (AppSettings)MemberwiseClone();
+        clone.FilterPresets = FilterPresets.Select(preset => preset.Clone()).ToList();
+        return clone;
+    }
+}
+
+/// <summary>A named combination of window-list filters.</summary>
+public sealed class FilterPreset
+{
+    public string Name { get; set; } = "";
+    public string Search { get; set; } = "";
+    public bool UseRegex { get; set; }
+    public int BackendFilterIndex { get; set; }
+    public string Pid { get; set; } = "";
+    public string WindowId { get; set; } = "";
+    public string Workspace { get; set; } = "";
+    public bool HideOwnWindows { get; set; } = true;
+    public bool IncludeRawX11 { get; set; }
+    public bool IncludeUnmapped { get; set; } = true;
+
+    public FilterPreset Clone() => (FilterPreset)MemberwiseClone();
 }
