@@ -24,6 +24,7 @@ public sealed class X11EventMonitor : IDisposable
     private IntPtr _range;
     private nuint _context;
     private Action<X11RecordedEvent>? _sink;
+    private bool _stopping;
 
     public bool IsRunning { get; private set; }
     public string? Error { get; private set; }
@@ -35,6 +36,11 @@ public sealed class X11EventMonitor : IDisposable
         lock (_lock)
         {
             if (IsRunning) return true;
+            if (_stopping)
+            {
+                Error = LocalizationService.L("X11 RECORD 仍在停止中，请稍后重试", "X11 RECORD is still stopping; try again shortly");
+                return false;
+            }
             Error = null;
             _sink = sink;
 
@@ -761,27 +767,93 @@ public sealed class X11EventMonitor : IDisposable
 
     public void Stop()
     {
+        Thread? thread;
+        CancellationTokenSource? cts;
         lock (_lock)
         {
-            if (_cts is null && _display == IntPtr.Zero) return;
-            try { _cts?.Cancel(); } catch { /* ignore */ }
-            try { _thread?.Join(800); } catch { /* ignore */ }
-            _thread = null;
-            if (_context != 0 && _display != IntPtr.Zero)
-            {
-                try
-                {
-                    XRecordNative.XRecordDisableContext(_display, _context);
-                    XRecordNative.XFlush(_display);
-                }
-                catch { /* ignore */ }
-            }
+            if (_stopping || _cts is null) return;
+            _stopping = true;
             IsRunning = false;
-            Cleanup();
-            _cts?.Dispose();
-            _cts = null;
-            _callback = null;
+            thread = _thread;
+            cts = _cts;
         }
+
+        AppLog.Info("X11 RECORD stop: cancelling context");
+        try { cts?.Cancel(); } catch { /* ignore */ }
+
+        var joined = true;
+        if (thread is not null)
+        {
+            try { joined = thread.Join(2000); } catch { joined = false; }
+        }
+        AppLog.Info($"X11 RECORD stop: monitor thread joined={joined}");
+
+        // Cleanup can block on a busy X server. Never hold the UI thread or the
+        // monitor lock while calling XRecordDisableContext / XCloseDisplay.
+        _ = Task.Run(() =>
+        {
+            if (!joined)
+            {
+                try { thread?.Join(10000); } catch { /* ignore */ }
+            }
+            FinishStop();
+        });
+    }
+
+    private void FinishStop()
+    {
+        IntPtr display;
+        IntPtr atomDisplay;
+        IntPtr range;
+        nuint context;
+        CancellationTokenSource? cts;
+
+        lock (_lock)
+        {
+            display = _display;
+            atomDisplay = _atomDisplay;
+            range = _range;
+            context = _context;
+            cts = _cts;
+            _display = IntPtr.Zero;
+            _atomDisplay = IntPtr.Zero;
+            _range = IntPtr.Zero;
+            _context = 0;
+            _thread = null;
+            _callback = null;
+            IsRunning = false;
+        }
+
+        try
+        {
+            if (context != 0 && display != IntPtr.Zero)
+            {
+                XRecordNative.XRecordDisableContext(display, context);
+                XRecordNative.XFlush(display);
+            }
+        }
+        catch { /* ignore */ }
+
+        if (range != IntPtr.Zero)
+        {
+            try { XRecordNative.XFree(range); } catch { /* ignore */ }
+        }
+        if (atomDisplay != IntPtr.Zero)
+        {
+            try { XRecordNative.XCloseDisplay(atomDisplay); } catch { /* ignore */ }
+        }
+        if (display != IntPtr.Zero)
+        {
+            try { XRecordNative.XCloseDisplay(display); } catch { /* ignore */ }
+        }
+
+        lock (_lock)
+        {
+            cts?.Dispose();
+            if (ReferenceEquals(_cts, cts)) _cts = null;
+            _stopping = false;
+        }
+        AppLog.Info("X11 RECORD stop: cleanup complete");
     }
 
     public void Dispose() => Stop();

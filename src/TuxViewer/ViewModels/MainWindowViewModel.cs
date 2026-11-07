@@ -1744,7 +1744,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     private void StartX11ProtocolTimer()
     {
-        _x11ProtocolTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        _x11ProtocolTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         _x11ProtocolTimer.Tick -= OnX11ProtocolTick;
         _x11ProtocolTimer.Tick += OnX11ProtocolTick;
         _x11ProtocolTimer.Start();
@@ -1760,10 +1760,16 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private void FlushX11ProtocolQueue()
     {
         var added = 0;
-        while (added < 1000 && _x11ProtocolQueue.TryDequeue(out var record))
+        while (added < 400 && _x11ProtocolQueue.TryDequeue(out var record))
         {
             _x11ProtocolAll.Add(record);
             _eventRecorder.Write("x11-protocol", record);
+            if (MatchesX11ProtocolFilter(record))
+            {
+                X11ProtocolRecords.Insert(0, record);
+                while (X11ProtocolRecords.Count > 1000)
+                    X11ProtocolRecords.RemoveAt(X11ProtocolRecords.Count - 1);
+            }
             added++;
         }
 
@@ -1772,28 +1778,31 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (_x11ProtocolAll.Count > 3000)
             _x11ProtocolAll.RemoveRange(0, _x11ProtocolAll.Count - 3000);
         X11ProtocolCountText = LF("{0} 条请求 / 回复", "{0} requests / replies", _x11ProtocolCount);
-        ApplyX11ProtocolFilter();
+    }
+
+    private bool MatchesX11ProtocolFilter(X11ProtocolRecord record)
+    {
+        if (record.IsRequest && !_x11ProtocolShowRequests) return false;
+        if (!record.IsRequest && !_x11ProtocolShowReplies) return false;
+
+        var query = _x11ProtocolFilterText.Trim();
+        return query.Length == 0 ||
+               Contains(record.DisplayText, query) ||
+               Contains(record.Name, query) ||
+               Contains(record.Summary, query) ||
+               Contains(record.WindowHex, query) ||
+               Contains(record.ClientHex, query);
     }
 
     private void ApplyX11ProtocolFilter()
     {
-        var query = _x11ProtocolFilterText.Trim();
         X11ProtocolRecords.Clear();
         for (var i = _x11ProtocolAll.Count - 1; i >= 0; i--)
         {
             var record = _x11ProtocolAll[i];
-            if (record.IsRequest && !_x11ProtocolShowRequests) continue;
-            if (!record.IsRequest && !_x11ProtocolShowReplies) continue;
-            if (query.Length > 0 &&
-                !Contains(record.DisplayText, query) &&
-                !Contains(record.Name, query) &&
-                !Contains(record.Summary, query) &&
-                !Contains(record.WindowHex, query) &&
-                !Contains(record.ClientHex, query))
-                continue;
-
+            if (!MatchesX11ProtocolFilter(record)) continue;
             X11ProtocolRecords.Add(record);
-            if (X11ProtocolRecords.Count >= 2000) break;
+            if (X11ProtocolRecords.Count >= 1000) break;
         }
     }
 
@@ -2508,20 +2517,27 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public void Shutdown()
     {
+        AppLog.Info("Shutdown: stopping refresh/protocol timers");
         _refreshTimer?.Stop();
         _x11ProtocolTimer?.Stop();
         _pickCts?.Cancel();
         _refreshCts?.Cancel();
         _inspectCts?.Cancel();
         _eventDebounceCts?.Cancel();
+        AppLog.Info("Shutdown: realtime monitor");
         _monitor.Dispose();
+        AppLog.Info("Shutdown: event recorder");
         _eventRecorder.Dispose();
+        AppLog.Info("Shutdown: X11 record monitor");
         _x11EventMonitor.Dispose();
+        AppLog.Info("Shutdown: global hotkey");
         _globalHotkey.Dispose();
         _forceKillResetCts?.Cancel();
         _forceKillResetCts?.Dispose();
         _eventDebounceCts?.Dispose();
+        AppLog.Info("Shutdown: persist settings");
         PersistNow();
+        AppLog.Info("Shutdown: complete");
     }
 
     private async Task InspectSelectedAsync(WindowInfo window, bool diff = false)

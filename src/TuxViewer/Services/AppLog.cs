@@ -24,6 +24,9 @@ public static class AppLog
             Entries.Enqueue(line);
             while (Entries.Count > Capacity) Entries.Dequeue();
         }
+
+        if (string.Equals(Environment.GetEnvironmentVariable("TUXVIEWER_LOG"), "1", StringComparison.Ordinal))
+            Console.Error.WriteLine(line);
     }
 
     public static IReadOnlyList<string> Snapshot()
