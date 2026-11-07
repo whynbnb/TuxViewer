@@ -181,6 +181,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public bool AutoRecord { get; set; }
     public bool AutoLoadAtspi { get; set; }
     public bool AutoHotkey { get; set; }
+    public PickMode? AutoPickMode { get; set; }
+    public bool AutoPickX11 { get; set; }
+    public PickMode? AutoPickX11Mode { get; set; }
+
+    private readonly TaskCompletionSource _initialization = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    public Task InitializationTask => _initialization.Task;
 
     public int SelectedTabIndex
     {
@@ -951,25 +957,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             await _service.InitializeAsync(CancellationToken.None);
             await RefreshAsync();
             if (!string.IsNullOrWhiteSpace(InitialSelection))
-            {
-                var match = _allWindows.FirstOrDefault(w =>
-                                string.Equals(w.Id, InitialSelection, StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(w.NativeId, InitialSelection, StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(w.AppId, InitialSelection, StringComparison.OrdinalIgnoreCase) ||
-                                string.Equals(w.Title, InitialSelection, StringComparison.OrdinalIgnoreCase))
-                            ?? _allWindows.FirstOrDefault(w =>
-                                w.Title.Contains(InitialSelection, StringComparison.OrdinalIgnoreCase));
-                if (match is not null)
-                {
-                    if (!Windows.Contains(match))
-                    {
-                        HideOwnWindows = false;
-                        IncludeRawX11 = true;
-                        ApplyFilter();
-                    }
-                    SelectedWindow = Windows.FirstOrDefault(w => w.Id == match.Id) ?? match;
-                }
-            }
+                await SelectByArgumentAsync(InitialSelection);
             await LoadDiagnosticsAsync();
             LoadSnapshots();
             await LoadOutputsAsync();
@@ -979,6 +967,8 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             if (AutoRecord) await ToggleX11RecordAsync();
             if (AutoLoadAtspi) await LoadAtspiAsync();
             if (AutoHotkey) ToggleGlobalHotkey();
+            if (AutoPickMode is { } pickMode || AutoPickX11)
+                await PickAsync(x11Only: AutoPickX11, mode: AutoPickX11 ? AutoPickX11Mode ?? PickMode.Click : AutoPickMode ?? PickMode.Click);
             StatusText = L("就绪 · 点击“十字准星拾取”或从列表选择窗口", "Ready · use the crosshair or pick a window from the list");
         }
         catch (Exception ex)
@@ -988,7 +978,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         finally
         {
             _suppressSettingsSave = false;
+            _initialization.TrySetResult();
         }
+    }
+
+    /// <summary>Select a window by id, native id, app id or title (used by CLI / IPC).</summary>
+    public async Task SelectByArgumentAsync(string argument)
+    {
+        if (_allWindows.Count == 0) await RefreshAsync(showBusy: false);
+
+        var match = _allWindows.FirstOrDefault(w =>
+                        string.Equals(w.Id, argument, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(w.NativeId, argument, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(w.AppId, argument, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(w.Title, argument, StringComparison.OrdinalIgnoreCase))
+                    ?? _allWindows.FirstOrDefault(w =>
+                        w.Title.Contains(argument, StringComparison.OrdinalIgnoreCase));
+
+        if (match is null)
+        {
+            StatusText = LF("未找到窗口：{0}", "No window matched: {0}", argument);
+            return;
+        }
+
+        if (!Windows.Contains(match))
+        {
+            HideOwnWindows = false;
+            IncludeRawX11 = true;
+            ApplyFilter();
+        }
+
+        SelectedWindow = Windows.FirstOrDefault(w => w.Id == match.Id) ?? match;
+    }
+
+    /// <summary>Apply actions forwarded by a second process through single-instance IPC.</summary>
+    public async Task ApplyStartupOptionsAsync(StartupOptions options)
+    {
+        await InitializationTask;
+
+        if (options.TabIndex is int tab) SelectedTabIndex = tab;
+        if (options.Tree) TreeMode = true;
+        if (options.GroupModeIndex is int group) TreeGroupModeIndex = Math.Clamp(group, 0, 3);
+        if (options.RecordSelected) X11RecordOnlySelected = true;
+
+        if (!string.IsNullOrWhiteSpace(options.Select))
+            await SelectByArgumentAsync(options.Select);
+
+        if (options.Capture) await CaptureScreenshotAsync();
+        if (options.Record && !X11RecordEnabled) await ToggleX11RecordAsync();
+        if (options.AtspiLoad) await LoadAtspiAsync();
+        if (options.Hotkey && !GlobalHotkeyEnabled) ToggleGlobalHotkey();
+
+        if (options.PickX11)
+            await PickAsync(x11Only: true, mode: options.PickX11Mode ?? options.PickMode ?? PickMode.Click);
+        else if (options.PickMode is { } pickMode)
+            await PickAsync(mode: pickMode);
+
+        StatusText = L("已处理来自另一个实例的请求", "Handled request from another instance");
     }
 
     public async Task RefreshAsync(bool showBusy = true)

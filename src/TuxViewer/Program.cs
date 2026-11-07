@@ -19,13 +19,19 @@ internal static class Program
                 用法:
                   TuxViewer [--select <id|app_id|标题>] [--capture] [--tree] [--group 0-3]
                             [--record] [--record-selected] [--atspi-load] [--hotkey]
+                            [--gui-pick <click|drag>] [--gui-pick-x11 <click|drag>]
                             [--tab <overview|process|x11|wayland|env|raw|events|screenshot|rules|xrecord|atspi|hotkey|control|report|outputs|diagnostics>]
+                            [--new-instance]
                   TuxViewer --diagnose [--json] [--detail <id|app_id|标题>] [--highlight]
                   TuxViewer --pick-x11 <click|drag> [--json]
                   TuxViewer --screenshot <id|app_id|标题> [--out <file.png>]
                   TuxViewer --export <html|md|json> <id|app_id|标题> [--out <file>]
                   TuxViewer --snapshot <id|app_id|标题> [--name <名称>] [--out <file.json>]
                   TuxViewer --install-gnome-extension
+
+                GUI 模式下默认只允许一个实例；再次启动会把参数转发给已运行实例。
+                使用 --new-instance 可强制打开新窗口。--gui-pick / --gui-pick-x11
+                适合放在合成器快捷键中，唤起已运行实例并开始拾取。
 
                 环境变量:
                   TUXVIEWER_BACKEND=wayland|x11   强制 Avalonia 窗口后端（默认 Wayland 优先，失败回退 X11）
@@ -58,8 +64,26 @@ internal static class Program
             return 0;
         }
 
-        BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
-        return 0;
+        SingleInstanceService? instance = null;
+        try
+        {
+            instance = SingleInstanceService.Acquire(args, out var forwarded);
+            if (forwarded) return 0;
+        }
+        catch (Exception ex)
+        {
+            AppLog.Warn($"Single instance startup failed: {ex.Message}");
+        }
+
+        try
+        {
+            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            return 0;
+        }
+        finally
+        {
+            instance?.Dispose();
+        }
     }
 
     public static AppBuilder BuildAvaloniaApp()

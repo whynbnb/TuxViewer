@@ -151,14 +151,14 @@ public sealed class GlobalHotkeyService : IDisposable
 
 # niri (~/.config/niri/config.kdl)
 binds {
-    Mod+Shift+X { spawn "tuxviewer" "--pick-x11" "click"; }
+    Mod+Shift+X { spawn "tuxviewer" "--gui-pick-x11" "click"; }
 }
 
 # Sway (~/.config/sway/config)
-bindsym $mod+Shift+x exec tuxviewer --pick-x11 click
+bindsym $mod+Shift+x exec tuxviewer --gui-pick-x11 click
 
 # Hyprland (~/.config/hypr/hyprland.conf)
-bind = SUPER SHIFT, X, exec, tuxviewer --pick-x11 click
+bind = SUPER SHIFT, X, exec, tuxviewer --gui-pick-x11 click
 
 # Note: tuxviewer is the command installed by scripts/install.sh; you can also use the TuxViewer executable path.
 # In an X11 session you can also enable the XGrabKey global hotkey below directly in TuxViewer.
@@ -168,14 +168,14 @@ bind = SUPER SHIFT, X, exec, tuxviewer --pick-x11 click
 
 # niri (~/.config/niri/config.kdl)
 binds {
-    Mod+Shift+X { spawn "tuxviewer" "--pick-x11" "click"; }
+    Mod+Shift+X { spawn "tuxviewer" "--gui-pick-x11" "click"; }
 }
 
 # Sway (~/.config/sway/config)
-bindsym $mod+Shift+x exec tuxviewer --pick-x11 click
+bindsym $mod+Shift+x exec tuxviewer --gui-pick-x11 click
 
 # Hyprland (~/.config/hypr/hyprland.conf)
-bind = SUPER SHIFT, X, exec, tuxviewer --pick-x11 click
+bind = SUPER SHIFT, X, exec, tuxviewer --gui-pick-x11 click
 
 # 说明：tuxviewer 是 scripts/install.sh 安装的命令；也可以换成 TuxViewer 可执行文件路径。
 # 若使用 X11 会话，也可以直接在 TuxViewer 中启用下方 XGrabKey 全局热键。

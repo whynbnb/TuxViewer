@@ -98,6 +98,8 @@ TuxViewer 用于回答这些问题：
 - **窗口控制动作**：置顶 / 置底、全屏、浮动 / Sticky、X11 不透明度、移动 / 调整大小、`WM_DELETE_WINDOW`、`XKillClient` 二次确认、打开可执行文件目录、复制进程信息
 - **报告与快照**：导出 HTML / Markdown / JSON（自动附带截图）；保存窗口快照到 `~/.local/state/TuxViewer/snapshots`，稍后对比新增 / 删除 / 变化字段
 - **诊断包导出**：诊断页一键导出 zip 到 `$XDG_STATE_HOME/TuxViewer/diagnostics`（默认 `~/.local/state/TuxViewer/diagnostics`），包含会话、后端状态、运行日志、全部窗口 JSON、选中窗口检视、设置、环境变量、工具检测和截图
+- **单实例 / IPC**：默认只允许一个 GUI 实例；再次启动会把 `--select`、`--tab`、`--record`、`--gui-pick-x11` 等参数转发给已运行实例。`--new-instance` 可强制打开新窗口
+- **托盘 / 快速拾取**：托盘菜单提供显示窗口、X11 点击拾取、拾取当前焦点、刷新和退出；合成器快捷键可调用 `tuxviewer --gui-pick-x11 click`
 - X11 属性支持按名称 / 类型 / 值过滤
 - **多显示器 / 输出**：显示各输出逻辑坐标、缩放、刷新率、模式和当前工作区；niri 额外显示工作区 / 列布局；提示 XWayland 与合成器坐标差异
 - **设置持久化**：窗口尺寸 / 位置、窗口筛选、筛选预设、自动刷新 / 实时事件开关、树形视图、规则选项、XRecord 过滤、界面语言保存到 `$XDG_CONFIG_HOME/TuxViewer/settings.json`（默认 `~/.config/TuxViewer/settings.json`）；**不恢复**最后选中的窗口或 Tab
@@ -149,6 +151,14 @@ TuxViewer --install-gnome-extension
 
 # 启动 GUI 并预选窗口
 TuxViewer --select xeyes
+
+# 转发给已运行实例：切换 Tab / 开始 GUI 拾取
+TuxViewer --select xeyes --tab process
+TuxViewer --gui-pick-x11 click
+TuxViewer --gui-pick drag
+
+# 强制打开新窗口（不转发）
+TuxViewer --new-instance
 
 # 强制后端
 TUXVIEWER_BACKEND=x11     TuxViewer
@@ -312,6 +322,7 @@ TuxViewer/
 │  │  ├─ LocalizationService.cs     # 中文 / English 运行时切换
 │  │  ├─ DiagnosticsBundleService.cs # 诊断包 zip 导出
 │  │  ├─ AppLog.cs                  # 内存环形日志
+│  │  ├─ SingleInstanceService.cs   # Unix socket 单实例 / IPC
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
 │  ├─ Assets/gnome-extension/       # 可选 GNOME Shell 扩展（嵌入二进制）
