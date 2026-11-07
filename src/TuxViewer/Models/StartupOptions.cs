@@ -10,6 +10,7 @@ public sealed class StartupOptions
     public int? GroupModeIndex { get; init; }
     public bool Record { get; init; }
     public bool RecordSelected { get; init; }
+    public bool EventRecord { get; init; }
     public bool AtspiLoad { get; init; }
     public bool Hotkey { get; init; }
     public PickMode? PickMode { get; init; }
@@ -28,6 +29,7 @@ public sealed class StartupOptions
             GroupModeIndex = GetIntArg(args, "--group"),
             Record = HasArg(args, "--record"),
             RecordSelected = HasArg(args, "--record-selected"),
+            EventRecord = HasArg(args, "--record-events"),
             AtspiLoad = HasArg(args, "--atspi-load"),
             Hotkey = HasArg(args, "--hotkey"),
             PickMode = ParsePickMode(GetArg(args, "--gui-pick")),

@@ -4,6 +4,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using TuxViewer.Models;
+using TuxViewer.Services;
 using TuxViewer.ViewModels;
 
 namespace TuxViewer.Views;
@@ -162,6 +163,38 @@ public partial class MainWindow : Window
     }
 
     private void RefreshDiagnostics_Click(object? sender, RoutedEventArgs e) => ViewModel?.RefreshDiagnostics();
+
+    private void ToggleEventRecording_Click(object? sender, RoutedEventArgs e) => ViewModel?.ToggleEventRecording();
+
+    private async void ExportEvents_Click(object? sender, RoutedEventArgs e)
+        => await ExportJsonlAsync("events", "tuxviewer-events", () => ViewModel?.BuildEventsJsonl() ?? "");
+
+    private async void ExportX11Events_Click(object? sender, RoutedEventArgs e)
+        => await ExportJsonlAsync("x11-events", "tuxviewer-x11-events", () => ViewModel?.BuildX11EventsJsonl() ?? "");
+
+    private async void ExportX11Protocol_Click(object? sender, RoutedEventArgs e)
+        => await ExportJsonlAsync("x11-protocol", "tuxviewer-x11-protocol", () => ViewModel?.BuildX11ProtocolJsonl() ?? "");
+
+    private async Task ExportJsonlAsync(string title, string prefix, Func<string> build)
+    {
+        if (ViewModel is null) return;
+        var file = await PickSaveAsync(
+            $"{LocalizationService.L("导出", "Export")} {title} JSONL",
+            $"{prefix}-{DateTime.Now:yyyyMMdd-HHmmss}.jsonl",
+            "jsonl",
+            "application/x-ndjson");
+        if (file is null) return;
+
+        var content = build();
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            ViewModel.SetEventStatus(LocalizationService.L("没有可导出的事件", "No events to export"));
+            return;
+        }
+
+        await File.WriteAllTextAsync(file.Path.LocalPath, content + Environment.NewLine);
+        ViewModel.SetEventStatus(LocalizationService.F("已导出 {0}", "Exported {0}", file.Name));
+    }
 
     private async void ExportDiagnosticsBundle_Click(object? sender, RoutedEventArgs e)
     {

@@ -21,6 +21,7 @@ public sealed class DiagnosticsBundleData
     public IReadOnlyList<InfoRow> SessionRows { get; init; } = [];
     public IReadOnlyList<InfoRow> RealtimeRows { get; init; } = [];
     public byte[]? ScreenshotPng { get; init; }
+    public string? EventRecordingPath { get; init; }
 }
 
 /// <summary>
@@ -73,6 +74,8 @@ public static class DiagnosticsBundleService
             "environment.txt", "commands.txt",
         };
         if (data.ScreenshotPng is { Length: > 0 }) files.Add("screenshot.png");
+        if (!string.IsNullOrWhiteSpace(data.EventRecordingPath) && File.Exists(data.EventRecordingPath))
+            files.Add("event-recording.jsonl");
 
         await using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
         using var zip = new ZipArchive(stream, ZipArchiveMode.Create);
@@ -101,6 +104,12 @@ public static class DiagnosticsBundleService
         if (data.ScreenshotPng is { Length: > 0 } png)
             await AddBytesAsync(zip, "screenshot.png", png, cancellationToken);
 
+        if (!string.IsNullOrWhiteSpace(data.EventRecordingPath) && File.Exists(data.EventRecordingPath))
+        {
+            var bytes = await File.ReadAllBytesAsync(data.EventRecordingPath, cancellationToken);
+            await AddBytesAsync(zip, "event-recording.jsonl", bytes, cancellationToken);
+        }
+
         return path;
     }
 
@@ -127,6 +136,7 @@ logs.txt               Recent runtime log messages / 最近运行日志
 environment.txt        Relevant environment variables / 相关环境变量
 commands.txt           Presence of useful tools / 常用工具检测
 screenshot.png         Selected window screenshot, when available / 可用时的选中窗口截图
+event-recording.jsonl  Current event recording, when available / 可用时的事件录制文件
 
 Privacy / 隐私
 --------------

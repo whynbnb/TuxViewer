@@ -40,6 +40,7 @@ public partial class App : Application
             if (startup.GroupModeIndex is int group)
                 viewModel.TreeGroupModeIndex = Math.Clamp(group, 0, 3);
             viewModel.AutoRecord = startup.Record;
+            viewModel.AutoEventRecord = startup.EventRecord;
             if (startup.RecordSelected) viewModel.X11RecordOnlySelected = true;
             viewModel.AutoLoadAtspi = startup.AtspiLoad;
             viewModel.AutoHotkey = startup.Hotkey;

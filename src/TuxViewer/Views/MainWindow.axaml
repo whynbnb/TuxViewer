@@ -621,23 +621,37 @@
 
               <TabItem Header="{DynamicResource Ui_Events}">
                 <Grid RowDefinitions="Auto,*,Auto" Margin="6,8,10,8">
-                  <Grid Grid.Row="0" RowDefinitions="Auto,Auto" Margin="0,0,0,6">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+                  <Grid Grid.Row="0" RowDefinitions="Auto,Auto,Auto" Margin="0,0,0,6">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                       <TextBlock Text="{DynamicResource Ui_Live_events}" Classes="section" VerticalAlignment="Center" />
                       <Border Grid.Column="1" Classes="badge accent" VerticalAlignment="Center">
                         <TextBlock Text="{Binding RealtimeSummary}" />
                       </Border>
                       <TextBlock Grid.Column="2" Text="{Binding EventCountText}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
-                      <Button Grid.Column="3" Content="{DynamicResource Ui_Clear_2}" Click="ClearEvents_Click"
+                      <Button Grid.Column="3" Content="{Binding EventRecordingButtonText}"
+                              Click="ToggleEventRecording_Click" Classes="ghost"
+                              FontSize="11" Padding="8,4"
+                              ToolTip.Tip="{DynamicResource Ui_Event_recording_hint}" />
+                      <Button Grid.Column="4" Content="{DynamicResource Ui_Export_events}"
+                              Click="ExportEvents_Click" Classes="ghost"
+                              FontSize="11" Padding="8,4" />
+                      <Button Grid.Column="5" Content="{DynamicResource Ui_Clear_2}" Click="ClearEvents_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
-                      <Button Grid.Column="4" Content="{DynamicResource Ui_Copy}" Click="CopyEvents_Click"
+                      <Button Grid.Column="6" Content="{DynamicResource Ui_Copy}" Click="CopyEvents_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
                     </Grid>
-                    <TextBlock Grid.Row="1" Classes="hint" Margin="0,6,0,0"
+                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,6,0,0">
+                      <TextBox PlaceholderText="{DynamicResource Ui_Filter_events}"
+                               Text="{Binding EventFilterText, Mode=TwoWay}" />
+                      <TextBlock Grid.Column="1" Text="{Binding EventRecordingStatus}" Classes="hint"
+                                 MaxWidth="380" TextTrimming="CharacterEllipsis"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                    <TextBlock Grid.Row="2" Classes="hint" Margin="0,6,0,0"
                                Text="{DynamicResource Ui_Live_events_come_from_X11_PropertyNotify_Configu}" />
                   </Grid>
-                  <ListBox Grid.Row="1" ItemsSource="{Binding Events}"
+                  <ListBox Grid.Row="1" ItemsSource="{Binding VisibleEvents}"
                            ItemTemplate="{StaticResource EventTemplate}">
                     <ListBox.Styles>
                       <Style Selector="ListBoxItem">
@@ -748,7 +762,7 @@
               <TabItem Header="{DynamicResource Ui_X11_events}">
                 <Grid RowDefinitions="Auto,Auto,*" Margin="6,8,10,8">
                   <Grid RowDefinitions="Auto,Auto">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                       <TextBlock Text="X11 RECORD" Classes="section" VerticalAlignment="Center" />
                       <Button Grid.Column="1" Content="{Binding X11RecordButtonText}"
                               Click="ToggleX11Record_Click" Classes="pick"
@@ -758,9 +772,16 @@
                                  TextTrimming="CharacterEllipsis" />
                       <TextBlock Grid.Column="3" Text="{Binding X11EventCountText}" Classes="muted"
                                  FontSize="11" VerticalAlignment="Center" />
-                      <Button Grid.Column="4" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Events_Click"
+                      <Button Grid.Column="4" Content="{Binding EventRecordingButtonText}"
+                              Click="ToggleEventRecording_Click" Classes="ghost"
+                              FontSize="11" Padding="8,4"
+                              ToolTip.Tip="{DynamicResource Ui_Event_recording_hint}" />
+                      <Button Grid.Column="5" Content="{DynamicResource Ui_Export_events}"
+                              Click="ExportX11Events_Click" Classes="ghost"
+                              FontSize="11" Padding="8,4" />
+                      <Button Grid.Column="6" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Events_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
-                      <Button Grid.Column="5" Content="{DynamicResource Ui_Copy}" Click="CopyX11Events_Click"
+                      <Button Grid.Column="7" Content="{DynamicResource Ui_Copy}" Click="CopyX11Events_Click"
                               Classes="ghost" FontSize="11" Padding="8,4" />
                     </Grid>
                     <WrapPanel Grid.Row="1" Margin="0,8,0,0" ItemSpacing="12" LineSpacing="5">
@@ -773,11 +794,13 @@
                       <CheckBox Content="ClientMessage" IsChecked="{Binding X11RecordClientMessage, Mode=TwoWay}" />
                       <CheckBox Content="{DynamicResource Ui_Other}" IsChecked="{Binding X11RecordOther, Mode=TwoWay}" />
                       <CheckBox Content="{DynamicResource Ui_Watch_selected_window_only}" IsChecked="{Binding X11RecordOnlySelected, Mode=TwoWay}" />
+                      <TextBox Width="260" PlaceholderText="{DynamicResource Ui_Filter_x11_events}"
+                               Text="{Binding X11EventFilterText, Mode=TwoWay}" />
                     </WrapPanel>
                   </Grid>
                   <TextBlock Grid.Row="1" Classes="hint" Margin="0,8,0,8"
                              Text="{DynamicResource Ui_Uses_the_libXtst_RECORD_extension_to_record_even}" />
-                  <ListBox Grid.Row="2" ItemsSource="{Binding X11Events}"
+                  <ListBox Grid.Row="2" ItemsSource="{Binding VisibleX11Events}"
                            ItemTemplate="{StaticResource X11RecordTemplate}">
                     <ListBox.Styles>
                       <Style Selector="ListBoxItem">
@@ -791,7 +814,7 @@
 
               <TabItem Header="{DynamicResource Ui_X11_requests}">
                 <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="6,8,10,8">
-                  <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto" ColumnSpacing="8">
+                  <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="8">
                     <TextBlock Text="X11 REQUEST / REPLY" Classes="section" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Content="{Binding X11RecordButtonText}"
                             Click="ToggleX11Record_Click" Classes="pick"
@@ -801,9 +824,16 @@
                                TextTrimming="CharacterEllipsis" />
                     <TextBlock Grid.Column="3" Text="{Binding X11ProtocolCountText}" Classes="muted"
                                FontSize="11" VerticalAlignment="Center" />
-                    <Button Grid.Column="4" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Protocol_Click"
+                    <Button Grid.Column="4" Content="{Binding EventRecordingButtonText}"
+                            Click="ToggleEventRecording_Click" Classes="ghost"
+                            FontSize="11" Padding="8,4"
+                            ToolTip.Tip="{DynamicResource Ui_Event_recording_hint}" />
+                    <Button Grid.Column="5" Content="{DynamicResource Ui_Export_events}"
+                            Click="ExportX11Protocol_Click" Classes="ghost"
+                            FontSize="11" Padding="8,4" />
+                    <Button Grid.Column="6" Content="{DynamicResource Ui_Clear_2}" Click="ClearX11Protocol_Click"
                             Classes="ghost" FontSize="11" Padding="8,4" />
-                    <Button Grid.Column="5" Content="{DynamicResource Ui_Copy}" Click="CopyX11Protocol_Click"
+                    <Button Grid.Column="7" Content="{DynamicResource Ui_Copy}" Click="CopyX11Protocol_Click"
                             Classes="ghost" FontSize="11" Padding="8,4" />
                   </Grid>
                   <WrapPanel Grid.Row="1" Margin="0,8,0,0" ItemSpacing="12" LineSpacing="5">

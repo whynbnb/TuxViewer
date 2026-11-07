@@ -179,6 +179,10 @@ internal static class LocalizationResources
         ["Ui_Message_type"] = "消息类型 atom",
         ["Ui_Send_client_message"] = "发送 ClientMessage",
         ["Ui_ClientMessage_hint"] = "直接向 X11 窗口或 root 发送 32 位 ClientMessage，例如 _NET_ACTIVE_WINDOW、_NET_CURRENT_DESKTOP。",
+        ["Ui_Export_events"] = "导出 JSONL",
+        ["Ui_Filter_events"] = "过滤 source / 类型 / 摘要 / 窗口…",
+        ["Ui_Filter_x11_events"] = "过滤类型 / 摘要 / 窗口…",
+        ["Ui_Event_recording_hint"] = "录制写入 $XDG_STATE_HOME/TuxViewer/events，包含实时事件、X11 事件和协议记录。",
     };
 
     internal static readonly IReadOnlyDictionary<string, string> English = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -357,5 +361,9 @@ internal static class LocalizationResources
         ["Ui_Message_type"] = "Message type atom",
         ["Ui_Send_client_message"] = "Send ClientMessage",
         ["Ui_ClientMessage_hint"] = "Send a 32-bit ClientMessage directly to an X11 window or root, for example _NET_ACTIVE_WINDOW or _NET_CURRENT_DESKTOP.",
+        ["Ui_Export_events"] = "Export JSONL",
+        ["Ui_Filter_events"] = "Filter source / kind / summary / window…",
+        ["Ui_Filter_x11_events"] = "Filter type / summary / window…",
+        ["Ui_Event_recording_hint"] = "Recording writes to $XDG_STATE_HOME/TuxViewer/events and includes realtime events, X11 events and protocol records.",
     };
 }

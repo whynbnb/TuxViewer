@@ -82,7 +82,8 @@ TuxViewer 用于回答这些问题：
 - **窗口层次树**：按应用 / 进程 / 工作区分组或平铺，展开 X11 toplevel 的子窗口并点击检视；支持“仅此 PID”过滤
 - **实时事件监控**：X11 `PropertyNotify` / `ConfigureNotify` / `Map` / `Destroy` / `Focus`，niri event-stream、Sway subscribe、Hyprland socket2
 - 属性变化即时刷新，并在“概览”“X11 属性”中标黄显示旧值 → 新值
-- “事件”页保留最近 800 条实时事件，可清空 / 复制
+- “事件”页保留最近 800 条实时事件，可清空 / 复制；支持按 source / 类型 / 摘要 / 窗口过滤
+- **事件持久化 / 导出**：实时事件、X11 事件和 X11 请求/回复可统一录制到 `$XDG_STATE_HOME/TuxViewer/events/*.jsonl`，每个事件带 channel 字段；各页支持搜索过滤和导出 JSONL
 - 图标优先从 `.desktop` / 图标主题解析；无法解析时显示应用首字母占位
 - **两种拾取模式**：
   - **点击拾取**：出现十字准星，悬停高亮，单击确认
@@ -147,6 +148,9 @@ TuxViewer --hotkey
 # 启动 GUI 并自动开始 X11 RECORD 录制
 TuxViewer --record --tab xrecord
 TuxViewer --record --record-selected --select xeyes
+
+# 同时把实时事件 / X11 事件 / 协议记录写入 JSONL
+TuxViewer --record --record-events --tab events
 
 # 打开 X11 请求 / 回复页
 TuxViewer --record --tab x11requests
@@ -327,6 +331,7 @@ TuxViewer/
 │  │  ├─ LocalizationService.cs     # 中文 / English 运行时切换
 │  │  ├─ DiagnosticsBundleService.cs # 诊断包 zip 导出
 │  │  ├─ AppLog.cs                  # 内存环形日志
+│  │  ├─ EventRecorderService.cs    # 事件 JSONL 录制
 │  │  ├─ SingleInstanceService.cs   # Unix socket 单实例 / IPC
 │  │  ├─ InspectorService.cs        # 检视编排 / JSON / GNOME 安装
 │  │  └─ Providers/                 # niri / Sway / Hyprland / KWin / GNOME / wlroots / X11
@@ -350,6 +355,7 @@ TuxViewer/
 - **设置持久化**：只保存偏好和窗口尺寸 / 位置，不保存最后选中的窗口、搜索词或当前 Tab；删除 `~/.config/TuxViewer/settings.json` 即可恢复默认。
 - **界面语言**：支持中文 / English 即时切换；未设置时读取 `LC_ALL` / `LC_MESSAGES` / `LANG`，以 `zh` 开头显示中文，否则显示英文。
 - **诊断包**：诊断页点击“导出诊断包”即可生成 zip；包含窗口标题和进程路径，提交前请检查隐私内容。
+- **事件录制**：录制文件位于 `$XDG_STATE_HOME/TuxViewer/events`（默认 `~/.local/state/TuxViewer/events`）；正在录制/最近一次录制会附加到诊断包中。
 - **窗口控制**：置顶 / 置底 / 不透明度 / 精确移动缩放主要面向 X11 / XWayland；Wayland 原生窗口使用各合成器的全屏、浮动、Sticky 等 IPC 能力。
 - **全局热键**：`XGrabKey` 只在 X11 会话或合成器把按键路由到 XWayland 时生效；Wayland 原生环境请使用“热键”页提供的合成器配置。XDG GlobalShortcuts portal 需要桌面 portal 后端支持，本项目不强制依赖。
 - **AT-SPI 控件树**：只有启用无障碍桥的 GTK/Qt 应用会注册到 AT-SPI；纯 X11、游戏引擎和部分 Electron 应用通常不暴露控件树。

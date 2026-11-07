@@ -65,6 +65,11 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     private int _eventCount;
     private string _eventCountText = L("0 条事件", "0 events");
     private int _changeGeneration;
+    private readonly EventRecorderService _eventRecorder = new();
+    private string _eventFilterText = "";
+    private string _x11EventFilterText = "";
+    private string _eventRecordingStatus = "";
+    private bool _isEventRecording;
     private Bitmap? _screenshotImage;
     private byte[]? _screenshotPng;
     private string _screenshotStatus = "";
@@ -191,7 +196,9 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public ObservableCollection<InfoRow> RealtimeRows { get; } = [];
     public ObservableCollection<string> WaylandProtocols { get; } = [];
     public ObservableCollection<WindowEventRecord> Events { get; } = [];
+    public ObservableCollection<WindowEventRecord> VisibleEvents { get; } = [];
     public ObservableCollection<X11RecordedEvent> X11Events { get; } = [];
+    public ObservableCollection<X11RecordedEvent> VisibleX11Events { get; } = [];
     public ObservableCollection<X11ProtocolRecord> X11ProtocolRecords { get; } = [];
     public ObservableCollection<AtspiNode> AtspiTree { get; } = [];
     public ObservableCollection<WindowSnapshot> Snapshots { get; } = [];
@@ -208,6 +215,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public string? InitialSelection { get; set; }
     public bool AutoCapture { get; set; }
     public bool AutoRecord { get; set; }
+    public bool AutoEventRecord { get; set; }
     public bool AutoLoadAtspi { get; set; }
     public bool AutoHotkey { get; set; }
     public PickMode? AutoPickMode { get; set; }
@@ -528,6 +536,56 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         private set => Set(ref _eventCountText, value);
     }
 
+    public string EventFilterText
+    {
+        get => _eventFilterText;
+        set { if (Set(ref _eventFilterText, value)) ApplyEventFilter(); }
+    }
+
+    public bool IsEventRecording
+    {
+        get => _isEventRecording;
+        private set
+        {
+            if (!Set(ref _isEventRecording, value)) return;
+            OnPropertyChanged(nameof(EventRecordingButtonText));
+        }
+    }
+
+    public string EventRecordingButtonText => _isEventRecording
+        ? L("停止录制到文件", "Stop file recording")
+        : L("录制到文件", "Record to file");
+
+    public string EventRecordingStatus
+    {
+        get => _eventRecordingStatus;
+        private set => Set(ref _eventRecordingStatus, value);
+    }
+
+    public void SetEventStatus(string message)
+    {
+        EventRecordingStatus = message;
+        StatusText = message;
+    }
+
+    public void ToggleEventRecording()
+    {
+        if (_eventRecorder.IsRecording)
+        {
+            _eventRecorder.Stop();
+            IsEventRecording = false;
+            EventRecordingStatus = LF("已停止录制：{0}", "Recording stopped: {0}", _eventRecorder.CurrentPath ?? "");
+            StatusText = L("事件录制已停止", "Event recording stopped");
+        }
+        else
+        {
+            var path = _eventRecorder.Start();
+            IsEventRecording = true;
+            EventRecordingStatus = LF("正在录制：{0}", "Recording: {0}", path);
+            StatusText = LF("事件录制已开始：{0}", "Event recording started: {0}", path);
+        }
+    }
+
     public bool HasEvents => Events.Count > 0;
     public bool HasX11Events => X11Events.Count > 0;
 
@@ -828,6 +886,12 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         private set => Set(ref _x11EventCountText, value);
     }
 
+    public string X11EventFilterText
+    {
+        get => _x11EventFilterText;
+        set { if (Set(ref _x11EventFilterText, value)) ApplyX11EventFilter(); }
+    }
+
     public bool X11RecordOnlySelected
     {
         get => _x11RecordOnlySelected;
@@ -1083,6 +1147,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         OnPropertyChanged(nameof(X11RecordStatus));
         OnPropertyChanged(nameof(X11EventCountText));
         OnPropertyChanged(nameof(X11ProtocolCountText));
+        OnPropertyChanged(nameof(EventRecordingButtonText));
         OnPropertyChanged(nameof(EventCountText));
         OnPropertyChanged(nameof(RealtimeSummary));
         OnPropertyChanged(nameof(AtspiStatus));
@@ -1129,6 +1194,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
             StartAutoRefresh();
             if (AutoCapture) await CaptureScreenshotAsync();
             if (AutoRecord) await ToggleX11RecordAsync();
+            if (AutoEventRecord) ToggleEventRecording();
             if (AutoLoadAtspi) await LoadAtspiAsync();
             if (AutoHotkey) ToggleGlobalHotkey();
             if (AutoPickMode is { } pickMode || AutoPickX11)
@@ -1531,6 +1597,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
                 SessionRows = SessionRows.ToList(),
                 RealtimeRows = RealtimeRows.ToList(),
                 ScreenshotPng = _screenshotPng,
+                EventRecordingPath = _eventRecorder.CurrentPath,
             };
 
             var path = await DiagnosticsBundleService.ExportAsync(data, CancellationToken.None);
@@ -1573,7 +1640,13 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         if (!RealtimeEnabled) return;
 
         Events.Insert(0, record);
+        _eventRecorder.Write("realtime", record);
         while (Events.Count > 800) Events.RemoveAt(Events.Count - 1);
+        if (MatchesEventFilter(record))
+        {
+            VisibleEvents.Insert(0, record);
+            while (VisibleEvents.Count > 800) VisibleEvents.RemoveAt(VisibleEvents.Count - 1);
+        }
         _eventCount++;
         EventCountText = LF("{0} 条事件", "{0} events", _eventCount);
         OnPropertyChanged(nameof(HasEvents));
@@ -1690,6 +1763,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         while (added < 1000 && _x11ProtocolQueue.TryDequeue(out var record))
         {
             _x11ProtocolAll.Add(record);
+            _eventRecorder.Write("x11-protocol", record);
             added++;
         }
 
@@ -1750,16 +1824,63 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         return sb.ToString();
     }
 
+    public string BuildX11ProtocolJsonl()
+        => string.Join(Environment.NewLine,
+            X11ProtocolRecords.Reverse().Select(record =>
+                EventRecorderService.SerializeLine("x11-protocol", record)));
+
     private void OnX11Recorded(X11RecordedEvent recorded)
         => Dispatcher.UIThread.Post(() => AddX11Event(recorded));
 
     private void AddX11Event(X11RecordedEvent recorded)
     {
         X11Events.Insert(0, recorded);
+        _eventRecorder.Write("x11-event", recorded);
         while (X11Events.Count > 2000) X11Events.RemoveAt(X11Events.Count - 1);
+        if (MatchesX11EventFilter(recorded))
+        {
+            VisibleX11Events.Insert(0, recorded);
+            while (VisibleX11Events.Count > 2000) VisibleX11Events.RemoveAt(VisibleX11Events.Count - 1);
+        }
         _x11EventCount++;
         X11EventCountText = LF("{0} 条事件", "{0} events", _x11EventCount);
         OnPropertyChanged(nameof(HasX11Events));
+    }
+
+    private void ApplyEventFilter()
+    {
+        VisibleEvents.Clear();
+        foreach (var record in Events)
+            if (MatchesEventFilter(record)) VisibleEvents.Add(record);
+    }
+
+    private void ApplyX11EventFilter()
+    {
+        VisibleX11Events.Clear();
+        foreach (var record in X11Events)
+            if (MatchesX11EventFilter(record)) VisibleX11Events.Add(record);
+    }
+
+    private bool MatchesEventFilter(WindowEventRecord record)
+    {
+        var query = _eventFilterText.Trim();
+        return query.Length == 0 ||
+               Contains(record.Source, query) ||
+               Contains(record.KindText, query) ||
+               Contains(record.Summary, query) ||
+               Contains(record.NativeId, query) ||
+               Contains(record.AppId, query);
+    }
+
+    private bool MatchesX11EventFilter(X11RecordedEvent record)
+    {
+        var query = _x11EventFilterText.Trim();
+        return query.Length == 0 ||
+               Contains(record.TypeName, query) ||
+               Contains(record.Category, query) ||
+               Contains(record.Summary, query) ||
+               Contains(record.WindowHex, query) ||
+               Contains(record.Detail, query);
     }
 
     private bool PassesX11Filter(X11RecordedEvent recorded)
@@ -1844,6 +1965,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ClearX11Events()
     {
         X11Events.Clear();
+        VisibleX11Events.Clear();
         _x11EventCount = 0;
         X11EventCountText = L("0 条事件", "0 events");
         OnPropertyChanged(nameof(HasX11Events));
@@ -1851,14 +1973,20 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string BuildX11EventsText()
     {
-        if (X11Events.Count == 0) return L("TuxViewer X11 RECORD 事件（空）", "TuxViewer X11 RECORD events (empty)");
+        if (VisibleX11Events.Count == 0)
+            return L("TuxViewer X11 RECORD 事件（空）", "TuxViewer X11 RECORD events (empty)");
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine(LF("TuxViewer X11 RECORD 事件 · {0} 条 · {1}", "TuxViewer X11 RECORD events · {0} · {1}", X11Events.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+        sb.AppendLine(LF("TuxViewer X11 RECORD 事件 · {0} 条 · {1}", "TuxViewer X11 RECORD events · {0} · {1}", VisibleX11Events.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
         sb.AppendLine(new string('─', 60));
-        foreach (var record in X11Events.Reverse())
+        foreach (var record in VisibleX11Events.Reverse())
             sb.AppendLine(record.DisplayText);
         return sb.ToString();
     }
+
+    public string BuildX11EventsJsonl()
+        => string.Join(Environment.NewLine,
+            VisibleX11Events.Reverse().Select(record =>
+                EventRecorderService.SerializeLine("x11-event", record)));
 
     public void ToggleGlobalHotkey()
     {
@@ -2343,6 +2471,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
     public void ClearEvents()
     {
         Events.Clear();
+        VisibleEvents.Clear();
         _eventCount = 0;
         EventCountText = L("0 条事件", "0 events");
         OnPropertyChanged(nameof(HasEvents));
@@ -2350,14 +2479,19 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
 
     public string BuildEventsText()
     {
-        if (Events.Count == 0) return L("TuxViewer 实时事件（空）", "TuxViewer live events (empty)");
+        if (VisibleEvents.Count == 0) return L("TuxViewer 实时事件（空）", "TuxViewer live events (empty)");
         var sb = new System.Text.StringBuilder();
-        sb.AppendLine(LF("TuxViewer 实时事件 · {0} 条 · {1}", "TuxViewer live events · {0} · {1}", Events.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+        sb.AppendLine(LF("TuxViewer 实时事件 · {0} 条 · {1}", "TuxViewer live events · {0} · {1}", VisibleEvents.Count, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
         sb.AppendLine(new string('─', 60));
-        foreach (var record in Events.Reverse())
+        foreach (var record in VisibleEvents.Reverse())
             sb.AppendLine(record.DisplayText);
         return sb.ToString();
     }
+
+    public string BuildEventsJsonl()
+        => string.Join(Environment.NewLine,
+            VisibleEvents.Reverse().Select(record =>
+                EventRecorderService.SerializeLine("realtime", record)));
 
 
     private async void OnAutoRefreshTick(object? sender, EventArgs e)
@@ -2375,6 +2509,7 @@ public sealed class MainWindowViewModel : INotifyPropertyChanged
         _inspectCts?.Cancel();
         _eventDebounceCts?.Cancel();
         _monitor.Dispose();
+        _eventRecorder.Dispose();
         _x11EventMonitor.Dispose();
         _globalHotkey.Dispose();
         _forceKillResetCts?.Cancel();
